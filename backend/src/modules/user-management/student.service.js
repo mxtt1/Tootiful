@@ -1,5 +1,6 @@
 import { Student } from './user.model.js';
 import bcrypt from 'bcrypt';
+import gradeLevelEnum from '../../util/enum/gradeLevelEnum.js';
 
 class StudentService {
   // Route handler methods with complete HTTP response logic
@@ -9,9 +10,16 @@ class StudentService {
       const options = { page, limit };
 
       if (gradeLevel) {
+        // Validate gradeLevel parameter
+        if (!gradeLevelEnum.isValidLevel(gradeLevel)) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid grade level. Must be one of the predefined grade levels.`
+          });
+        }
+        
         const result = await this.getStudentsByGradeLevel(gradeLevel, options);
         return res.status(200).json({
-          success: true,
           data: result.rows,
           pagination: {
             total: result.count,
@@ -30,7 +38,6 @@ class StudentService {
       }
 
       res.status(200).json({
-        success: true,
         data: result.rows,
         pagination: {
           total: result.count,
@@ -52,10 +59,7 @@ class StudentService {
       const { id } = req.params;
       const student = await this.getStudentById(id);
       
-      res.status(200).json({
-        success: true,
-        data: student
-      });
+      res.status(200).json(student);
     } catch (error) {
       const statusCode = error.message.includes('not found') ? 404 : 500;
       res.status(statusCode).json({
@@ -73,11 +77,7 @@ class StudentService {
       // Remove password from response
       const { password, ...studentResponse } = newStudent.toJSON();
       
-      res.status(201).json({
-        success: true,
-        data: studentResponse,
-        message: 'Student created successfully'
-      });
+      res.status(201).json(studentResponse);
     } catch (error) {
       // Handle Sequelize validation errors
       if (error.name === 'SequelizeValidationError') {
@@ -100,11 +100,7 @@ class StudentService {
       const { email, password } = req.body;
       const student = await this.authenticateStudent(email, password);
       
-      res.status(200).json({
-        success: true,
-        data: student,
-        message: 'Student authenticated successfully'
-      });
+      res.status(200).json(student);
     } catch (error) {
       res.status(401).json({
         success: false,
@@ -131,11 +127,7 @@ class StudentService {
       // Remove password from response
       const { password, ...studentResponse } = updatedStudent.toJSON();
       
-      res.status(200).json({
-        success: true,
-        data: studentResponse,
-        message: 'Student updated successfully'
-      });
+      res.status(200).json(studentResponse);
     } catch (error) {
       const statusCode = error.message.includes('not found') ? 404 : 
                         error.message.includes('already exists') ? 409 : 400;
@@ -153,10 +145,7 @@ class StudentService {
       
       await this.changePassword(id, currentPassword, newPassword);
       
-      res.status(200).json({
-        success: true,
-        message: 'Password updated successfully'
-      });
+      res.status(200).json();
     } catch (error) {
       // Handle Sequelize validation errors
       if (error.name === 'SequelizeValidationError') {
@@ -180,10 +169,7 @@ class StudentService {
       const { id } = req.params;
       const result = await this.deleteStudent(id);
       
-      res.status(200).json({
-        success: true,
-        message: result.message
-      });
+      res.status(200).json();
     } catch (error) {
       const statusCode = error.message.includes('not found') ? 404 : 500;
       res.status(statusCode).json({
@@ -198,11 +184,7 @@ class StudentService {
       const { id } = req.params;
       const updatedStudent = await this.deactivateStudent(id);
       
-      res.status(200).json({
-        success: true,
-        data: updatedStudent,
-        message: 'Student deactivated successfully'
-      });
+      res.status(200).json(updatedStudent);
     } catch (error) {
       const statusCode = error.message.includes('not found') ? 404 : 500;
       res.status(statusCode).json({

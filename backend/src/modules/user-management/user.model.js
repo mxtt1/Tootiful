@@ -1,6 +1,8 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../../config/database.js';
 import bcrypt from 'bcrypt';
+import experienceLevelEnum from '../../util/enum/experienceLevelEnum.js';
+import gradeLevelEnum from '../../util/enum/gradeLevelEnum.js';
 
 // Student Model
 const Student = sequelize.define('Student', {
@@ -48,9 +50,16 @@ const Student = sequelize.define('Student', {
     }
   },
   gradeLevel: {
-    type: DataTypes.STRING(20),
+    type: DataTypes.ENUM(...gradeLevelEnum.getAllLevels()),
     allowNull: true,
-    comment: 'e.g. Primary 6, Secondary 1, Grade 10'
+    validate: {
+      isValidGrade(value) {
+        if (value && !gradeLevelEnum.isValidLevel(value)) {
+          throw new Error(`Grade level must be one of the predefined values`);
+        }
+      }
+    },
+    comment: 'Student grade level - Primary, Secondary, JC, International, etc.'
   },
   isActive: {
     type: DataTypes.BOOLEAN,
@@ -204,9 +213,17 @@ const TutorSubject = sequelize.define('TutorSubject', {
     onDelete: 'CASCADE'
   },
   experienceLevel: {
-    type: DataTypes.ENUM('beginner', 'intermediate', 'advanced', 'expert'),
+    type: DataTypes.ENUM(...experienceLevelEnum.getAllLevels()),
     allowNull: false,
-    defaultValue: 'intermediate'
+    defaultValue: experienceLevelEnum.INTERMEDIATE,
+    validate: {
+      isValidLevel(value) {
+        if (!experienceLevelEnum.isValidLevel(value)) {
+          throw new Error(`Experience level must be one of: ${experienceLevelEnum.getAllLevels().join(', ')}`);
+        }
+      }
+    },
+    comment: 'Tutor experience level for this subject'
   }
 }, {
   tableName: 'tutor_subjects',

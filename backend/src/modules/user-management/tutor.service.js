@@ -2,6 +2,7 @@ import { Tutor, Subject, TutorSubject } from './user.model.js';
 import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
 import bcrypt from 'bcrypt';
+import experienceLevelEnum from '../../util/enum/experienceLevelEnum.js';
 
 class TutorService {
   // Route handler methods with complete HTTP response logic
@@ -22,11 +23,10 @@ class TutorService {
       
       // Search by subject and experience
       if (subject && experience) {
-        const validExperiences = ['beginner', 'intermediate', 'advanced', 'expert'];
-        if (!validExperiences.includes(experience)) {
+        if (!experienceLevelEnum.isValidLevel(experience)) {
           return res.status(400).json({
             success: false,
-            message: 'Experience must be one of: beginner, intermediate, advanced, expert'
+            message: `Experience must be one of: ${experienceLevelEnum.getAllLevels().join(', ')}`
           });
         }
         result = await this.searchTutorsBySubjectAndExperience(subject, experience, options);
@@ -53,7 +53,6 @@ class TutorService {
       }
 
       res.status(200).json({
-        success: true,
         data: result.rows,
         pagination: {
           total: result.count,
@@ -74,15 +73,14 @@ class TutorService {
     try {
       const { id } = req.params;
       const tutor = await this.getTutorById(id);
+
+      // Remove password from response and convert to plain js object
+      const { password, ...tutorResponse } = tutor.toJSON();
       
-      res.status(200).json({
-        success: true,
-        data: tutor
-      });
+      res.status(200).json(tutorResponse);
     } catch (error) {
       const statusCode = error.message.includes('not found') ? 404 : 500;
       res.status(statusCode).json({
-        success: false,
         message: error.message
       });
     }
@@ -96,11 +94,7 @@ class TutorService {
       // Remove password from response
       const { password, ...tutorResponse } = newTutor.toJSON();
       
-      res.status(201).json({
-        success: true,
-        data: tutorResponse,
-        message: 'Tutor created successfully'
-      });
+      res.status(201).json(tutorResponse);
     } catch (error) {
       // Handle Sequelize validation errors
       if (error.name === 'SequelizeValidationError') {
@@ -123,11 +117,7 @@ class TutorService {
       const { email, password } = req.body;
       const tutor = await this.authenticateTutor(email, password);
       
-      res.status(200).json({
-        success: true,
-        data: tutor,
-        message: 'Tutor authenticated successfully'
-      });
+      res.status(200).json(tutor);
     } catch (error) {
       res.status(401).json({
         success: false,
@@ -154,11 +144,7 @@ class TutorService {
       // Remove password from response
       const { password, ...tutorResponse } = updatedTutor.toJSON();
       
-      res.status(200).json({
-        success: true,
-        data: tutorResponse,
-        message: 'Tutor updated successfully'
-      });
+      res.status(200).json(tutorResponse);
     } catch (error) {
       const statusCode = error.message.includes('not found') ? 404 : 
                         error.message.includes('already exists') ? 409 : 400;
@@ -176,10 +162,7 @@ class TutorService {
       
       await this.changePassword(id, currentPassword, newPassword);
       
-      res.status(200).json({
-        success: true,
-        message: 'Password updated successfully'
-      });
+      res.status(200).json();
     } catch (error) {
       // Handle Sequelize validation errors
       if (error.name === 'SequelizeValidationError') {
@@ -203,10 +186,7 @@ class TutorService {
       const { id } = req.params;
       const result = await this.deleteTutor(id);
       
-      res.status(200).json({
-        success: true,
-        message: result.message
-      });
+      res.status(200).json();
     } catch (error) {
       const statusCode = error.message.includes('not found') ? 404 : 500;
       res.status(statusCode).json({
@@ -221,11 +201,7 @@ class TutorService {
       const { id } = req.params;
       const updatedTutor = await this.deactivateTutor(id);
       
-      res.status(200).json({
-        success: true,
-        data: updatedTutor,
-        message: 'Tutor deactivated successfully'
-      });
+      res.status(200).json(updatedTutor);
     } catch (error) {
       const statusCode = error.message.includes('not found') ? 404 : 500;
       res.status(statusCode).json({
@@ -239,10 +215,7 @@ class TutorService {
     try {
       const subjects = await this.getAllSubjects();
       
-      res.status(200).json({
-        success: true,
-        data: subjects
-      });
+      res.status(200).json(subjects);
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -256,11 +229,7 @@ class TutorService {
       const subjectData = req.body;
       const newSubject = await this.createSubject(subjectData);
       
-      res.status(201).json({
-        success: true,
-        data: newSubject,
-        message: 'Subject created successfully'
-      });
+      res.status(201).json(newSubject);
     } catch (error) {
       res.status(400).json({
         success: false,

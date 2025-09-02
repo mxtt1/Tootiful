@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import sequelize from './config/database.js';
 import studentRoutes from './modules/user-management/student.routes.js';
 import tutorRoutes from './modules/user-management/tutor.routes.js';
-import { seedSubjects } from './seeders/seed-subjects.js';
+import { seedSubjects } from './util/seed-subjects.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 
