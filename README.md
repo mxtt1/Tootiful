@@ -17,3 +17,5 @@
 7) npm run test --> The server should be running on whichever port you specified in the .env file
 
 NOTE: JWT authentication is not set up yet. The student and tutor login endpoints exist with email and password validation, but they dont actually do anything on successful login except return a success status.
+
+For frontend please create a separate frontend folder and set up a React App (probably using VITE)
