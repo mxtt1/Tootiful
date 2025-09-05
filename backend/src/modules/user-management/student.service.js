@@ -1,354 +1,215 @@
 import { Student } from './user.model.js';
+import { Op } from 'sequelize';
 import bcrypt from 'bcrypt';
 import gradeLevelEnum from '../../util/enum/gradeLevelEnum.js';
 
 class StudentService {
-  // Route handler methods with complete HTTP response logic
-  async handleGetAllStudents(req, res) {
-    try {
-      const { page = 1, limit = 10, active, gradeLevel } = req.query;
-      const options = { page, limit };
+    // Route handler methods with complete HTTP response logic
+    async handleGetAllStudents(req, res) {
+        const { page = 1, limit = 10, active, gradeLevel } = req.query;
 
-      if (gradeLevel) {
-        // Validate gradeLevel parameter
-        if (!gradeLevelEnum.isValidLevel(gradeLevel)) {
-          return res.status(400).json({
-            success: false,
-            message: `Invalid grade level. Must be one of the predefined grade levels.`
-          });
+        // Handle multivalued parameters - convert to arrays if needed
+        const gradeLevels = Array.isArray(gradeLevel) ? gradeLevel : (gradeLevel ? [gradeLevel] : []);
+
+        // Validate grade levels if provided
+        if (gradeLevels.length > 0) {
+            const invalidLevels = gradeLevels.filter(level => !gradeLevelEnum.isValidLevel(level));
+            if (invalidLevels.length > 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Invalid grade levels: ${invalidLevels.join(', ')}`
+                });
+            }
         }
-        
-        const result = await this.getStudentsByGradeLevel(gradeLevel, options);
-        return res.status(200).json({
-          data: result.rows,
-          pagination: {
-            total: result.count,
-            page: parseInt(page),
+
+        const result = await this.getStudents({ page, limit, active, gradeLevels });
+
+        res.status(200).json({
+            data: result.rows,
+            pagination: {
+                total: result.count,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(result.count / limit)
+            }
+        });
+    }
+
+    async handleGetStudentById(req, res) {
+        const { id } = req.params;
+        const student = await this.getStudentById(id);
+
+        // Manual password sanitization
+        const { password, ...studentResponse } = student.toJSON();
+
+        res.status(200).json(studentResponse);
+    }
+
+    async handleCreateStudent(req, res) {
+        const studentData = req.body;
+        const newStudent = await this.createStudent(studentData);
+
+        // Remove password from response
+        const { password, ...studentResponse } = newStudent.toJSON();
+
+        res.status(201).json(studentResponse);
+    }
+
+    async handleStudentLogin(req, res) {
+        const { email, password } = req.body;
+        const student = await this.authenticateStudent(email, password);
+
+        res.status(200).json(student); // to be replaced by signed JWT
+    }
+
+    async handleUpdateStudent(req, res) {
+        const { id } = req.params;
+        const updateData = req.body;
+
+        // Prevent password updates through this route
+        if (updateData.password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Use the password change endpoint to update passwords'
+            });
+        }
+
+        const updatedStudent = await this.updateStudent(id, updateData);
+
+        // Remove password from response
+        const { password, ...studentResponse } = updatedStudent.toJSON();
+
+        res.status(200).json(studentResponse);
+    }
+
+    async handleChangePassword(req, res) {
+        const { id } = req.params;
+        const { currentPassword, newPassword } = req.body;
+
+        await this.changePassword(id, currentPassword, newPassword);
+
+        res.sendStatus(200);
+    }
+
+    async handleDeleteStudent(req, res) {
+        const { id } = req.params;
+        await this.deleteStudent(id);
+
+        res.sendStatus(200);
+    }
+
+    async handleDeactivateStudent(req, res) {
+        const { id } = req.params;
+        await this.deactivateStudent(id);
+
+        res.sendStatus(200);
+    }
+
+    // Business logic methods
+    async createStudent(studentData) {
+        // Check if email already exists
+        const existingStudent = await Student.findOne({ where: { email: studentData.email } });
+        if (existingStudent) {
+            throw new Error('Student with this email already exists');
+        }
+
+        return await Student.create(studentData);
+    }
+
+    async getStudents(options = {}) {
+        const { page = 1, limit = 10, gradeLevels = [], active } = options;
+        const offset = (page - 1) * limit;
+
+        // Build where clause dynamically
+        const where = {};
+
+        // Handle multiple grade levels
+        if (gradeLevels.length > 0) {
+            if (gradeLevels.length === 1) {
+                where.gradeLevel = gradeLevels[0];
+            } else {
+                where.gradeLevel = {
+                    [Op.in]: gradeLevels
+                };
+            }
+        }
+
+        // Filter by active status
+        if (active !== undefined) {
+            where.isActive = active === 'true' || active === true;
+        }
+
+        return await Student.findAndCountAll({
+            attributes: { exclude: ['password'] },
+            where,
             limit: parseInt(limit),
-            totalPages: Math.ceil(result.count / limit)
-          }
+            offset: parseInt(offset),
+            order: [['createdAt', 'DESC']]
         });
-      }
+    }
 
-      let result;
-      if (active === 'true') {
-        result = await this.getActiveStudents(options);
-      } else {
-        result = await this.getAllStudents(options);
-      }
-
-      res.status(200).json({
-        data: result.rows,
-        pagination: {
-          total: result.count,
-          page: parseInt(page),
-          limit: parseInt(limit),
-          totalPages: Math.ceil(result.count / limit)
+    async getStudentById(id) {
+        const student = await Student.findByPk(id);
+        if (!student) {
+            throw new Error('Student not found');
         }
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: error.message
-      });
+        return student;
     }
-  }
 
-  async handleGetStudentById(req, res) {
-    try {
-      const { id } = req.params;
-      const student = await this.getStudentById(id);
-      
-      res.status(200).json(student);
-    } catch (error) {
-      const statusCode = error.message.includes('not found') ? 404 : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: error.message
-      });
+    async getStudentByEmail(email) {
+        return await Student.findOne({ where: { email } });
     }
-  }
 
-  async handleCreateStudent(req, res) {
-    try {
-      const studentData = req.body;
-      const newStudent = await this.createStudent(studentData);
-      
-      // Remove password from response
-      const { password, ...studentResponse } = newStudent.toJSON();
-      
-      res.status(201).json(studentResponse);
-    } catch (error) {
-      // Handle Sequelize validation errors
-      if (error.name === 'SequelizeValidationError') {
-        return res.status(400).json({
-          success: false,
-          message: error.errors.map(e => e.message).join(', ')
-        });
-      }
-      
-      const statusCode = error.message.includes('already exists') ? 409 : 400;
-      res.status(statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  async handleStudentLogin(req, res) {
-    try {
-      const { email, password } = req.body;
-      const student = await this.authenticateStudent(email, password);
-      
-      res.status(200).json(student);
-    } catch (error) {
-      res.status(401).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  async handleUpdateStudent(req, res) {
-    try {
-      const { id } = req.params;
-      const updateData = req.body;
-      
-      // Prevent password updates through this route
-      if (updateData.password) {
-        return res.status(400).json({
-          success: false,
-          message: 'Use the password change endpoint to update passwords'
-        });
-      }
-      
-      const updatedStudent = await this.updateStudent(id, updateData);
-      
-      // Remove password from response
-      const { password, ...studentResponse } = updatedStudent.toJSON();
-      
-      res.status(200).json(studentResponse);
-    } catch (error) {
-      const statusCode = error.message.includes('not found') ? 404 : 
-                        error.message.includes('already exists') ? 409 : 400;
-      res.status(statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  async handleChangePassword(req, res) {
-    try {
-      const { id } = req.params;
-      const { currentPassword, newPassword } = req.body;
-      
-      await this.changePassword(id, currentPassword, newPassword);
-      
-      res.status(200).json();
-    } catch (error) {
-      // Handle Sequelize validation errors
-      if (error.name === 'SequelizeValidationError') {
-        return res.status(400).json({
-          success: false,
-          message: error.errors.map(e => e.message).join(', ')
-        });
-      }
-      
-      const statusCode = error.message.includes('not found') ? 404 : 
-                        error.message.includes('incorrect') ? 400 : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  async handleDeleteStudent(req, res) {
-    try {
-      const { id } = req.params;
-      const result = await this.deleteStudent(id);
-      
-      res.status(200).json();
-    } catch (error) {
-      const statusCode = error.message.includes('not found') ? 404 : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  async handleDeactivateStudent(req, res) {
-    try {
-      const { id } = req.params;
-      const updatedStudent = await this.deactivateStudent(id);
-      
-      res.status(200).json(updatedStudent);
-    } catch (error) {
-      const statusCode = error.message.includes('not found') ? 404 : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  // Business logic methods
-  async createStudent(studentData) {
-    try {
-      // Check if email already exists
-      const existingStudent = await Student.findOne({ where: { email: studentData.email } });
-      if (existingStudent) {
-        throw new Error('Student with this email already exists');
-      }
-
-      return await Student.create(studentData);
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async getAllStudents(options = {}) {
-    try {
-      const { page = 1, limit = 10, where = {} } = options;
-      const offset = (page - 1) * limit;
-      
-      return await Student.findAndCountAll({
-        where,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        order: [['createdAt', 'DESC']]
-      });
-    } catch (error) {
-      throw new Error(`Error fetching students: ${error.message}`);
-    }
-  }
-
-  async getStudentById(id) {
-    try {
-      const student = await Student.findByPk(id);
-      if (!student) {
-        throw new Error('Student not found');
-      }
-      return student;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async getStudentByEmail(email) {
-    try {
-      return await Student.findOne({ where: { email } });
-    } catch (error) {
-      throw new Error(`Error finding student by email: ${error.message}`);
-    }
-  }
-
-  async updateStudent(id, updateData) {
-    try {
-      // If email is being updated, check if it already exists
-      if (updateData.email) {
-        const existingStudent = await Student.findOne({ where: { email: updateData.email } });
-        if (existingStudent && existingStudent.id !== parseInt(id)) {
-          throw new Error('Email already exists for another student');
+    async updateStudent(id, updateData) {
+        // If email is being updated, check if it already exists
+        if (updateData.email) {
+            const existingStudent = await Student.findOne({ where: { email: updateData.email } });
+            if (existingStudent && existingStudent.id !== parseInt(id)) {
+                throw new Error('Email already exists for another student');
+            }
         }
-      }
 
-      const student = await this.getStudentById(id);
-      return await student.update(updateData);
-    } catch (error) {
-      throw error;
+        const student = await this.getStudentById(id);
+        return await student.update(updateData);
     }
-  }
 
-  async deleteStudent(id) {
-    try {
-      const student = await this.getStudentById(id);
-      await student.destroy();
-      return { message: 'Student deleted successfully' };
-    } catch (error) {
-      throw error;
+    async deleteStudent(id) {
+        const student = await this.getStudentById(id);
+        await student.destroy();
     }
-  }
 
-  async deactivateStudent(id) {
-    try {
-      return await this.updateStudent(id, { isActive: false });
-    } catch (error) {
-      throw error;
+    async deactivateStudent(id) {
+        return await this.updateStudent(id, { isActive: false });
     }
-  }
 
-  async getActiveStudents(options = {}) {
-    try {
-      const searchOptions = {
-        ...options,
-        where: { ...options.where, isActive: true }
-      };
-      return await this.getAllStudents(searchOptions);
-    } catch (error) {
-      throw error;
+    async authenticateStudent(email, password) {
+        const student = await this.getStudentByEmail(email);
+        if (!student) {
+            throw new Error('Invalid email or password');
+        }
+
+        const isValidPassword = await bcrypt.compare(password, student.password);
+        if (!isValidPassword) {
+            throw new Error('Invalid email or password');
+        }
+
+        // Return student without password
+        const { password: _, ...studentData } = student.toJSON();
+        return studentData;
     }
-  }
 
-  async getStudentsByGradeLevel(gradeLevel, options = {}) {
-    try {
-      const searchOptions = {
-        ...options,
-        where: { ...options.where, gradeLevel }
-      };
-      return await this.getAllStudents(searchOptions);
-    } catch (error) {
-      throw error;
+    async changePassword(studentId, currentPassword, newPassword) {
+        const student = await this.getStudentById(studentId);
+
+        // Verify current password
+        const isValidCurrentPassword = await bcrypt.compare(currentPassword, student.password);
+        if (!isValidCurrentPassword) {
+            throw new Error('Current password is incorrect');
+        }
+
+        // Update with new password (will be automatically hashed by model hook)
+        return await student.update({ password: newPassword });
     }
-  }
-
-  async validatePassword(studentId, plainPassword) {
-    try {
-      const student = await this.getStudentById(studentId);
-      return await bcrypt.compare(plainPassword, student.password);
-    } catch (error) {
-      throw new Error(`Error validating password: ${error.message}`);
-    }
-  }
-
-  async authenticateStudent(email, password) {
-    try {
-      const student = await this.getStudentByEmail(email);
-      if (!student) {
-        throw new Error('Invalid email or password');
-      }
-
-      const isValidPassword = await bcrypt.compare(password, student.password);
-      if (!isValidPassword) {
-        throw new Error('Invalid email or password');
-      }
-
-      // Return student without password
-      const { password: _, ...studentData } = student.toJSON();
-      return studentData;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async changePassword(studentId, currentPassword, newPassword) {
-    try {
-      const student = await this.getStudentById(studentId);
-      
-      // Verify current password
-      const isValidCurrentPassword = await bcrypt.compare(currentPassword, student.password);
-      if (!isValidCurrentPassword) {
-        throw new Error('Current password is incorrect');
-      }
-
-      // Update with new password (will be automatically hashed by model hook)
-      return await student.update({ password: newPassword });
-    } catch (error) {
-      throw error;
-    }
-  }
 }
 
 export default new StudentService();
