@@ -1,19 +1,11 @@
 import { View, Text, StyleSheet } from "react-native";
 import { Link } from "expo-router";
 
-export default function Home() {
-    return (
+export default function editTutor() {
+    return ( 
         <View style={styles.container}>
             <Text style={styles.title}>Hello World 👋</Text>
-            <Text style={styles.subtitle}>I love home.</Text>
-
-            {/* Navigation Links */}
-            <Link href="/screens/editTutor" style={styles.link}>
-                Go to Edit Tutor
-            </Link>
-            <Link href="/screens/editStudent" style={styles.link}>
-                Go to Edit Student
-            </Link>
+            <Text style={styles.subtitle}>I love editTutor.</Text>
         </View>
     );
 }
