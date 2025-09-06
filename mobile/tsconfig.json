@@ -3,12 +3,12 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"]
     }
   },
   "include": [
+    "**/*.js",
+    "**/*.jsx",
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
