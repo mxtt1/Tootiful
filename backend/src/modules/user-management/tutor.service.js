@@ -3,7 +3,7 @@ import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
 import bcrypt from 'bcrypt';
 
-class TutorService {
+export default class TutorService {
     // Route handler methods with complete HTTP response logic
     async handleGetAllTutors(req, res) {
         const {
@@ -56,13 +56,6 @@ class TutorService {
         const { password, ...tutorResponse } = newTutor.toJSON();
 
         res.status(201).json(tutorResponse);
-    }
-
-    async handleTutorLogin(req, res) {
-        const { email, password } = req.body;
-        const tutor = await this.authenticateTutor(email, password);
-
-        res.status(200).json(tutor); //replace with signed JWT
     }
 
     async handleUpdateTutor(req, res) {
@@ -395,5 +388,3 @@ class TutorService {
         return await tutor.update({ password: newPassword });
     }
 }
-
-export default new TutorService();

@@ -1,8 +1,10 @@
 import express from 'express';
-import studentService from './student.service.js';
+import StudentService from './student.service.js';
 import { asyncHandler } from '../../middleware/errorHandler.js';
 
 const router = express.Router();
+
+const studentService = new StudentService();
 
 // GET /api/students - Get all students
 router.get('/', asyncHandler(studentService.handleGetAllStudents.bind(studentService)));
@@ -12,9 +14,6 @@ router.get('/:id', asyncHandler(studentService.handleGetStudentById.bind(student
 
 // POST /api/students - Create new student
 router.post('/', asyncHandler(studentService.handleCreateStudent.bind(studentService)));
-
-// POST /api/students/login - Student login
-router.post('/login', asyncHandler(studentService.handleStudentLogin.bind(studentService)));
 
 // PATCH /api/students/:id - Update student (partial)
 router.patch('/:id', asyncHandler(studentService.handleUpdateStudent.bind(studentService)));

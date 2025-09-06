@@ -69,6 +69,7 @@ const Student = sequelize.define('Student', {
 }, {
   tableName: 'students',
   timestamps: true,
+  paranoid: true,
   hooks: {
     beforeCreate: async (student) => {
       if (student.password) {
@@ -147,6 +148,7 @@ const Tutor = sequelize.define('Tutor', {
 }, {
   tableName: 'tutors',
   timestamps: true,
+  paranoid: true,
   hooks: {
     beforeCreate: async (tutor) => {
       if (tutor.password) {

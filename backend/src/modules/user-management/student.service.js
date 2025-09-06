@@ -55,13 +55,6 @@ class StudentService {
         res.status(201).json(studentResponse);
     }
 
-    async handleStudentLogin(req, res) {
-        const { email, password } = req.body;
-        const student = await this.authenticateStudent(email, password);
-
-        res.status(200).json(student); // to be replaced by signed JWT
-    }
-
     async handleUpdateStudent(req, res) {
         const { id } = req.params;
         const updateData = req.body;
@@ -212,4 +205,4 @@ class StudentService {
     }
 }
 
-export default new StudentService();
+export default StudentService;

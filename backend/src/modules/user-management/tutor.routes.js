@@ -1,8 +1,10 @@
 import express from 'express';
-import tutorService from './tutor.service.js';
-import asyncHandler from '../../middleware/asyncHandler.js';
+import TutorService from './tutor.service.js';
+import { asyncHandler } from '../../middleware/errorHandler.js';
 
 const router = express.Router();
+
+const tutorService = new TutorService();
 
 // GET /api/tutors - Get all tutors with optional filters
 router.get('/', asyncHandler(tutorService.handleGetAllTutors.bind(tutorService)));
@@ -12,9 +14,6 @@ router.get('/:id', asyncHandler(tutorService.handleGetTutorById.bind(tutorServic
 
 // POST /api/tutors - Create new tutor
 router.post('/', asyncHandler(tutorService.handleCreateTutor.bind(tutorService)));
-
-// POST /api/tutors/login - Tutor login
-router.post('/login', asyncHandler(tutorService.handleTutorLogin.bind(tutorService)));
 
 // PATCH /api/tutors/:id - Update tutor (partial)
 router.patch('/:id', asyncHandler(tutorService.handleUpdateTutor.bind(tutorService)));
