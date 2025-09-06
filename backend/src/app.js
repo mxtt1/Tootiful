@@ -1,8 +1,10 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import cookieParser from 'cookie-parser';
 import sequelize from './config/database.js';
 import studentRoutes from './modules/user-management/student.routes.js';
 import tutorRoutes from './modules/user-management/tutor.routes.js';
+import authRoutes from './modules/user-management/auth.routes.js';
 import { seedSubjects } from './util/seed-subjects.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -17,6 +19,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser()); // Add cookie parser middleware
 
 // CORS middleware (allow all origins for now)
 app.use((req, res, next) => {
@@ -33,6 +36,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/students', studentRoutes);
 app.use('/api/tutors', tutorRoutes);
+app.use('/api/auth', authRoutes);
 
 // Global Error Handler Middleware
 app.use(errorHandler);
@@ -43,15 +47,6 @@ app.get('/health', (req, res) => {
     success: true,
     message: 'Server is running',
     timestamp: new Date().toISOString()
-  });
-});
-
-// Error handling middleware
-app.use((error, req, res, next) => {
-  console.error('Error:', error);
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error'
   });
 });
 

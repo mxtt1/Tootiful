@@ -6,60 +6,25 @@ http://localhost:3000/api
 ```
 
 ## Authentication
-- Passwords are automatically hashed using bcrypt
-- Login endpoints return user data without password field
-- Password changes require current password verification
+
+The API uses **JWT-based authentication** with **HTTP-only cookies** for refresh tokens:
+
+- **Access Tokens**: Short-lived JWT tokens (15 minutes) sent in Authorization header
+- **Refresh Tokens**: Long-lived opaque tokens (7 days) stored in HTTP-only cookies
+- **Password Security**: All passwords are hashed using bcrypt with 12 salt rounds
+
+### Authentication Flow:
+1. Login to get access token (refresh token set automatically in cookie)
+2. Use access token in `Authorization: Bearer <token>` header for protected routes
+3. When access token expires, call `/auth/refresh` (cookie sent automatically)
+4. Logout to revoke tokens
 
 ---
 
-## Student Endpoints
+## Authentication Endpoints
 
-### 1. Create Student
-**POST** `/students`
-
-#### Request Body:
-```json
-{
-  "firstName": "John",
-  "lastName": "Doe",
-  "email": "john.doe@example.com",
-  "password": "securePassword123",
-  "phone": "12345678",
-  "gradeLevel": "Grade 10"
-}
-```
-
-#### Response (201 Created):
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "firstName": "John",
-    "lastName": "Doe",
-    "email": "john.doe@example.com",
-    "phone": "12345678",
-    "gradeLevel": "Grade 10",
-    "isActive": true,
-    "createdAt": "2025-09-02T10:30:00.000Z",
-    "updatedAt": "2025-09-02T10:30:00.000Z"
-  },
-  "message": "Student created successfully"
-}
-```
-
-#### Validation Rules:
-- `firstName`: Required, 2-50 characters
-- `lastName`: Required, 2-50 characters
-- `email`: Required, valid email format, unique
-- `password`: Required, 6-255 characters
-- `phone`: Optional, 8 characters
-- `gradeLevel`: Optional string
-
----
-
-### 2. Student Login
-**POST** `/students/login`
+### 1. Student Login
+**POST** `/auth/student/login`
 
 #### Request Body:
 ```json
@@ -72,53 +37,162 @@ http://localhost:3000/api
 #### Response (200 OK):
 ```json
 {
-  "success": true,
-  "data": {
-    "id": 1,
-    "firstName": "John",
-    "lastName": "Doe",
-    "email": "john.doe@example.com",
-    "phone": "12345678",
-    "gradeLevel": "Grade 10",
-    "isActive": true,
-    "createdAt": "2025-09-02T10:30:00.000Z",
-    "updatedAt": "2025-09-02T10:30:00.000Z"
-  },
-  "message": "Student authenticated successfully"
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
 
-#### Error Response (401 Unauthorized):
+#### Notes:
+- Refresh token is automatically set as HTTP-only cookie
+- Cookie settings: `httpOnly: true, secure: true (production), sameSite: 'strict'`
+
+---
+
+### 2. Tutor Login
+**POST** `/auth/tutor/login`
+
+#### Request Body:
 ```json
 {
-  "success": false,
-  "message": "Invalid email or password"
+  "email": "alice.smith@example.com",
+  "password": "securePassword123"
+}
+```
+
+#### Response (200 OK):
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
 
 ---
 
-### 3. Get All Students
-**GET** `/students`
+### 3. Refresh Access Token
+**POST** `/auth/refresh`
 
-#### Query Parameters:
-- `page` (optional): Page number (default: 1)
-- `limit` (optional): Items per page (default: 10)
-- `active` (optional): Filter by active status ("true" for active only)
-- `gradeLevel` (optional): Filter by grade level
+#### Request:
+- No body required
+- Refresh token sent automatically via cookie
+- Must include `credentials: 'include'` in fetch requests
 
-#### Examples:
+#### Response (200 OK):
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
 ```
-GET /students?page=1&limit=5
-GET /students?active=true
-GET /students?gradeLevel=Grade%2010
-GET /students?page=2&limit=5&active=true
+
+#### Error Response (400 Bad Request):
+```json
+{
+  "success": false,
+  "message": "Refresh token is required"
+}
+```
+
+---
+
+### 4. Logout (Single Device)
+**POST** `/auth/logout`
+
+#### Request:
+- No body required
+- Refresh token from cookie used automatically
+
+#### Response (200 OK):
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
+---
+
+### 5. Logout All Devices
+**POST** `/auth/logout-all`
+
+#### Headers Required:
+```
+Authorization: Bearer <access_token>
 ```
 
 #### Response (200 OK):
 ```json
 {
   "success": true,
+  "message": "Logged out from all devices"
+}
+```
+
+#### Notes:
+- Requires valid access token
+- Revokes ALL refresh tokens for the user
+- Logs out from all devices/browsers
+
+---
+
+## Student Endpoints
+
+### 1. Create Student (Registration)
+**POST** `/students`
+
+#### Request Body:
+```json
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.doe@example.com",
+  "password": "securePassword123",
+  "phone": "12345678",
+  "gradeLevel": "secondary-1"
+}
+```
+
+#### Response (201 Created):
+```json
+{
+  "id": 1,
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.doe@example.com",
+  "phone": "12345678",
+  "gradeLevel": "secondary-1",
+  "isActive": true,
+  "createdAt": "2025-01-20T10:30:00.000Z",
+  "updatedAt": "2025-01-20T10:30:00.000Z"
+}
+```
+
+#### Validation Rules:
+- `firstName`: Required, 2-50 characters
+- `lastName`: Required, 2-50 characters
+- `email`: Required, valid email format, unique
+- `password`: Required, 6-255 characters
+- `phone`: Optional, 8 characters
+- `gradeLevel`: Optional, must be valid enum value
+
+---
+
+### 2. Get All Students
+**GET** `/students`
+
+#### Query Parameters:
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 10)
+- `active` (optional): Filter by active status ("true" for active only)
+- `gradeLevel` (optional): Multiple values supported
+
+#### Examples:
+```
+GET /students?page=1&limit=5
+GET /students?active=true
+GET /students?gradeLevel=secondary-1&gradeLevel=secondary-2
+```
+
+#### Response (200 OK):
+```json
+{
   "data": [
     {
       "id": 1,
@@ -126,10 +200,10 @@ GET /students?page=2&limit=5&active=true
       "lastName": "Doe",
       "email": "john.doe@example.com",
       "phone": "12345678",
-      "gradeLevel": "Grade 10",
+      "gradeLevel": "secondary-1",
       "isActive": true,
-      "createdAt": "2025-09-02T10:30:00.000Z",
-      "updatedAt": "2025-09-02T10:30:00.000Z"
+      "createdAt": "2025-01-20T10:30:00.000Z",
+      "updatedAt": "2025-01-20T10:30:00.000Z"
     }
   ],
   "pagination": {
@@ -143,64 +217,49 @@ GET /students?page=2&limit=5&active=true
 
 ---
 
-### 4. Get Student by ID
+### 3. Get Student by ID
 **GET** `/students/:id`
 
 #### Response (200 OK):
 ```json
 {
-  "success": true,
-  "data": {
-    "id": 1,
-    "firstName": "John",
-    "lastName": "Doe",
-    "email": "john.doe@example.com",
-    "phone": "12345678",
-    "gradeLevel": "Grade 10",
-    "isActive": true,
-    "createdAt": "2025-09-02T10:30:00.000Z",
-    "updatedAt": "2025-09-02T10:30:00.000Z"
-  }
-}
-```
-
-#### Error Response (404 Not Found):
-```json
-{
-  "success": false,
-  "message": "Student not found"
+  "id": 1,
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.doe@example.com",
+  "phone": "12345678",
+  "gradeLevel": "secondary-1",
+  "isActive": true,
+  "createdAt": "2025-01-20T10:30:00.000Z",
+  "updatedAt": "2025-01-20T10:30:00.000Z"
 }
 ```
 
 ---
 
-### 5. Update Student (Partial)
+### 4. Update Student (Partial)
 **PATCH** `/students/:id`
 
 #### Request Body (partial update):
 ```json
 {
   "firstName": "Jane",
-  "gradeLevel": "Grade 11"
+  "gradeLevel": "secondary-2"
 }
 ```
 
 #### Response (200 OK):
 ```json
 {
-  "success": true,
-  "data": {
-    "id": 1,
-    "firstName": "Jane",
-    "lastName": "Doe",
-    "email": "john.doe@example.com",
-    "phone": "12345678",
-    "gradeLevel": "Grade 11",
-    "isActive": true,
-    "createdAt": "2025-09-02T10:30:00.000Z",
-    "updatedAt": "2025-09-02T11:15:00.000Z"
-  },
-  "message": "Student updated successfully"
+  "id": 1,
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "email": "john.doe@example.com",
+  "phone": "12345678",
+  "gradeLevel": "secondary-2",
+  "isActive": true,
+  "createdAt": "2025-01-20T10:30:00.000Z",
+  "updatedAt": "2025-01-20T11:15:00.000Z"
 }
 ```
 
@@ -210,7 +269,7 @@ GET /students?page=2&limit=5&active=true
 
 ---
 
-### 6. Change Student Password
+### 5. Change Student Password
 **PATCH** `/students/:id/password`
 
 #### Request Body:
@@ -222,19 +281,18 @@ GET /students?page=2&limit=5&active=true
 ```
 
 #### Response (200 OK):
-```json
-{
-  "success": true,
-  "message": "Password updated successfully"
-}
+```
+Status: 200 (no body)
 ```
 
-#### Error Response (400 Bad Request):
-```json
-{
-  "success": false,
-  "message": "Current password is incorrect"
-}
+---
+
+### 6. Delete Student
+**DELETE** `/students/:id`
+
+#### Response (200 OK):
+```
+Status: 200 (no body)
 ```
 
 ---
@@ -243,42 +301,15 @@ GET /students?page=2&limit=5&active=true
 **PATCH** `/students/:id/deactivate`
 
 #### Response (200 OK):
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "firstName": "John",
-    "lastName": "Doe",
-    "email": "john.doe@example.com",
-    "phone": "12345678",
-    "gradeLevel": "Grade 10",
-    "isActive": false,
-    "createdAt": "2025-09-02T10:30:00.000Z",
-    "updatedAt": "2025-09-02T11:20:00.000Z"
-  },
-  "message": "Student deactivated successfully"
-}
 ```
-
----
-
-### 8. Delete Student
-**DELETE** `/students/:id`
-
-#### Response (200 OK):
-```json
-{
-  "success": true,
-  "message": "Student deleted successfully"
-}
+Status: 200 (no body)
 ```
 
 ---
 
 ## Tutor Endpoints
 
-### 1. Create Tutor
+### 1. Create Tutor (Registration)
 **POST** `/tutors`
 
 #### Request Body:
@@ -308,45 +339,32 @@ GET /students?page=2&limit=5&active=true
 #### Response (201 Created):
 ```json
 {
-  "success": true,
-  "data": {
-    "id": 1,
-    "firstName": "Alice",
-    "lastName": "Smith",
-    "email": "alice.smith@example.com",
-    "phone": "87654321",
-    "hourlyRate": "45.50",
-    "isActive": true,
-    "createdAt": "2025-09-02T10:30:00.000Z",
-    "updatedAt": "2025-09-02T10:30:00.000Z",
-    "subjects": [
-      {
-        "id": 1,
-        "name": "Mathematics",
-        "description": "Algebra, Geometry, Calculus, Statistics",
-        "category": "Science",
-        "TutorSubject": {
-          "experienceLevel": "advanced"
-        }
-      },
-      {
-        "id": 2,
-        "name": "English",
-        "description": "Literature, Grammar, Writing",
-        "category": "Languages",
-        "TutorSubject": {
-          "experienceLevel": "intermediate"
-        }
+  "id": 1,
+  "firstName": "Alice",
+  "lastName": "Smith",
+  "email": "alice.smith@example.com",
+  "phone": "87654321",
+  "hourlyRate": "45.50",
+  "isActive": true,
+  "createdAt": "2025-01-20T10:30:00.000Z",
+  "updatedAt": "2025-01-20T10:30:00.000Z",
+  "subjects": [
+    {
+      "id": 1,
+      "name": "Mathematics",
+      "description": "Algebra, Geometry, Calculus",
+      "category": "STEM",
+      "TutorSubject": {
+        "experienceLevel": "advanced"
       }
-    ]
-  },
-  "message": "Tutor created successfully"
+    }
+  ]
 }
 ```
 
 #### Validation Rules:
 - `firstName`: Required, 2-50 characters
-- `lastName`: Required, 2-50 characters
+- `lastName`: Required, 2-50 characters  
 - `email`: Required, valid email format, unique
 - `password`: Required, 6-255 characters
 - `phone`: Optional, 8 characters
@@ -355,39 +373,7 @@ GET /students?page=2&limit=5&active=true
 
 ---
 
-### 2. Tutor Login
-**POST** `/tutors/login`
-
-#### Request Body:
-```json
-{
-  "email": "alice.smith@example.com",
-  "password": "securePassword123"
-}
-```
-
-#### Response (200 OK):
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "firstName": "Alice",
-    "lastName": "Smith",
-    "email": "alice.smith@example.com",
-    "phone": "87654321",
-    "hourlyRate": "45.50",
-    "isActive": true,
-    "createdAt": "2025-09-02T10:30:00.000Z",
-    "updatedAt": "2025-09-02T10:30:00.000Z"
-  },
-  "message": "Tutor authenticated successfully"
-}
-```
-
----
-
-### 3. Get All Tutors (with Filters)
+### 2. Get All Tutors (with Filters)
 **GET** `/tutors`
 
 #### Query Parameters:
@@ -396,8 +382,7 @@ GET /students?page=2&limit=5&active=true
 - `active` (optional): Filter by active status ("true" for active only)
 - `minRate` (optional): Minimum hourly rate
 - `maxRate` (optional): Maximum hourly rate
-- `subject` (optional): Search by subject name (partial match)
-- `experience` (optional): Filter by experience level ("beginner", "intermediate", "advanced", "expert")
+- `subject` (optional): Multiple subjects supported (partial match for single, exact match for multiple)
 
 #### Examples:
 ```
@@ -405,15 +390,14 @@ GET /tutors
 GET /tutors?page=1&limit=5
 GET /tutors?active=true
 GET /tutors?minRate=20&maxRate=50
-GET /tutors?subject=Mathematics
-GET /tutors?subject=Math&experience=advanced
-GET /tutors?subject=Science&experience=expert&minRate=40&maxRate=80
+GET /tutors?subject=Math
+GET /tutors?subject=Mathematics&subject=Physics
+GET /tutors?subject=Science&minRate=40&maxRate=80
 ```
 
 #### Response (200 OK):
 ```json
 {
-  "success": true,
   "data": [
     {
       "id": 1,
@@ -423,14 +407,13 @@ GET /tutors?subject=Science&experience=expert&minRate=40&maxRate=80
       "phone": "87654321",
       "hourlyRate": "45.50",
       "isActive": true,
-      "createdAt": "2025-09-02T10:30:00.000Z",
-      "updatedAt": "2025-09-02T10:30:00.000Z",
+      "createdAt": "2025-01-20T10:30:00.000Z",
+      "updatedAt": "2025-01-20T10:30:00.000Z",
       "subjects": [
         {
           "id": 1,
           "name": "Mathematics",
-          "description": "Algebra, Geometry, Calculus, Statistics",
-          "category": "Science",
+          "category": "STEM",
           "TutorSubject": {
             "experienceLevel": "advanced"
           }
@@ -449,41 +432,37 @@ GET /tutors?subject=Science&experience=expert&minRate=40&maxRate=80
 
 ---
 
-### 4. Get Tutor by ID
+### 3. Get Tutor by ID
 **GET** `/tutors/:id`
 
 #### Response (200 OK):
 ```json
 {
-  "success": true,
-  "data": {
-    "id": 1,
-    "firstName": "Alice",
-    "lastName": "Smith",
-    "email": "alice.smith@example.com",
-    "phone": "87654321",
-    "hourlyRate": "45.50",
-    "isActive": true,
-    "createdAt": "2025-09-02T10:30:00.000Z",
-    "updatedAt": "2025-09-02T10:30:00.000Z",
-    "subjects": [
-      {
-        "id": 1,
-        "name": "Mathematics",
-        "description": "Algebra, Geometry, Calculus, Statistics",
-        "category": "Science",
-        "TutorSubject": {
-          "experienceLevel": "advanced"
-        }
+  "id": 1,
+  "firstName": "Alice",
+  "lastName": "Smith",
+  "email": "alice.smith@example.com",
+  "phone": "87654321",
+  "hourlyRate": "45.50",
+  "isActive": true,
+  "createdAt": "2025-01-20T10:30:00.000Z",
+  "updatedAt": "2025-01-20T10:30:00.000Z",
+  "subjects": [
+    {
+      "id": 1,
+      "name": "Mathematics",
+      "category": "STEM",
+      "TutorSubject": {
+        "experienceLevel": "advanced"
       }
-    ]
-  }
+    }
+  ]
 }
 ```
 
 ---
 
-### 5. Update Tutor (Partial)
+### 4. Update Tutor (Partial)
 **PATCH** `/tutors/:id`
 
 #### Request Body:
@@ -508,46 +487,30 @@ GET /tutors?subject=Science&experience=expert&minRate=40&maxRate=80
 #### Response (200 OK):
 ```json
 {
-  "success": true,
-  "data": {
-    "id": 1,
-    "firstName": "Alice",
-    "lastName": "Smith",
-    "email": "alice.smith@example.com",
-    "phone": "87654321",
-    "hourlyRate": "55.00",
-    "isActive": true,
-    "createdAt": "2025-09-02T10:30:00.000Z",
-    "updatedAt": "2025-09-02T11:45:00.000Z",
-    "subjects": [
-      {
-        "id": 1,
-        "name": "Mathematics",
-        "TutorSubject": {
-          "experienceLevel": "expert"
-        }
-      },
-      {
-        "id": 3,
-        "name": "Science",
-        "TutorSubject": {
-          "experienceLevel": "advanced"
-        }
+  "id": 1,
+  "firstName": "Alice",
+  "lastName": "Smith",
+  "email": "alice.smith@example.com",
+  "phone": "87654321",
+  "hourlyRate": "55.00",
+  "isActive": true,
+  "createdAt": "2025-01-20T10:30:00.000Z",
+  "updatedAt": "2025-01-20T11:45:00.000Z",
+  "subjects": [
+    {
+      "id": 1,
+      "name": "Mathematics",
+      "TutorSubject": {
+        "experienceLevel": "expert"
       }
-    ]
-  },
-  "message": "Tutor updated successfully"
+    }
+  ]
 }
 ```
 
-#### Notes:
-- Password updates are not allowed through this endpoint
-- Subjects array is optional - if not provided, subjects remain unchanged
-- If subjects array is provided, it replaces all existing subjects
-
 ---
 
-### 6. Change Tutor Password
+### 5. Change Tutor Password
 **PATCH** `/tutors/:id/password`
 
 #### Request Body:
@@ -559,11 +522,18 @@ GET /tutors?subject=Science&experience=expert&minRate=40&maxRate=80
 ```
 
 #### Response (200 OK):
-```json
-{
-  "success": true,
-  "message": "Password updated successfully"
-}
+```
+Status: 200 (no body)
+```
+
+---
+
+### 6. Delete Tutor
+**DELETE** `/tutors/:id`
+
+#### Response (200 OK):
+```
+Status: 200 (no body)
 ```
 
 ---
@@ -572,34 +542,25 @@ GET /tutors?subject=Science&experience=expert&minRate=40&maxRate=80
 **PATCH** `/tutors/:id/deactivate`
 
 #### Response (200 OK):
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "firstName": "Alice",
-    "lastName": "Smith",
-    "email": "alice.smith@example.com",
-    "phone": "87654321",
-    "hourlyRate": "45.50",
-    "isActive": false,
-    "createdAt": "2025-09-02T10:30:00.000Z",
-    "updatedAt": "2025-09-02T11:50:00.000Z"
-  },
-  "message": "Tutor deactivated successfully"
-}
+```
+Status: 200 (no body)
 ```
 
 ---
 
-### 8. Delete Tutor
-**DELETE** `/tutors/:id`
+### 8. Get All Subjects
+**GET** `/tutors/subjects/all`
 
 #### Response (200 OK):
 ```json
 {
-  "success": true,
-  "message": "Tutor deleted successfully"
+  "id": 1,
+  "name": "Mathematics",
+  "description": "Algebra, Geometry, Calculus",
+  "category": "STEM",
+  "isActive": true,
+  "createdAt": "2025-01-20T09:00:00.000Z",
+  "updatedAt": "2025-01-20T09:00:00.000Z"
 }
 ```
 
@@ -611,26 +572,22 @@ GET /tutors?subject=Science&experience=expert&minRate=40&maxRate=80
 #### Request Body:
 ```json
 {
-  "name": "Physics",
-  "description": "Mechanics, Thermodynamics, Electromagnetism",
-  "category": "Science"
+  "name": "Chemistry",
+  "description": "Organic, Inorganic, Physical Chemistry",
+  "category": "STEM"
 }
 ```
 
 #### Response (201 Created):
 ```json
 {
-  "success": true,
-  "data": {
-    "id": 4,
-    "name": "Physics",
-    "description": "Mechanics, Thermodynamics, Electromagnetism",
-    "category": "Science",
-    "isActive": true,
-    "createdAt": "2025-09-02T12:00:00.000Z",
-    "updatedAt": "2025-09-02T12:00:00.000Z"
-  },
-  "message": "Subject created successfully"
+  "id": 3,
+  "name": "Chemistry",
+  "description": "Organic, Inorganic, Physical Chemistry",
+  "category": "STEM",
+  "isActive": true,
+  "createdAt": "2025-01-20T12:00:00.000Z",
+  "updatedAt": "2025-01-20T12:00:00.000Z"
 }
 ```
 
@@ -638,11 +595,28 @@ GET /tutors?subject=Science&experience=expert&minRate=40&maxRate=80
 
 ## Common Error Responses
 
+### Authentication Required (401 Unauthorized):
+```json
+{
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+### Invalid/Expired Token (403 Forbidden):
+```json
+{
+  "success": false,
+  "message": "Invalid or expired access token"
+}
+```
+
 ### Validation Error (400 Bad Request):
 ```json
 {
   "success": false,
-  "message": "Validation len on password failed"
+  "message": "Validation len on password failed",
+  "type": "ValidationError"
 }
 ```
 
@@ -650,7 +624,8 @@ GET /tutors?subject=Science&experience=expert&minRate=40&maxRate=80
 ```json
 {
   "success": false,
-  "message": "Student with this email already exists"
+  "message": "This value already exists",
+  "type": "UniqueConstraintError"
 }
 ```
 
@@ -672,10 +647,26 @@ GET /tutors?subject=Science&experience=expert&minRate=40&maxRate=80
 
 ---
 
-## Authentication & Security Notes
+## Security & Implementation Notes
 
-1. **Password Hashing**: All passwords are automatically hashed using bcrypt with 12 salt rounds
-2. **Password Exclusion**: Passwords are never returned in API responses
-3. **Validation**: Sequelize model validation is applied to all fields
-4. **Unique Constraints**: Email addresses must be unique across students and tutors
-5. **Soft Deletes**: Use deactivate endpoints for soft deletes, DELETE endpoints for hard deletes
+1. **JWT Tokens**: Access tokens contain `userId`, `userType`, and `type` fields
+2. **Refresh Tokens**: Opaque tokens stored as SHA-256 hashes in database
+3. **Cookie Security**: HTTP-only, Secure (production), SameSite=strict
+4. **Password Exclusion**: Passwords never returned in API responses
+5. **Multivalued Queries**: Support for multiple values in query parameters (e.g., `?gradeLevel=secondary-1&gradeLevel=secondary-2`)
+6. **Database Constraints**: Unique email constraints prevent duplicate registrations
+7. **Soft Deletes**: Use deactivate endpoints for soft deletes, DELETE for hard deletes
+
+## Frontend Integration
+
+### Cookie Handling:
+- Include `credentials: 'include'` in all fetch requests
+- Refresh tokens handled automatically by browser
+- No need to manually manage refresh tokens
+
+### Error Handling:
+- 401 responses should trigger automatic token refresh
+- 403 responses after refresh should redirect to login
+- Implement reactive refresh pattern for best UX
+```
+
