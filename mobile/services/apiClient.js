@@ -1,5 +1,7 @@
 // API Configuration
-const API_BASE_URL = "http://localhost:3000/api";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_BASE_URL = "http://192.168.10.81:3000/api";
 
 // For testing on physical device, you might need to use your computer's IP
 // const API_BASE_URL = 'http://192.168.1.XXX:3000/api'; // Replace XXX with your IP
@@ -8,38 +10,93 @@ class ApiClient {
   constructor() {
     this.baseURL = API_BASE_URL;
     this.accessToken = null;
+    // Load token from storage on initialization
+    this.loadTokenFromStorage();
+  }
+
+  // Load access token from AsyncStorage
+  async loadTokenFromStorage() {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      if (token) {
+        this.accessToken = token;
+      }
+    } catch (error) {
+      console.error('Failed to load token from storage:', error);
+    }
   }
 
   // Set access token for authenticated requests
-  setAccessToken(token) {
+  async setAccessToken(token) {
     this.accessToken = token;
+    try {
+      await AsyncStorage.setItem('accessToken', token);
+    } catch (error) {
+      console.error('Failed to save token to storage:', error);
+    }
   }
 
   // Clear access token (logout)
-  clearAccessToken() {
+  async clearAccessToken() {
     this.accessToken = null;
+    try {
+      await AsyncStorage.removeItem('accessToken');
+    } catch (error) {
+      console.error('Failed to remove token from storage:', error);
+    }
   }
 
-  async request(endpoint, options = {}) {
+  // Check if token exists in storage (for auth state checks)
+  async hasValidToken() {
+    if (!this.accessToken) {
+      await this.loadTokenFromStorage();
+    }
+    return !!this.accessToken;
+  }
+
+  // Core HTTP request method with automatic token refresh
+  async request(endpoint, options = {}, isRetry = false) {
     const url = `${this.baseURL}${endpoint}`;
-    const config = {
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-      credentials: "include", // Important: Include cookies for refresh tokens
-      ...options,
+
+    // Build headers
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
     };
 
     // Add Authorization header if access token is available
     if (this.accessToken) {
-      config.headers.Authorization = `Bearer ${this.accessToken}`;
+      headers.Authorization = `Bearer ${this.accessToken}`;
     }
 
+    const config = {
+      ...options,
+      headers,
+      credentials: "include", // Important: Include cookies for refresh tokens
+    };
+
     try {
+      console.log('Making request to:', url);
+      console.log('Headers:', JSON.stringify(headers, null, 2));
+
       const response = await fetch(url, config);
 
-      // Handle different response types
+      // Handle 401 Unauthorized - try to refresh token
+      if (response.status === 401 && !isRetry && endpoint !== '/auth/refresh') {
+        console.log('Received 401, attempting token refresh...');
+        try {
+          await this.refreshToken();
+          // Retry the original request with new token
+          return await this.request(endpoint, options, true);
+        } catch (refreshError) {
+          console.error('Token refresh failed:', refreshError);
+          // Clear token and re-throw original 401 error
+          await this.clearAccessToken();
+          throw new Error('Authentication failed. Please log in again.');
+        }
+      }
+
+      // Handle other non-ok responses
       if (!response.ok) {
         let errorData;
         try {
@@ -77,7 +134,7 @@ class ApiClient {
     });
   }
 
-  // POST request
+  // POST request  
   async post(endpoint, data = null, headers = {}) {
     const config = {
       method: "POST",
@@ -120,15 +177,18 @@ class ApiClient {
       password,
     });
     if (response.accessToken) {
-      this.setAccessToken(response.accessToken);
+      await this.setAccessToken(response.accessToken);
     }
     return response;
   }
 
   async loginTutor(email, password) {
-    const response = await this.post("/auth/tutor/login", { email, password });
+    const response = await this.post("/auth/tutor/login", {
+      email,
+      password,
+    });
     if (response.accessToken) {
-      this.setAccessToken(response.accessToken);
+      await this.setAccessToken(response.accessToken);
     }
     return response;
   }
@@ -137,12 +197,12 @@ class ApiClient {
     try {
       const response = await this.post("/auth/refresh");
       if (response.accessToken) {
-        this.setAccessToken(response.accessToken);
+        await this.setAccessToken(response.accessToken);
       }
       return response;
     } catch (error) {
       // If refresh fails, clear the token
-      this.clearAccessToken();
+      await this.clearAccessToken();
       throw error;
     }
   }
@@ -152,7 +212,7 @@ class ApiClient {
       await this.post("/auth/logout");
     } finally {
       // Always clear token even if logout request fails
-      this.clearAccessToken();
+      await this.clearAccessToken();
     }
   }
 
@@ -161,7 +221,7 @@ class ApiClient {
       await this.post("/auth/logout-all");
     } finally {
       // Always clear token even if logout request fails
-      this.clearAccessToken();
+      await this.clearAccessToken();
     }
   }
 }

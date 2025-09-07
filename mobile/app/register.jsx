@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { authApi } from './api';
+import studentService from '../services/studentService.js';
+import tutorService from '../services/tutorService.js';
 import {
     View,
     Text,
@@ -10,10 +11,10 @@ import {
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { useRouter } from "expo-router";
-// Removed direct backend service import; using API calls to register instead.
 
 export default function RegisterScreen() {
-    const [username, setUsername] = useState("");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -22,7 +23,7 @@ export default function RegisterScreen() {
 
     const handleRegister = async () => {
         try {
-            if (!username || !email || !password || !confirmPassword) {
+            if (!firstName || !lastName || !email || !password || !confirmPassword) {
                 throw new Error('All fields are required');
             }
 
@@ -31,18 +32,22 @@ export default function RegisterScreen() {
             }
 
             const payload = {
-                firstname: username, // or split username into first/last
-                lastname: "",
+                firstName,
+                lastName,
                 email,
-                password,
-                role
+                password
             };
 
             console.log('Registering:', payload);
 
-            const data = await authApi.register(payload);
+            let data;
+            if (role === "Student") {
+                data = await studentService.createStudent(payload);
+            } else if (role === "Tutor") {
+                data = await tutorService.createTutor(payload);
+            }
+            
             console.log('Registration successful:', data);
-
             router.replace("/login");
         } catch (error) {
             console.error("Registration error:", error);
@@ -60,12 +65,20 @@ export default function RegisterScreen() {
 
             <Text style={styles.title}>Sign up</Text>
 
-            {/* Username */}
+            {/* First Name */}
             <TextInput
                 style={styles.input}
-                placeholder="Username"
-                value={username}
-                onChangeText={setUsername}
+                placeholder="First Name"
+                value={firstName}
+                onChangeText={setFirstName}
+            />
+
+            {/* Last Name */}
+            <TextInput
+                style={styles.input}
+                placeholder="Last Name"
+                value={lastName}
+                onChangeText={setLastName}
             />
 
             {/* Email */}

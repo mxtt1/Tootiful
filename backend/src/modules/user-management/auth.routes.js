@@ -6,8 +6,8 @@ import { authenticateToken } from '../../middleware/authenticateToken.js';
 const router = express.Router();
 const authService = new AuthService();
 
-// Separate login endpoints for each user type
-router.post('/register', asyncHandler(authService.handleRegister.bind(authService)));
+
+// router.post('/register', asyncHandler(authService.handleRegister.bind(authService)));
 
 router.post('/student/login', asyncHandler(authService.handleStudentLogin.bind(authService)));
 router.post('/tutor/login', asyncHandler(authService.handleTutorLogin.bind(authService)));

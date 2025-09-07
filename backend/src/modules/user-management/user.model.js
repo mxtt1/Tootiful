@@ -7,9 +7,10 @@ import gradeLevelEnum from '../../util/enum/gradeLevelEnum.js';
 // Student Model
 const Student = sequelize.define('Student', {
   id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
-    autoIncrement: true
+    defaultValue: DataTypes.UUIDV4, // Auto-generate UUID
+    allowNull: false
   },
   firstName: {
     type: DataTypes.STRING(50),
@@ -65,6 +66,10 @@ const Student = sequelize.define('Student', {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: true
+  },
+  profilePicture: {
+    type: DataTypes.BLOB,
+    allowNull: true,
   }
 }, {
   tableName: 'students',
@@ -89,9 +94,10 @@ const Student = sequelize.define('Student', {
 // Tutor Model
 const Tutor = sequelize.define('Tutor', {
   id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
-    autoIncrement: true
+    defaultValue: DataTypes.UUIDV4, // Auto-generate UUID
+    allowNull: false
   },
   firstName: {
     type: DataTypes.STRING(50),
@@ -133,7 +139,7 @@ const Tutor = sequelize.define('Tutor', {
   },
   hourlyRate: {
     type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
+    allowNull: true,
     validate: {
       min: 0,
       max: 9999.99
@@ -144,6 +150,10 @@ const Tutor = sequelize.define('Tutor', {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: true
+  },
+  profilePicture: {
+    type: DataTypes.BLOB,
+    allowNull: true,
   }
 }, {
   tableName: 'tutors',
@@ -168,19 +178,15 @@ const Tutor = sequelize.define('Tutor', {
 // Subject Model for normalized relationships
 const Subject = sequelize.define('Subject', {
   id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
-    autoIncrement: true
+    defaultValue: DataTypes.UUIDV4, // Auto-generate UUID
+    allowNull: false
   },
   name: {
     type: DataTypes.STRING(50),
-    allowNull: false,
-    unique: true
-  },
-  category: {
-    type: DataTypes.STRING(30),
-    allowNull: true,
-    comment: 'e.g. Mathematics, Science, Languages'
+    allowNull: false
+    // Remove unique: true since we want composite uniqueness
   },
   description: {
     type: DataTypes.TEXT,
@@ -190,10 +196,29 @@ const Subject = sequelize.define('Subject', {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: true
+  },
+  gradeLevel: {
+    type: DataTypes.ENUM(...gradeLevelEnum.getAllLevels()),
+    allowNull: false,
+    validate: {
+      isValidGrade(value) {
+        if (value && !gradeLevelEnum.isValidLevel(value)) {
+          throw new Error(`Grade level must be one of the predefined values`);
+        }
+      }
+    },
+    comment: 'Student grade level - Primary, Secondary, JC, International, etc.'
   }
 }, {
   tableName: 'subjects',
-  timestamps: true
+  timestamps: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['name', 'gradeLevel'],
+      name: 'unique_subject_grade_level'
+    }
+  ]
 });
 
 // Tutor-Subject Many-to-Many relationship

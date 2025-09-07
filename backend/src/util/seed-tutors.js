@@ -1,4 +1,3 @@
-import bcrypt from "bcrypt";
 import {
   Tutor,
   Subject,
@@ -12,9 +11,10 @@ const SAMPLE_TUTORS = [
     email: "emily.johnson@example.com",
     password: "password123",
     phone: "91234567",
+    hourlyRate: 35.0,
     subjects: [
-      { name: "Mathematics", experienceLevel: "advanced" },
-      { name: "Science", experienceLevel: "intermediate" },
+      { name: "Mathematics", gradeLevel: "Secondary 3", experienceLevel: "advanced" },
+      { name: "Science", gradeLevel: "Secondary 1", experienceLevel: "intermediate" },
     ],
   },
   {
@@ -23,9 +23,10 @@ const SAMPLE_TUTORS = [
     email: "michael.smith@example.com",
     password: "password123",
     phone: "91234568",
+    hourlyRate: 40.0,
     subjects: [
-      { name: "English", experienceLevel: "expert" },
-      { name: "History", experienceLevel: "advanced" },
+      { name: "English", gradeLevel: "Secondary 3", experienceLevel: "expert" },
+      { name: "English", gradeLevel: "Primary 6", experienceLevel: "advanced" },
     ],
   },
   {
@@ -36,8 +37,8 @@ const SAMPLE_TUTORS = [
     phone: "91234569",
     hourlyRate: 30.0,
     subjects: [
-      { name: "Spanish", experienceLevel: "expert" },
-      { name: "French", experienceLevel: "intermediate" },
+      { name: "Physics", gradeLevel: "Secondary 3", experienceLevel: "expert" },
+      { name: "Chemistry", gradeLevel: "Secondary 3", experienceLevel: "intermediate" },
     ],
   },
   {
@@ -48,8 +49,8 @@ const SAMPLE_TUTORS = [
     phone: "91234570",
     hourlyRate: 45.0,
     subjects: [
-      { name: "Computer Science", experienceLevel: "expert" },
-      { name: "Mathematics", experienceLevel: "advanced" },
+      { name: "Computer Science", gradeLevel: "Junior College 1", experienceLevel: "expert" },
+      { name: "Mathematics", gradeLevel: "Secondary 1", experienceLevel: "advanced" },
     ],
   },
   {
@@ -60,8 +61,8 @@ const SAMPLE_TUTORS = [
     phone: "91234571",
     hourlyRate: 25.0,
     subjects: [
-      { name: "Art", experienceLevel: "intermediate" },
-      { name: "Music", experienceLevel: "advanced" },
+      { name: "Biology", gradeLevel: "Secondary 3", experienceLevel: "intermediate" },
+      { name: "Science", gradeLevel: "Primary 6", experienceLevel: "advanced" },
     ],
   },
 ];
@@ -77,15 +78,12 @@ export async function seedTutors() {
       });
 
       if (!existingTutor) {
-        // Hash password
-        const hashedPassword = await bcrypt.hash(tutorData.password, 10);
-
-        // Create tutor
+        // Create tutor (password will be automatically hashed by model hooks)
         const tutor = await Tutor.create({
           firstName: tutorData.firstName,
           lastName: tutorData.lastName,
           email: tutorData.email,
-          password: hashedPassword,
+          password: tutorData.password,
           phone: tutorData.phone,
           hourlyRate: tutorData.hourlyRate,
           isActive: true,
@@ -94,7 +92,10 @@ export async function seedTutors() {
         // Add subjects
         for (const subjectData of tutorData.subjects) {
           const subject = await Subject.findOne({
-            where: { name: subjectData.name },
+            where: { 
+              name: subjectData.name,
+              gradeLevel: subjectData.gradeLevel
+            },
           });
           if (subject) {
             await TutorSubject.create({
@@ -102,6 +103,8 @@ export async function seedTutors() {
               subjectId: subject.id,
               experienceLevel: subjectData.experienceLevel,
             });
+          } else {
+            console.log(`⚠️  Subject not found: ${subjectData.name} (${subjectData.gradeLevel})`);
           }
         }
 

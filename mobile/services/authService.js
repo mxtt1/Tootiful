@@ -4,7 +4,9 @@ class AuthService {
   // Student login
   async loginStudent(email, password) {
     try {
-      return await apiClient.loginStudent(email, password);
+      const response = await apiClient.loginStudent(email, password);
+      // Token is automatically stored in apiClient
+      return response; // Return full response including user data
     } catch (error) {
       console.error("Student login failed:", error);
       throw error;
@@ -14,7 +16,9 @@ class AuthService {
   // Tutor login
   async loginTutor(email, password) {
     try {
-      return await apiClient.loginTutor(email, password);
+      const response = await apiClient.loginTutor(email, password);
+      // Token is automatically stored in apiClient
+      return response; // Return full response including user data
     } catch (error) {
       console.error("Tutor login failed:", error);
       throw error;

@@ -3,9 +3,10 @@ import sequelize from '../../config/database.js';
 
 const RefreshToken = sequelize.define('RefreshToken', {
   id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
-    autoIncrement: true
+    defaultValue: DataTypes.UUIDV4, // Auto-generate UUID
+    allowNull: false
   },
   token: {
     type: DataTypes.STRING(64),
@@ -14,7 +15,7 @@ const RefreshToken = sequelize.define('RefreshToken', {
     comment: 'Hashed refresh token for security'
   },
   userId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     allowNull: false,
     comment: 'User ID this token belongs to'
   },

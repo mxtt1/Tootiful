@@ -254,7 +254,7 @@ export default class TutorService {
             // If email is being updated, check if it already exists
             if (updateData.email) {
                 const existingTutor = await Tutor.findOne({ where: { email: updateData.email } });
-                if (existingTutor && existingTutor.id !== parseInt(id)) {
+                if (existingTutor && existingTutor.id !== id) {
                     throw new Error('Email already exists for another tutor');
                 }
             }

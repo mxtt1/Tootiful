@@ -159,7 +159,7 @@ class StudentService {
         // If email is being updated, check if it already exists
         if (updateData.email) {
             const existingStudent = await Student.findOne({ where: { email: updateData.email } });
-            if (existingStudent && existingStudent.id !== parseInt(id)) {
+            if (existingStudent && existingStudent.id !== id) {
                 throw new Error('Email already exists for another student');
             }
         }
