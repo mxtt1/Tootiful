@@ -61,9 +61,9 @@ const Student = sequelize.define('Student', {
         }
       }
     }
-  },
-  image: {
-    type: DataTypes.STRING(255),
+},
+image: {
+    type: DataTypes.STRING('long'),
     allowNull: true,
     comment: 'URL of profile image'
   },
