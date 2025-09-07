@@ -74,7 +74,6 @@ export default function TeachingInfo() {
           hourlyRate: tutorData.hourlyRate || "",
           aboutMe: tutorData.aboutMe || "",
           education: tutorData.education || "",
-          subjects: tutorData.subjects || "",
         });
       } else {
         console.error("Failed to fetch teaching data:", response.status);
@@ -115,9 +114,8 @@ export default function TeachingInfo() {
           hourlyRate: formData.hourlyRate,
           aboutMe: formData.aboutMe,
           education: formData.education,
-          subjects: formData.subjects,
         },
-      };
+    };
 
       const response = await fetch(
         `http://localhost:3000/api/tutors/${tutorId}`,
@@ -198,8 +196,9 @@ export default function TeachingInfo() {
           />
         </View>
 
+
         {/* Subjects */}
-        <Text style={styles.subTitle}>Subject of Expertise</Text>
+    {/*    <Text style={styles.subTitle}>Subject of Expertise</Text>
         <View style={styles.inputContainer}>
           <TextInput
             style={[styles.input, styles.textArea]}
@@ -210,6 +209,7 @@ export default function TeachingInfo() {
             onChangeText={(text) => handleInputChange("subjects", text)}
           />
         </View>
+        */}
 
         {/* Save Button */}
         <TouchableOpacity style={styles.button} onPress={handleSave}>

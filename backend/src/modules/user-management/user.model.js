@@ -5,6 +5,7 @@ import experienceLevelEnum from '../../util/enum/experienceLevelEnum.js';
 import gradeLevelEnum from '../../util/enum/gradeLevelEnum.js';
 import { getAllGenders, isValidGender } from '../../util/enum/genderEnum.js';
 import { PasswordResetToken } from './passwordReset.model.js';
+import { TextureUtils } from 'three/src/Three.js';
 // Student Model
 const Student = sequelize.define('Student', {
   id: {
@@ -158,6 +159,14 @@ const Tutor = sequelize.define('Tutor', {
       max: 9999.99
     },
     comment: 'Hourly rate in local currency'
+  },
+  aboutMe: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  education: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
   },
   isActive: {
     type: DataTypes.BOOLEAN,
