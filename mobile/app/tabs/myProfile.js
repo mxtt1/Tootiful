@@ -83,7 +83,7 @@ export default function ProfileScreen() {
               </View>
             )}
           </View>
-
+      
           <Text style={styles.userName}>
             {currentUser.firstName} {currentUser.lastName}
           </Text>
