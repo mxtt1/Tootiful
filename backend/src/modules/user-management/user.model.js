@@ -51,22 +51,22 @@ const Student = sequelize.define('Student', {
       len: [8, 8]
     }
   },
-gender: {
+  gender: {
     type: DataTypes.ENUM(...getAllGenders()),
     allowNull: true,
     validate: {
-        isValidGender(value) {
-            if (value && !isValidGender(value)) {
-                throw new Error(`Gender must be one of the predefined values`);
-            }
+      isValidGender(value) {
+        if (value && !isValidGender(value)) {
+          throw new Error(`Gender must be one of the predefined values`);
         }
+      }
     }
-},
-image: {
+  },
+  image: {
     type: DataTypes.STRING(255),
     allowNull: true,
     comment: 'URL of profile image'
-},
+  },
   gradeLevel: {
     type: DataTypes.ENUM(...gradeLevelEnum.getAllLevels()),
     allowNull: true,
@@ -84,10 +84,6 @@ image: {
     allowNull: false,
     defaultValue: true
   },
-  profilePicture: {
-    type: DataTypes.BLOB,
-    allowNull: true,
-  }
 }, {
   tableName: 'students',
   timestamps: true,
@@ -167,10 +163,6 @@ const Tutor = sequelize.define('Tutor', {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: true
-  },
-  profilePicture: {
-    type: DataTypes.BLOB,
-    allowNull: true,
   }
 }, {
   tableName: 'tutors',
@@ -203,7 +195,6 @@ const Subject = sequelize.define('Subject', {
   name: {
     type: DataTypes.STRING(50),
     allowNull: false
-    // Remove unique: true since we want composite uniqueness
   },
   description: {
     type: DataTypes.TEXT,
@@ -241,7 +232,7 @@ const Subject = sequelize.define('Subject', {
 // Tutor-Subject Many-to-Many relationship
 const TutorSubject = sequelize.define('TutorSubject', {
   tutorId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     references: {
       model: Tutor,
       key: 'id'
@@ -249,7 +240,7 @@ const TutorSubject = sequelize.define('TutorSubject', {
     onDelete: 'CASCADE'
   },
   subjectId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     references: {
       model: Subject,
       key: 'id'
