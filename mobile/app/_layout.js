@@ -2,12 +2,13 @@ import { Stack } from "expo-router";
 
 export default function RootLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="tabs" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="tutor/tutorProfile"
-        options={{ headerShown: false }}
-      />
+    <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
+      {/* Root index.js → Redirects to login */}
+      <Stack.Screen name="index" />
+      {/* Auth screens */}
+      <Stack.Screen name="login" />
+      <Stack.Screen name="register" />
+
     </Stack>
   );
 }
