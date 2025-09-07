@@ -77,11 +77,14 @@ export default function TutorsScreen() {
       setLoading(true);
       setError(null);
 
+      console.log("🔄 Fetching tutors from API...");
       // Try to fetch from API first
       const response = await tutorService.getAllTutors({
         active: true,
         limit: 50, // Get more tutors for better demo
       });
+
+      console.log("✅ Raw API response:", response);
 
       // Transform API data to match component expectations
       const apiTutors = response.data.map((tutor) => ({
@@ -103,6 +106,12 @@ export default function TutorsScreen() {
       setFilteredTutors(apiTutors);
       console.log("✅ Fetched tutors from API:", apiTutors.length, "tutors");
     } catch (error) {
+      console.error("❌ API call failed with details:", {
+        message: error.message,
+        status: error.status,
+        stack: error.stack,
+        error: error,
+      });
       console.warn("⚠️ API failed, using mock data:", error.message);
       setError("Using demo data - API not available");
       setTutors(MOCK_TUTORS);
@@ -130,8 +139,8 @@ export default function TutorsScreen() {
   };
 
   const handleTutorPress = (tutor) => {
-    // Navigate to tutor profile screen
-    router.push(`/tutor/tutorProfile?id=${tutor.id}`);
+    // Navigate to tutor profile screen for students
+    router.push(`/viewTutorProfile?id=${tutor.id}`);
   };
 
   const renderStars = (rating) => {
@@ -275,7 +284,10 @@ export default function TutorsScreen() {
                     <Text style={styles.messageButtonText}>Message</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.viewProfileButton}>
+                  <TouchableOpacity
+                    style={styles.viewProfileButton}
+                    onPress={() => handleTutorPress(tutor)}
+                  >
                     <Text style={styles.viewProfileButtonText}>
                       View Profile
                     </Text>

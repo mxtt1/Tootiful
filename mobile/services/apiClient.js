@@ -1,5 +1,5 @@
 // API Configuration
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_BASE_URL = "http://localhost:3000/api";
 
@@ -17,12 +17,12 @@ class ApiClient {
   // Load access token from AsyncStorage
   async loadTokenFromStorage() {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
+      const token = await AsyncStorage.getItem("accessToken");
       if (token) {
         this.accessToken = token;
       }
     } catch (error) {
-      console.error('Failed to load token from storage:', error);
+      console.error("Failed to load token from storage:", error);
     }
   }
 
@@ -30,9 +30,9 @@ class ApiClient {
   async setAccessToken(token) {
     this.accessToken = token;
     try {
-      await AsyncStorage.setItem('accessToken', token);
+      await AsyncStorage.setItem("accessToken", token);
     } catch (error) {
-      console.error('Failed to save token to storage:', error);
+      console.error("Failed to save token to storage:", error);
     }
   }
 
@@ -40,9 +40,9 @@ class ApiClient {
   async clearAccessToken() {
     this.accessToken = null;
     try {
-      await AsyncStorage.removeItem('accessToken');
+      await AsyncStorage.removeItem("accessToken");
     } catch (error) {
-      console.error('Failed to remove token from storage:', error);
+      console.error("Failed to remove token from storage:", error);
     }
   }
 
@@ -60,7 +60,7 @@ class ApiClient {
 
     // Build headers
     const headers = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...options.headers,
     };
 
@@ -72,27 +72,27 @@ class ApiClient {
     const config = {
       ...options,
       headers,
-      credentials: "include", // Important: Include cookies for refresh tokens
+      // credentials: "include", // Important: Include cookies for refresh tokens
     };
 
     try {
-      console.log('Making request to:', url);
-      console.log('Headers:', JSON.stringify(headers, null, 2));
+      console.log("Making request to:", url);
+      console.log("Headers:", JSON.stringify(headers, null, 2));
 
       const response = await fetch(url, config);
 
       // Handle 401 Unauthorized - try to refresh token
-      if (response.status === 401 && !isRetry && endpoint !== '/auth/refresh') {
-        console.log('Received 401, attempting token refresh...');
+      if (response.status === 401 && !isRetry && endpoint !== "/auth/refresh") {
+        console.log("Received 401, attempting token refresh...");
         try {
           await this.refreshToken();
           // Retry the original request with new token
           return await this.request(endpoint, options, true);
         } catch (refreshError) {
-          console.error('Token refresh failed:', refreshError);
+          console.error("Token refresh failed:", refreshError);
           // Clear token and re-throw original 401 error
           await this.clearAccessToken();
-          throw new Error('Authentication failed. Please log in again.');
+          throw new Error("Authentication failed. Please log in again.");
         }
       }
 
@@ -134,7 +134,7 @@ class ApiClient {
     });
   }
 
-  // POST request  
+  // POST request
   async post(endpoint, data = null, headers = {}) {
     const config = {
       method: "POST",

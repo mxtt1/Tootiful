@@ -1,11 +1,17 @@
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
 import { useState, useEffect } from "react";
-import tutorService from "../../services/tutorService.js";
-import { tutorProfileStyles as styles } from "../styles/tutorProfileStyles";
+import tutorService from "../services/tutorService.js";
+import { tutorProfileStyles as styles } from "./styles/tutorProfileStyles";
 
-export default function TutorProfileScreen() {
+export default function ViewTutorProfileScreen() {
   const { id } = useLocalSearchParams();
   const [tutor, setTutor] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -109,24 +115,35 @@ export default function TutorProfileScreen() {
       setLoading(true);
       setError(null);
 
+      console.log("🔄 Fetching fresh tutor data for ID:", id);
       // Try to fetch from API first
       const response = await tutorService.getTutorById(id || 1);
 
-      // Transform API data to match our component needs
+      // Use real API data, only add mock data for fields not available in API
       const tutorData = {
         ...response,
-        age: 35, // Mock age since not in API
-        rating: 3.8, // Mock rating since not implemented yet
-        totalReviews: 174, // Mock reviews
-        isOnline: true, // Mock online status
-        education: "XYZ University, Bachelor's degree in Mathematics", // Mock education
-        aboutMe: `I am a passionate ${
-          response.subjects?.[0]?.name || "subject"
-        } tutor with extensive experience helping students excel in their studies.`, // Generate aboutMe
+        // Only mock data for fields that aren't implemented in the API yet
+        age: response.age || 35,
+        rating: response.rating || 4.5,
+        totalReviews:
+          response.totalReviews || Math.floor(Math.random() * 50) + 10,
+        isOnline: response.isOnline !== undefined ? response.isOnline : true,
+        // Use API data directly for these fields that can be updated
+        education: response.education || "University Graduate",
+        aboutMe:
+          response.aboutMe ||
+          `I am a passionate ${
+            response.subjects?.[0]?.name || "subject"
+          } tutor with extensive experience helping students excel in their studies.`,
+        firstName: response.firstName,
+        lastName: response.lastName,
+        phone: response.phone,
+        hourlyRate: response.hourlyRate,
+        subjects: response.subjects || [],
       };
 
       setTutor(tutorData);
-      console.log("✅ Fetched tutor from API:", tutorData);
+      console.log("✅ Fetched fresh tutor data:", tutorData);
     } catch (error) {
       console.warn("⚠️ API failed, using mock data:", error.message);
       setError("Using demo data - API not available");
@@ -134,6 +151,16 @@ export default function TutorProfileScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBackPress = () => {
+    // Specifically navigate back to the tutors tab
+    router.push("/tabs/tutors");
+  };
+
+  const handleRefresh = () => {
+    // Force refresh the tutor data
+    fetchTutorData();
   };
 
   const renderStars = (rating) => {
@@ -178,10 +205,7 @@ export default function TutorProfileScreen() {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <Text style={styles.errorText}>Tutor not found</Text>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -192,14 +216,13 @@ export default function TutorProfileScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tutor Profile</Text>
-        <View style={styles.headerRight} />
+        <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
+          <Ionicons name="refresh" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
 
       {/* Error Banner */}
@@ -209,7 +232,17 @@ export default function TutorProfileScreen() {
         </View>
       )}
 
-      <ScrollView style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={handleRefresh}
+            colors={["#8B5CF6"]}
+            tintColor="#8B5CF6"
+          />
+        }
+      >
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.profileHeader}>
@@ -296,7 +329,18 @@ export default function TutorProfileScreen() {
           </View>
         </View>
 
-        {/* Future Sprint 2 Features: Call and Book buttons will be added later */}
+        {/* Action Buttons for Students */}
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity style={styles.messageButton}>
+            <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.messageButtonText}>Send Message</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bookButton}>
+            <Ionicons name="calendar-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.bookButtonText}>Book Session</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
