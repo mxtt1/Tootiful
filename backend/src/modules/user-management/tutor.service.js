@@ -49,8 +49,8 @@ export default class TutorService {
     }
 
     async handleCreateTutor(req, res) {
-        const { tutorData, subjects } = req.body;
-        const newTutor = await this.createTutor(tutorData, subjects);
+        const tutorData = req.body;
+        const newTutor = await this.createTutor(tutorData);
 
         // Remove password from response
         const { password, ...tutorResponse } = newTutor.toJSON();
@@ -113,9 +113,7 @@ export default class TutorService {
     }
 
     // Business logic methods
-    async createTutor(tutorData, subjects = []) {
-        const transaction = await sequelize.transaction();
-        try {
+    async createTutor(tutorData) {
             // Check if email already exists
             const existingTutor = await Tutor.findOne({ where: { email: tutorData.email } });
             if (existingTutor) {
@@ -123,26 +121,7 @@ export default class TutorService {
             }
 
             // Create tutor
-            const tutor = await Tutor.create(tutorData, { transaction });
-
-            // Add subjects with experience levels if provided
-            if (subjects.length > 0) {
-                const tutorSubjects = subjects.map(subject => ({
-                    tutorId: tutor.id,
-                    subjectId: subject.subjectId,
-                    experienceLevel: subject.experienceLevel || 'intermediate'
-                }));
-                await TutorSubject.bulkCreate(tutorSubjects, { transaction });
-            }
-
-            await transaction.commit();
-
-            // Return tutor with subjects
-            return await this.getTutorById(tutor.id);
-        } catch (error) {
-            await transaction.rollback();
-            throw error;
-        }
+            return await Tutor.create(tutorData);
     }
 
     async getTutors(options = {}) {
