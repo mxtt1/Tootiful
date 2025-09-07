@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Platform, Modal, TouchableWithoutFeedback } from "react-native";
 import DropDownPicker from 'react-native-dropdown-picker';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
 //import DateTimePicker from '@react-native-community/datetimepicker';
 
 const Form = ({
@@ -23,11 +25,34 @@ const Form = ({
   const [gradeOpen, setGradeOpen] = useState(false);
   const [gradeValue, setGradeValue] = useState(formData.gradeLevel || null);
   const [gradeItems, setGradeItems] = useState([
-    { label: 'Primary', value: 'Primary' },
-    { label: 'Secondary', value: 'Secondary' },
-    { label: 'JC', value: 'JC' },
-    { label: 'International', value: 'International' },
+    { label: 'Primary 1', value: 'Primary 1' },
+    { label: 'Primary 2', value: 'Primary 2' },
+    { label: 'Primary 3', value: 'Primary 3' },
+    { label: 'Primary 4', value: 'Primary 4' },
   ]);
+
+  const [image, setImage] = useState(formData.image || null);
+  {/* Function to handle image selection */}
+  const pickImage = async () => {
+  // Ask for permission first
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== 'granted') {
+    alert('Permission to access gallery is required!');
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    aspect: [1, 1], // square crop
+    quality: 1,
+  });
+
+  if (!result.canceled) {
+    setImage(result.assets[0].uri);
+    onInputChange('image', result.assets[0].uri); // save to formData
+  }
+};
   
   /*
   const [showDatePickerModal, setShowDatePickerModal] = useState(false);
@@ -53,8 +78,12 @@ const Form = ({
 
       {/* Profile Image */}
       <View style={styles.imageBg}>
-        <TouchableOpacity style={styles.editIconContainer}>
+        <TouchableOpacity onPress={pickImage} style={styles.editIconContainer}>
+        {image ? (
+        <Image source={{ uri: image }} style={styles.image} />
+      ) : (
         <Ionicons name="camera-outline" size={24} color="#6155F5" />
+      )}
       </TouchableOpacity>
       </View>
 
