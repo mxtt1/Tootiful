@@ -1,15 +1,55 @@
 import { View, Text, StyleSheet, TextInput, ScrollView, Alert, TouchableOpacity } from "react-native";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Link } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 
 export default function TeachingInfo() {
+
+    const { id } = useLocalSearchParams();
+
     const [formData, setFormData] = useState({
         hourlyRate: '',
         aboutMe: '',
         education: '',
         subjects: '',
     });
+
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchTutorData();
+    }, []);
+
+    const fetchTutorData = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch(`http://localhost:3000/api/tutors/${id || 1}`);
+            
+            if (response.ok) {
+                const tutorData = await response.json();
+                // Update form data with fetched data
+                setFormData({
+                    hourlyRate: tutorData.hourlyRate || ""
+                });
+            } else {
+                Alert.alert('Error', 'Failed to fetch tutor data');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'An error occurred while fetching data');
+            console.error('Error fetching tutor data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.center]}>
+                <Text>Loading...</Text>
+            </View>
+        );
+    }
+    
     const handleInputChange = (field, value) => {
         setFormData(prev => ({
             ...prev,

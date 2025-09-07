@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Alert } from "react-native";
-import { Link } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 import { Ionicons } from '@expo/vector-icons';
 import Form from '../../components/form';
 
 export default function editStudent() {
+    const { id } = useLocalSearchParams();
+
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -14,6 +16,46 @@ export default function editStudent() {
         gender: '',
         gradeLevel: '',
     });
+
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchStudentData();
+    }, []);
+    
+    const fetchStudentData = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch(`http://localhost:3000/api/students/${id || 1}`);
+            
+            if (response.ok) {
+                const studentData = await response.json();
+                // Update form data with fetched data
+                setFormData({
+                    firstName: studentData.firstName || "",
+                    lastName: studentData.lastName || "",
+                    dateOfBirth: studentData.dateOfBirth || "",
+                    email: studentData.email || "",
+                    phone: studentData.phone || "",
+                });
+            } else {
+                Alert.alert('Error', 'Failed to fetch tutor data');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'An error occurred while fetching data');
+            console.error('Error fetching tutor data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.center]}>
+                <Text>Loading...</Text>
+            </View>
+        );
+    }
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({
@@ -56,7 +98,7 @@ export default function editStudent() {
     return (
         <ScrollView style={styles.container}>
             <View style={styles.header}>
-                <Link href="/" style={styles.backLink}>
+                <Link href="/tabs/myProfile" style={styles.backLink}>
                 <Ionicons name="arrow-back" size={24} color="#6155F5" style={{ marginBottom: 20 }} />
                 </Link>
                 <Text style={styles.title}>Edit Profile</Text>

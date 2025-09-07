@@ -8,7 +8,7 @@ export default function EditProfile() {
     return ( 
         <ScrollView style={styles.container}>
             <View style={styles.header}>
-                <Link href="/" style={styles.backLink}>
+                <Link href="/tutor/tutorProfile" style={styles.backLink}>
                 <Ionicons name="arrow-back" size={24} color="#6155F5" style={{ marginBottom: 20 }} />
                 </Link>
             <Text style={styles.title}>Edit Profile</Text>

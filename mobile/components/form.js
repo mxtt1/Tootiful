@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Platform } from "react-native";
-import { Picker } from '@react-native-picker/picker';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Platform, Modal, TouchableWithoutFeedback } from "react-native";
+import DropDownPicker from 'react-native-dropdown-picker';
 import { Ionicons } from '@expo/vector-icons';
 //import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -11,6 +11,24 @@ const Form = ({
   showGradeLevel = true,
   showGender = true,
 }) => {
+  {/* State for gender picker modal */}
+  const [genderOpen, setGenderOpen] = useState(false);
+  const [genderValue, setGenderValue] = useState(formData.gender || null);
+  const [genderItems, setGenderItems] = useState([
+    { label: 'Male', value: 'male' },
+    { label: 'Female', value: 'female' },
+  ]);
+
+  {/* State for grade level picker modal */}
+  const [gradeOpen, setGradeOpen] = useState(false);
+  const [gradeValue, setGradeValue] = useState(formData.gradeLevel || null);
+  const [gradeItems, setGradeItems] = useState([
+    { label: 'Primary', value: 'Primary' },
+    { label: 'Secondary', value: 'Secondary' },
+    { label: 'JC', value: 'JC' },
+    { label: 'International', value: 'International' },
+  ]);
+  
   /*
   const [showDatePickerModal, setShowDatePickerModal] = useState(false);
   // if dateOfBirth exists, convert to Date object, else use current date
@@ -117,38 +135,38 @@ const Form = ({
 
       {/* Gender - Conditionally rendered */}
       {showGender && (
-        <View style={styles.inputContainer}>
-          <View style={[styles.pickerContainer, styles.input]}>
-            <Picker
-              selectedValue={formData.gender}
-              onValueChange={(value) => onInputChange('gender', value)}
-              style={styles.picker}
-            >
-              <Picker.Item label="Select Gender" value="" />
-              <Picker.Item label="Male" value="male" />
-              <Picker.Item label="Female" value="female" />
-            </Picker>
-          </View>
-        </View>
+        <DropDownPicker
+          open={genderOpen}
+          value={genderValue}
+          items={genderItems}
+          setOpen={setGenderOpen}
+          setValue={(value) => {
+            setGenderValue(value());
+            onInputChange("gender", value());
+          }}
+          setItems={setGenderItems}
+          placeholder="Select Gender"
+          style={styles.input} 
+          dropDownContainerStyle={styles.dropdown}
+        />
       )}
 
       {/* Grade Level - Conditionally rendered */}
       {showGradeLevel && (
-        <View style={styles.inputContainer}>
-          <View style={[styles.pickerContainer, styles.input]}>
-            <Picker
-              selectedValue={formData.gradeLevel}
-              onValueChange={(value) => onInputChange('gradeLevel', value)}
-              style={styles.picker}
-            >
-              <Picker.Item label="Select Grade Level" value="" />
-              <Picker.Item label="Primary" value="Primary" />
-              <Picker.Item label="Secondary" value="Secondary" />
-              <Picker.Item label="JC" value="JC" />
-              <Picker.Item label="International" value="International" />
-            </Picker>
-          </View>
-        </View>
+        <DropDownPicker
+          open={gradeOpen}
+          value={gradeValue}
+          items={gradeItems}
+          setOpen={setGradeOpen}
+          setValue={(value) => {
+            setGradeValue(value());
+            onInputChange("gradeLevel", value());
+          }}
+          setItems={setGradeItems}
+          placeholder="Select Grade Level"
+          style={styles.input} 
+          dropDownContainerStyle={styles.dropdown}
+        />
       )}
 
       {/* Save Button */}
@@ -174,6 +192,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  pickerWrapper: {
+    overflow: 'hidden',
   },
   image: {
     width: 32,
@@ -206,6 +227,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 5,  
+    borderWidth: 0,
   },
   styleIcon: {
     position: 'absolute',
@@ -227,10 +249,13 @@ const styles = StyleSheet.create({
   },
   pickerContainer: {
     justifyContent: 'center',
+    position: 'relative',
   },
   picker: {
     height: 50,
     width: '100%',
+    color: '#374151',
+    backgroundColor: 'transparent',
   },
   button: {
     backgroundColor: '#6155F5',
@@ -245,6 +270,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  chevronIcon: {
+  position: 'absolute',
+  right: 10,
+  top: '50%',
+  transform: [{ translateY: -10 }], 
+  zIndex: 1,
+},
+
 });
 
 export default Form;
