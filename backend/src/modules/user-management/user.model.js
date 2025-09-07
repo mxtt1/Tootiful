@@ -62,7 +62,7 @@ gender: {
     }
 },
 image: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.STRING('long'),
     allowNull: true,
     comment: 'URL of profile image'
 },
