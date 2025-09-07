@@ -14,6 +14,19 @@ export default class AuthService {
         this.tutorService = new TutorService();
     }
 
+    async handleRegister({ username, email, password, confirmPassword, role }) {
+        if (password !== confirmPassword) {
+            throw new Error('Passwords do not match'); 
+        }
+        if (role === 'Student') {
+            return this.studentService.createStudent({ username, email, password, role });
+        } else if (role === 'Tutor') {
+            return this.tutorService.createTutor({ username, email, password, role });
+        } else {
+            throw new Error('Invalid role specified');
+        }
+    }
+
     // Separate login handlers with HTTP cookies
     async handleStudentLogin(req, res) {
         const { email, password } = req.body;
@@ -105,7 +118,7 @@ export default class AuthService {
 
         // Generate opaque refresh token
         const refreshToken = crypto.randomBytes(32).toString('hex');
-        
+
         // Store refresh token in database
         await this.storeRefreshToken(refreshToken, userId, userType);
 
@@ -115,7 +128,7 @@ export default class AuthService {
     async refreshAccessToken(refreshToken) {
         // Find and validate refresh token in database
         const tokenRecord = await this.validateRefreshToken(refreshToken);
-        
+
         if (!tokenRecord) {
             throw new Error('Invalid or expired refresh token');
         }
@@ -186,7 +199,7 @@ export default class AuthService {
 
     async validateRefreshToken(token) {
         const hashedToken = this.hashToken(token);
-        
+
         const tokenRecord = await RefreshToken.findOne({
             where: {
                 token: hashedToken,
