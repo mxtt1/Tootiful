@@ -1,50 +1,54 @@
-export default (sequelize, DataTypes) => {
-  const PasswordResetToken = sequelize.define(
-    "PasswordResetToken",
-    {
-      id: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        autoIncrement: true,
-        primaryKey: true,
-      },
-      userId: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: false,
-      },
-      userType: {
-        // you have two user tables; we key which table this token belongs to
-        type: DataTypes.ENUM("student", "tutor"),
-        allowNull: false,
-      },
-      codeHash: {
-        // stores a bcrypt hash of either the 6-digit OTP *or* the later resetToken
-        type: DataTypes.STRING(255),
-        allowNull: false,
-      },
-      expiresAt: {
-        type: DataTypes.DATE,
-        allowNull: false,
-      },
-      usedAt: {
-        type: DataTypes.DATE,
-        allowNull: true,
-      },
-      attempts: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: false,
-        defaultValue: 0,
-      },
-    },
-    {
-      tableName: "password_reset_tokens",
-      underscored: true,
-      timestamps: true,
-      indexes: [
-        { fields: ["user_id", "user_type"] },
-        { fields: ["expires_at"] },
-      ],
-    }
-  );
+import { DataTypes } from "sequelize";
+import sequelize from "../../config/database.js";
 
-  return PasswordResetToken;
-};
+const PasswordResetToken = sequelize.define(
+  "PasswordResetToken",
+  {
+    id: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    // Must match Student/Tutor PK type (UUID in your DB)
+    userId: {
+      type: DataTypes.STRING(36), // or DataTypes.UUID
+      allowNull: false,
+      field: "user_id",
+    },
+    userType: {
+      type: DataTypes.ENUM("student", "tutor"),
+      allowNull: false,
+      field: "user_type",
+    },
+    codeHash: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      field: "code_hash",
+    },
+    expiresAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      field: "expires_at",
+    },
+    usedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: "used_at",
+    },
+    attempts: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: false,
+      defaultValue: 0,
+    },
+  },
+  {
+    tableName: "password_reset_tokens",
+    underscored: true,
+    timestamps: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+    paranoid: false,
+  }
+);
+
+export { PasswordResetToken };

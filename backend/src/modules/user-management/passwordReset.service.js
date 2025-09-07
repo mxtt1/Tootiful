@@ -1,19 +1,18 @@
-// backend/src/modules/user-management/passwordReset.service.js
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { Op } from "sequelize";
 import { Student, Tutor, PasswordResetToken } from "./user.model.js";
 import { sendEmail } from "../../util/mailer.js";
-import { otpTemplate /*, passwordResetTemplate */ } from "../../util/emailTemplates.js";
+import { otpTemplate } from "../../util/emailTemplates.js";
 
-const OTP_TTL_MS = 10 * 60 * 1000;     // 10 minutes
-const TOKEN_TTL_MS = 15 * 60 * 1000;   // 15 minutes after verify
+const OTP_TTL_MS = 10 * 60 * 1000;
+const TOKEN_TTL_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
-const RESEND_COOLDOWN_MS = 60 * 1000;  // 60s throttle
+const RESEND_COOLDOWN_MS = 60 * 1000;
 const SALT_ROUNDS = 12;
 
 function generateOtp() {
-  return String(Math.floor(100000 + Math.random() * 900000)); // 6 digits
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 async function findUserByEmail(email) {
@@ -24,29 +23,24 @@ async function findUserByEmail(email) {
   return { user: null, userType: null };
 }
 
-/**
- * Step 1: Request reset — generates OTP, stores hash, emails the code.
- * Return shape used by routes:
- *   - { ok: true } on success
- *   - { ok: false, notFound: true } if no user
- *   - { ok: false, message: "cooldown..." } if throttled
- */
 export async function requestReset(email) {
   const { user, userType } = await findUserByEmail(email);
   if (!user) return { ok: false, notFound: true };
 
-  // Throttle: prevent spamming within RESEND_COOLDOWN_MS
   const latest = await PasswordResetToken.findOne({
     where: { userId: user.id, userType },
-    order: [["createdAt", "DESC"]],
+    order: [["created_at", "DESC"]], // snake_case column in DB
   });
-  if (latest && Date.now() - new Date(latest.createdAt).getTime() < RESEND_COOLDOWN_MS) {
-    const waitMs = RESEND_COOLDOWN_MS - (Date.now() - new Date(latest.createdAt).getTime());
-    const secs = Math.ceil(waitMs / 1000);
-    return { ok: false, message: `Please wait ${secs}s before requesting another code.` };
+
+  if (latest) {
+    const createdAt = new Date(latest.get("created_at")); // read actual column
+    const delta = Date.now() - createdAt.getTime();
+    if (delta < RESEND_COOLDOWN_MS) {
+      const secs = Math.ceil((RESEND_COOLDOWN_MS - delta) / 1000);
+      return { ok: false, message: `Please wait ${secs}s before requesting another code.` };
+    }
   }
 
-  // Create OTP + hash
   const code = generateOtp();
   const codeHash = await bcrypt.hash(code, SALT_ROUNDS);
 
@@ -59,32 +53,21 @@ export async function requestReset(email) {
     usedAt: null,
   });
 
-  // Send email with OTP
-  const displayName = user.firstName || user.lastName
-    ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
-    : "there";
+  const displayName =
+    (user.firstName || user.lastName
+      ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
+      : "there");
+
   const { subject, text, html } = otpTemplate({
     name: displayName,
     otp: code,
     ttlMinutes: Math.round(OTP_TTL_MS / 60000),
   });
 
-  await sendEmail({
-    to: user.email,
-    subject,
-    text,
-    html,
-  });
-
+  await sendEmail({ to: user.email, subject, text, html });
   return { ok: true };
 }
 
-/**
- * Step 2: Verify OTP — if valid, mint a short-lived resetToken.
- * Returns:
- *   - { ok: true, resetToken }
- *   - { ok: false, message: "..." }
- */
 export async function verifyCode(email, code) {
   const { user, userType } = await findUserByEmail(email);
   if (!user) return { ok: false, message: "Invalid or expired code." };
@@ -96,7 +79,7 @@ export async function verifyCode(email, code) {
       usedAt: { [Op.is]: null },
       expiresAt: { [Op.gt]: new Date() },
     },
-    order: [["createdAt", "DESC"]],
+    order: [["created_at", "DESC"]], // snake_case
   });
   if (!token) return { ok: false, message: "Invalid or expired code." };
   if (token.attempts >= MAX_ATTEMPTS) return { ok: false, message: "Too many attempts." };
@@ -107,25 +90,18 @@ export async function verifyCode(email, code) {
     return { ok: false, message: "Invalid or expired code." };
   }
 
-  // OTP ok → issue resetToken and rotate the hash to the resetToken
   const resetToken = crypto.randomBytes(32).toString("hex");
   const resetHash = await bcrypt.hash(resetToken, SALT_ROUNDS);
 
   await token.update({
-    codeHash: resetHash,                       // now holds resetToken's hash
+    codeHash: resetHash,
     expiresAt: new Date(Date.now() + TOKEN_TTL_MS),
-    attempts: 0,                               // reset attempts
+    attempts: 0,
   });
 
   return { ok: true, resetToken };
 }
 
-/**
- * Step 3: Reset password using the resetToken.
- * Returns:
- *   - { ok: true } on success
- *   - { ok: false, message: "..." } on failure
- */
 export async function resetPassword(email, resetToken, newPassword) {
   const { user, userType } = await findUserByEmail(email);
   if (!user) return { ok: false, message: "Invalid or expired token." };
@@ -137,14 +113,13 @@ export async function resetPassword(email, resetToken, newPassword) {
       usedAt: { [Op.is]: null },
       expiresAt: { [Op.gt]: new Date() },
     },
-    order: [["createdAt", "DESC"]],
+    order: [["created_at", "DESC"]], // snake_case
   });
   if (!token) return { ok: false, message: "Invalid or expired token." };
 
   const valid = await bcrypt.compare(resetToken, token.codeHash);
   if (!valid) return { ok: false, message: "Invalid or expired token." };
 
-  // Update password; (your model hook should hash password before save)
   user.password = newPassword;
   await user.save();
 
