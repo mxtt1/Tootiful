@@ -92,9 +92,11 @@ export default function LoginScreen() {
                 </Picker>
             </View>
 
-            <TouchableOpacity>
-                <Text style={styles.forgot}>Forget Password ?</Text>
-            </TouchableOpacity>
+            <Text style={{ textAlign: "right", marginTop: 2, marginBottom: 20 }}>
+                <Link href="/forgot_password" style={{ color: "#666" }}>
+                    Forget Password?
+                </Link>
+            </Text>
 
             <TouchableOpacity 
                 style={[styles.button, isLoading && styles.buttonDisabled]} 

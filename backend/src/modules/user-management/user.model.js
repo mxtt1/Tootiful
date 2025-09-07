@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import experienceLevelEnum from '../../util/enum/experienceLevelEnum.js';
 import gradeLevelEnum from '../../util/enum/gradeLevelEnum.js';
 import { getAllGenders, isValidGender } from '../../util/enum/genderEnum.js';
+import PasswordResetModel from './passwordReset.model.js';
 
 // Student Model
 const Student = sequelize.define('Student', {
@@ -279,9 +280,6 @@ Subject.belongsToMany(Tutor, {
   otherKey: 'tutorId',
   as: 'tutors'
 });
-
-
-
-
-export { Student, Tutor, Subject, TutorSubject };
-export default { Student, Tutor, Subject, TutorSubject };
+const PasswordResetToken = PasswordResetModel(sequelize, DataTypes);
+export { Student, Tutor, Subject, TutorSubject, PasswordResetToken };
+export default { Student, Tutor, Subject, TutorSubject, PasswordResetToken };

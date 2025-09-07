@@ -9,6 +9,7 @@ import authRoutes from "./modules/user-management/auth.routes.js";
 import { seedSubjects } from "./util/seed-subjects.js";
 import { seedTutors } from "./util/seed-tutors.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { verifyTransport } from "./util/mailer.js";
 
 // Load environment variables
 dotenv.config();
@@ -126,6 +127,7 @@ const startServer = async () => {
 
     // Start the server
     app.listen(PORT, '0.0.0.0');
+    await verifyTransport(); // Verify mailer setup
   } catch (error) {
     console.error("Unable to start server:", error);
     process.exit(1);
