@@ -1,11 +1,10 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Alert } from "react-native";
 import React, { useState } from 'react';
-import { ScrollView, Alert } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import Form from '../../components/form';
 import { Link } from "expo-router";
 
-export default function editTutor() {
+export default function PersonalDetails() {
 
     const [formData, setFormData] = useState({
         firstName: "",
@@ -53,14 +52,16 @@ export default function editTutor() {
 
     return ( 
         <ScrollView style={styles.container}>
-            <Link href="/" style={styles.backLink}>
-            <Ionicons name="arrow-back" size={24} color="#6155F5" style={{ marginBottom: 20 }} />
-            </Link>
+            <View style={styles.header}>
+                <Link href="/tutor/editProfile" style={styles.backLink}>
+                <Ionicons name="arrow-back" size={24} color="#6155F5" style={{ marginBottom: 20 }} />
+                </Link>
+            <Text style={styles.title}>Personal Details</Text>
+            </View>
             <Form
             formData={formData}
             onInputChange={handleInputChange}
             onSave={handleSave}
-            title="Edit Tutor Profile"
             showGradeLevel={false}
             showGender={false}
             saveButtonText="Save"
@@ -79,8 +80,20 @@ const styles = StyleSheet.create({
         padding: 20,
         backgroundColor: "#FFF",
     },
+    title: {
+        fontSize: 20,
+        marginBottom: 10,
+        fontWeight: 'bold',
+        color: "#6155F5",
+    },
     backLink: {
         alignSelf: 'flex-start',
         marginBottom: 10,
+        marginRight: 12,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
     },
 });

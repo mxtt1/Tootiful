@@ -1,26 +1,43 @@
-import React from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useState } from 'react';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Platform } from "react-native";
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
+//import DateTimePicker from '@react-native-community/datetimepicker';
 
 const Form = ({
   formData,
   onInputChange,
   onSave,
-  title = "Edit Profile",
   showGradeLevel = true,
   showGender = true,
-  saveButtonText = "Save"
 }) => {
+  /*
+  const [showDatePickerModal, setShowDatePickerModal] = useState(false);
+  // if dateOfBirth exists, convert to Date object, else use current date
+  const [date, setDate] = useState(formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date());
+
+  const onDateChange = (event, selectedDate) => {
+    // For ios, manually close the picker after selection
+    setShowDatePickerModal(Platform.OS === 'ios');
+    if (selectedDate) {
+      setDate(selectedDate);
+      const formattedDate = selectedDate.toISOString().split('T')[0];
+      onInputChange('dateOfBirth', formattedDate);
+    }
+  };
+
+  const showDatePicker = () => {
+    setShowDatePickerModal(true);
+  }
+*/
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.title}>{title}</Text>
 
       {/* Profile Image */}
       <View style={styles.imageBg}>
-        <View style={styles.image}>
-          <Text style={styles.iconText}>+</Text>
-        </View> 
+        <TouchableOpacity style={styles.editIconContainer}>
+        <Ionicons name="camera-outline" size={24} color="#6155F5" />
+      </TouchableOpacity>
       </View>
 
       {/* First Name */}
@@ -45,19 +62,40 @@ const Form = ({
 
       {/* Date of Birth */}
       <View style={styles.inputContainer}>
-        <Ionicons name="calendar" size={20} style={styles.calendarIcon} />
+        {/*
+        <TouchableOpacity onPress={showDatePicker} style={ styles.calendarIcon}>
+        <Ionicons name="calendar-outline" size={20} style={styles.calendarIcon}
+        />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.input, styles.inputWithIcon, styles.dateInput]} onPress={showDatePicker}>
+        */}
+        <Ionicons name="calendar-outline" size={20} style={styles.styleIcon}/>
         <TextInput 
           style={[styles.input, styles.inputWithIcon]}
           placeholder="Date of Birth"
-          value={formData.dateOfBirth}
-          onChangeText={(text) => onInputChange('dateOfBirth', text)}
+          value={formData.email}
+          onChangeText={(text) => onInputChange('email', text)}
+          keyboardType="birth-date"
         />
+
+        {/*
+        {showDatePickerModal && (
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={onDateChange}
+            maximumDate={new Date()}
+          />
+        )}
+          */}
       </View>
 
       {/* Email */}
       <View style={styles.inputContainer}>
+          <Ionicons name="mail-outline" size={20} style={styles.styleIcon}/>
         <TextInput 
-          style={styles.input}
+          style={[styles.input, styles.inputWithIcon]}
           placeholder="Email"
           value={formData.email}
           onChangeText={(text) => onInputChange('email', text)}
@@ -66,9 +104,10 @@ const Form = ({
       </View>
 
       {/* Phone Number */}
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer]}>
+        <Ionicons name="call-outline" size={20} style={styles.styleIcon}/>
         <TextInput 
-          style={styles.input}
+          style={[styles.input, styles.inputWithIcon]}
           placeholder="Phone Number"
           value={formData.phone}
           onChangeText={(text) => onInputChange('phone', text)}
@@ -114,7 +153,7 @@ const Form = ({
 
       {/* Save Button */}
       <TouchableOpacity style={styles.button} onPress={onSave}>
-        <Text style={styles.buttonText}>{saveButtonText}</Text>
+        <Text style={styles.buttonText}>Save</Text>
       </TouchableOpacity>
     </View>
   );
@@ -123,13 +162,6 @@ const Form = ({
 const styles = StyleSheet.create({
   formContainer: {
     padding: 20,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    color: "#6155F5",
-    textAlign: 'center',
-    marginVertical: 20,
   },
   imageBg: {
     width: 90,
@@ -160,24 +192,35 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     marginBottom: 20,
+    position: 'relative',
   },
   input: {
     height: 50,
-    paddingLeft: 10,
+    paddingLeft: 20,
     borderRadius: 12,
     backgroundColor: '#fff',
     fontSize: 14,
+    color: '#374151',
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 5,  
   },
-  calendarIcon: {
+  styleIcon: {
     position: 'absolute',
     left: 10,
     top: 15,
-    zIndex: 1
+    zIndex: 1,
+    color:"#6B7280"
+  },
+  calendarIconContainer: {
+    position: 'absolute',
+    left: 10,
+    top: 4,
+    zIndex: 2,
+    padding: 5,
+    color:"#6B7280"
   },
   inputWithIcon: {
     paddingLeft: 40,
