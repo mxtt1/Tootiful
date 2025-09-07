@@ -14,17 +14,26 @@ export default class AuthService {
         this.tutorService = new TutorService();
     }
 
-    async handleRegister({ username, email, password, confirmPassword, role }) {
+    async handleRegister(data) {
+        const { username, email, password, confirmPassword, role } = data;
+
         if (password !== confirmPassword) {
-            throw new Error('Passwords do not match'); 
+            throw new Error('Passwords do not match');
         }
-        if (role === 'Student') {
-            return this.studentService.createStudent({ username, email, password, role });
-        } else if (role === 'Tutor') {
-            return this.tutorService.createTutor({ username, email, password, role });
+
+        let newUser;
+        if (role === "Student") {
+            newUser = await this.studentService.handleCreateStudent({ username, email, password });
+        } else if (role === "Tutor") {
+            newUser = await this.tutorService.handleCreateTutor({ username, email, password });
         } else {
             throw new Error('Invalid role specified');
         }
+
+        return {
+            message: `${role.charAt(0).toUpperCase() + role.slice(1)} registered successfully`,
+            userId: newUser.id
+        };
     }
 
     // Separate login handlers with HTTP cookies

@@ -7,6 +7,8 @@ const router = express.Router();
 const authService = new AuthService();
 
 // Separate login endpoints for each user type
+router.post('/register', asyncHandler(authService.handleRegister.bind(authService)));
+
 router.post('/student/login', asyncHandler(authService.handleStudentLogin.bind(authService)));
 router.post('/tutor/login', asyncHandler(authService.handleTutorLogin.bind(authService)));
 
@@ -17,7 +19,7 @@ router.post('/refresh', asyncHandler(authService.handleRefreshToken.bind(authSer
 router.post('/logout', asyncHandler(authService.handleLogout.bind(authService)));
 
 // Logout from all devices
-router.post('/logout-all', 
+router.post('/logout-all',
     authenticateToken,
     asyncHandler(authService.handleLogoutAll.bind(authService))
 );

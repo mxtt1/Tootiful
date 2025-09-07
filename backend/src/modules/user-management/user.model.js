@@ -233,19 +233,22 @@ const TutorSubject = sequelize.define('TutorSubject', {
 });
 
 // Set up associations
-Tutor.belongsToMany(Subject, { 
-  through: TutorSubject, 
+Tutor.belongsToMany(Subject, {
+  through: TutorSubject,
   foreignKey: 'tutorId',
   otherKey: 'subjectId',
   as: 'subjects'
 });
 
-Subject.belongsToMany(Tutor, { 
-  through: TutorSubject, 
+Subject.belongsToMany(Tutor, {
+  through: TutorSubject,
   foreignKey: 'subjectId',
   otherKey: 'tutorId',
   as: 'tutors'
 });
+
+
+
 
 export { Student, Tutor, Subject, TutorSubject };
 export default { Student, Tutor, Subject, TutorSubject };

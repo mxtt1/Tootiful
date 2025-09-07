@@ -39,9 +39,10 @@ app.use((req, res, next) => {
 });
 
 // Routes
+app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/tutors", tutorRoutes);
-app.use("/api/auth", authRoutes);
+
 
 // Global Error Handler Middleware
 app.use(errorHandler);

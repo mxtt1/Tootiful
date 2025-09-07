@@ -55,6 +55,8 @@ class StudentService {
         res.status(201).json(studentResponse);
     }
 
+
+
     async handleUpdateStudent(req, res) {
         const { id } = req.params;
         const updateData = req.body;

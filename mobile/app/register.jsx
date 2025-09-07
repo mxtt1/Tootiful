@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { authApi } from './api';
 import {
     View,
     Text,
@@ -9,7 +10,7 @@ import {
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { useRouter } from "expo-router";
-//import AuthService from "../../backend/modules/user-management/auth.service";
+// Removed direct backend service import; using API calls to register instead.
 
 export default function RegisterScreen() {
     const [username, setUsername] = useState("");
@@ -20,13 +21,34 @@ export default function RegisterScreen() {
     const router = useRouter();
 
     const handleRegister = async () => {
-        console.log("Registering:", { username, email, password, role });
-        // 🔐 TODO: send data to backend API
-        // Call your backend auth service to persist the user data in your database
-        //await AuthService.register({ username, email, password, confirmPassword, role });
-        router.replace("/login");
-    };
+        try {
+            if (!username || !email || !password || !confirmPassword) {
+                throw new Error('All fields are required');
+            }
 
+            if (password !== confirmPassword) {
+                throw new Error('Passwords do not match');
+            }
+
+            const payload = {
+                firstname: username, // or split username into first/last
+                lastname: "",
+                email,
+                password,
+                role
+            };
+
+            console.log('Registering:', payload);
+
+            const data = await authApi.register(payload);
+            console.log('Registration successful:', data);
+
+            router.replace("/login");
+        } catch (error) {
+            console.error("Registration error:", error);
+            // Handle error display
+        }
+    };
     return (
         <View style={styles.container}>
             {/* Logo */}
