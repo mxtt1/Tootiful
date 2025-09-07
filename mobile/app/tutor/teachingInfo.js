@@ -19,7 +19,7 @@ export default function TeachingInfo() {
 
     const handleSave = async () => {
         try {
-            const response = await fetch('http://localhost:3000/api/tutors/1', {
+            const response = await fetch(`http://localhost:3000/api/tutors/${id || 1}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',

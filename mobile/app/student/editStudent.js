@@ -55,9 +55,12 @@ export default function editStudent() {
 
     return (
         <ScrollView style={styles.container}>
-            <Link href="/" style={styles.backLink}>
-            <Ionicons name="arrow-back" size={24} color="#6155F5" style={{ marginBottom: 20 }} />
-            </Link>
+            <View style={styles.header}>
+                <Link href="/" style={styles.backLink}>
+                <Ionicons name="arrow-back" size={24} color="#6155F5" style={{ marginBottom: 20 }} />
+                </Link>
+                <Text style={styles.title}>Edit Profile</Text>
+            </View>
 
             <Form 
             formData={formData}
@@ -83,5 +86,17 @@ const styles = StyleSheet.create({
     backLink: {
         alignSelf: 'flex-start',
         marginBottom: 10,
+        marginRight: 12,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    title: {
+        fontSize: 20,
+        marginBottom: 10,
+        fontWeight: 'bold',
+        color: "#6155F5",
     },
 });

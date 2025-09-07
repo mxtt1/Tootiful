@@ -1,10 +1,12 @@
 import { View, Text, StyleSheet, ScrollView, Alert } from "react-native";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import Form from '../../components/form';
-import { Link } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 
 export default function PersonalDetails() {
+
+    const { id } = useLocalSearchParams();
 
     const [formData, setFormData] = useState({
         firstName: "",
@@ -13,6 +15,46 @@ export default function PersonalDetails() {
         email: "",
         phone: "",
     });
+
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchTutorData();
+    }, []);
+
+    const fetchTutorData = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch(`http://localhost:3000/api/tutors/${id || 1}`);
+            
+            if (response.ok) {
+                const tutorData = await response.json();
+                // Update form data with fetched data
+                setFormData({
+                    firstName: tutorData.firstName || "",
+                    lastName: tutorData.lastName || "",
+                    dateOfBirth: tutorData.dateOfBirth || "",
+                    email: tutorData.email || "",
+                    phone: tutorData.phone || "",
+                });
+            } else {
+                Alert.alert('Error', 'Failed to fetch tutor data');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'An error occurred while fetching data');
+            console.error('Error fetching tutor data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.center]}>
+                <Text>Loading...</Text>
+            </View>
+        );
+    }
 
     const handleInputChange = (field, value) => {setFormData(prev => ({
         ...prev,
@@ -30,7 +72,8 @@ export default function PersonalDetails() {
                 email: formData.email,
                 phone: formData.phone,
             };
-            const response = await fetch('http://localhost:3000/api/tutors/1', {
+            console.log('Request Body:', requestBody);
+            const response = await fetch(`http://localhost:3000/api/tutors/${id || 1}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',

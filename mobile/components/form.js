@@ -73,8 +73,8 @@ const Form = ({
         <TextInput 
           style={[styles.input, styles.inputWithIcon]}
           placeholder="Date of Birth"
-          value={formData.email}
-          onChangeText={(text) => onInputChange('email', text)}
+          value={formData.dateOfBirth}
+          onChangeText={(text) => onInputChange('dateOfBirth', text)}
           keyboardType="birth-date"
         />
 
