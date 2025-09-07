@@ -3,6 +3,7 @@ import sequelize from '../../config/database.js';
 import bcrypt from 'bcrypt';
 import experienceLevelEnum from '../../util/enum/experienceLevelEnum.js';
 import gradeLevelEnum from '../../util/enum/gradeLevelEnum.js';
+import { getAllGenders, isValidGender } from '../../util/enum/genderEnum.js';
 
 // Student Model
 const Student = sequelize.define('Student', {
@@ -49,6 +50,22 @@ const Student = sequelize.define('Student', {
       len: [8, 8]
     }
   },
+gender: {
+    type: DataTypes.ENUM(...getAllGenders()),
+    allowNull: true,
+    validate: {
+        isValidGender(value) {
+            if (value && !isValidGender(value)) {
+                throw new Error(`Gender must be one of the predefined values`);
+            }
+        }
+    }
+},
+image: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    comment: 'URL of profile image'
+},
   gradeLevel: {
     type: DataTypes.ENUM(...gradeLevelEnum.getAllLevels()),
     allowNull: true,

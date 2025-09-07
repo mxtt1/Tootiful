@@ -29,6 +29,14 @@ const Form = ({
     { label: 'Primary 2', value: 'Primary 2' },
     { label: 'Primary 3', value: 'Primary 3' },
     { label: 'Primary 4', value: 'Primary 4' },
+    { label: 'Primary 5', value: 'Primary 5' },
+    { label: 'Primary 6', value: 'Primary 6' },
+    { label: 'Secondary 1', value: 'Secondary 1' },
+    { label: 'Secondary 2', value: 'Secondary 2' },
+    { label: 'Secondary 3', value: 'Secondary 3' },
+    { label: 'Secondary 4', value: 'Secondary 4' },
+    { label: 'JC 1', value: 'JC 1' },
+    { label: 'JC 2', value: 'JC 2' },
   ]);
 
   const [image, setImage] = useState(formData.image || null);
@@ -44,7 +52,7 @@ const Form = ({
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
     allowsEditing: true,
-    aspect: [1, 1], // square crop
+    aspect: [1, 1], 
     quality: 1,
   });
 
@@ -226,12 +234,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   image: {
-    width: 32,
-    height: 32,
+    width: 84,
+    height: 84,
     backgroundColor: "#fff",
     borderWidth: 3,
     borderColor: "#202244",
-    borderRadius: 8,
+    borderRadius: 42,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -37,6 +37,9 @@ export default function editStudent() {
                     dateOfBirth: studentData.dateOfBirth || "",
                     email: studentData.email || "",
                     phone: studentData.phone || "",
+                    gender: studentData.gender || "",
+                    gradeLevel: studentData.gradeLevel || "",
+                    image: studentData.image || null,
                 });
             } else {
                 Alert.alert('Error', 'Failed to fetch tutor data');
@@ -74,6 +77,7 @@ export default function editStudent() {
                 phone: formData.phone,
                 gender: formData.gender,
                 gradeLevel: formData.gradeLevel,
+                image: formData.image,
             };
 
             const response = await fetch('http://localhost:3000/api/students/1', {
