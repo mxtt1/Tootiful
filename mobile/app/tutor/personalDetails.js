@@ -1,9 +1,10 @@
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Alert } from "react-native";
 import React, { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import Form from "../../components/form";
 import { Link, useLocalSearchParams, router } from "expo-router";
 import authService from "../../services/authService";
+import apiClient from "../../services/apiClient";
 
 export default function PersonalDetails() {
   const { id } = useLocalSearchParams();
@@ -56,28 +57,20 @@ export default function PersonalDetails() {
       setCurrentUserId(tutorId);
 
       console.log("Fetching tutor data for ID:", tutorId);
-      const response = await fetch(
-        `http://localhost:3000/api/tutors/${tutorId}`
-      );
+      const tutorData = await apiClient.get(`/tutors/${tutorId}`);
 
-      if (response.ok) {
-        const tutorData = await response.json();
-        console.log("Fetched tutor data:", tutorData);
-        // Update form data with fetched data
-        setFormData({
-          firstName: tutorData.firstName || "",
-          lastName: tutorData.lastName || "",
-          dateOfBirth: tutorData.dateOfBirth || "",
-          email: tutorData.email || "",
-          phone: tutorData.phone || "",
-        });
-      } else {
-        console.error("Failed to fetch tutor data:", response.status);
-        alert("Error: Failed to fetch tutor data");
-      }
+      console.log("Fetched tutor data:", tutorData);
+      // Update form data with fetched data
+      setFormData({
+        firstName: tutorData.firstName || "",
+        lastName: tutorData.lastName || "",
+        dateOfBirth: tutorData.dateOfBirth || "",
+        email: tutorData.email || "",
+        phone: tutorData.phone || "",
+      });
     } catch (error) {
       console.error("Error fetching tutor data:", error);
-      alert("Error: An error occurred while fetching data");
+      Alert.alert("Error", "An error occurred while fetching data");
     } finally {
       setLoading(false);
     }
@@ -115,42 +108,27 @@ export default function PersonalDetails() {
       console.log("Saving tutor data for ID:", tutorId);
       console.log("Request Body:", requestBody);
 
-      const response = await fetch(
-        `http://localhost:3000/api/tutors/${tutorId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
+      await apiClient.patch(`/tutors/${tutorId}`, requestBody);
+
+      console.log("✅ Personal details updated successfully");
+
+      // Use Alert for mobile compatibility
+      Alert.alert(
+        "Success",
+        "Personal details updated successfully! Go back to profile?",
+        [
+          { text: "Stay Here", style: "cancel" },
+          {
+            text: "Go Back",
+            onPress: () => router.push("/tutor/myProfile"),
           },
-          body: JSON.stringify(requestBody),
-        }
+        ]
       );
-
-      if (response.ok) {
-        console.log("✅ Personal details updated successfully");
-
-        // Use confirm dialog for web compatibility
-        const shouldNavigateBack = confirm(
-          "Success: Personal details updated successfully! Go back to profile?"
-        );
-
-        if (shouldNavigateBack) {
-          // Navigate back to tutor profile
-          router.push("/tutor/myProfile");
-        }
-      } else {
-        console.error("Failed to update profile:", response.status);
-        const errorText = await response.text();
-        console.error("Error response:", errorText);
-
-        // Use confirm for web compatibility
-        confirm("Error: Failed to update profile. Please try again.");
-      }
     } catch (error) {
       console.error("Error updating profile:", error);
-      // Use confirm for web compatibility
-      confirm(
-        "Error: An error occurred while updating profile. Please try again."
+      Alert.alert(
+        "Error",
+        "An error occurred while updating profile. Please try again."
       );
     }
   };

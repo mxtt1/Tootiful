@@ -151,15 +151,11 @@ export default function TutorProfileScreen() {
   const handleLogout = () => {
     console.log("🚪 Tutor logout button clicked!");
 
-    // Use confirm dialog for web compatibility
-    const confirmLogout = confirm("Are you sure you want to logout?");
-
-    if (confirmLogout) {
-      console.log("🔐 Tutor confirmed logout");
-      handleActualLogout();
-    } else {
-      console.log("❌ Tutor cancelled logout");
-    }
+    // Use Alert for mobile compatibility
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Logout", onPress: handleActualLogout },
+    ]);
   };
 
   const handleActualLogout = async () => {
@@ -173,7 +169,7 @@ export default function TutorProfileScreen() {
       router.replace("/login");
     } catch (error) {
       console.error("❌ Tutor logout error:", error);
-      alert("Error: Failed to logout. Please try again.");
+      Alert.alert("Error", "Failed to logout. Please try again.");
     }
   };
 

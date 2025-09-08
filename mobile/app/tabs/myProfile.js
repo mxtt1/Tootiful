@@ -101,14 +101,7 @@ export default function ProfileScreen() {
           let userData;
           if (userTypeFromToken === "student") {
             console.log("📚 Fetching student data...");
-            // Make direct fetch call without authentication for public endpoints
-            const response = await fetch(
-              `http://localhost:3000/api/students/${userId}`
-            );
-            if (!response.ok) {
-              throw new Error(`Failed to fetch student: ${response.status}`);
-            }
-            userData = await response.json();
+            userData = await apiClient.get(`/students/${userId}`);
             setUserType("student");
           } else {
             throw new Error(
@@ -157,15 +150,11 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     console.log("🚪 Logout button clicked!");
 
-    // Use confirm dialog for web compatibility
-    const confirmLogout = confirm("Are you sure you want to logout?");
-
-    if (confirmLogout) {
-      console.log("🔐 User confirmed logout");
-      handleActualLogout();
-    } else {
-      console.log("❌ User cancelled logout");
-    }
+    // Use Alert for mobile compatibility
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Logout", onPress: handleActualLogout },
+    ]);
   };
 
   const handleActualLogout = async () => {
@@ -180,7 +169,7 @@ export default function ProfileScreen() {
       router.replace("/login");
     } catch (error) {
       console.error("❌ Logout error:", error);
-      alert("Error: Failed to logout. Please try again.");
+      Alert.alert("Error", "Failed to logout. Please try again.");
     }
   };
 

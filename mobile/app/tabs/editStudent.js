@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Form from "../../components/form";
 import { Link, useLocalSearchParams, router } from "expo-router";
 import authService from "../../services/authService";
+import apiClient from "../../services/apiClient";
 
 export default function editStudent() {
   const { id } = useLocalSearchParams();
@@ -57,28 +58,20 @@ export default function editStudent() {
       studentId = studentId || 1;
       setCurrentUserId(studentId);
       console.log("Fetching student data for ID:", studentId);
-      const response = await fetch(
-        `http://localhost:3000/api/students/${studentId}`
-      );
+      const studentData = await apiClient.get(`/students/${studentId}`);
 
-      if (response.ok) {
-        const studentData = await response.json();
-        console.log("Fetched student data:", studentData);
-        // Update form data with fetched data
-        setFormData({
-          firstName: studentData.firstName || "",
-          lastName: studentData.lastName || "",
-          dateOfBirth: studentData.dateOfBirth || "",
-          email: studentData.email || "",
-          phone: studentData.phone || "",
-          gender: studentData.gender || "",
-          gradeLevel: studentData.gradeLevel || "",
-          image: studentData.image || null,
-        });
-      } else {
-        console.error("Failed to fetch student data, status:", response.status);
-        Alert.alert("Error", "Failed to fetch student data");
-      }
+      console.log("Fetched student data:", studentData);
+      // Update form data with fetched data
+      setFormData({
+        firstName: studentData.firstName || "",
+        lastName: studentData.lastName || "",
+        dateOfBirth: studentData.dateOfBirth || "",
+        email: studentData.email || "",
+        phone: studentData.phone || "",
+        gender: studentData.gender || "",
+        gradeLevel: studentData.gradeLevel || "",
+        image: studentData.image || null,
+      });
     } catch (error) {
       console.error("Error fetching student data:", error);
       Alert.alert("Error", "An error occurred while fetching data");
@@ -106,58 +99,40 @@ export default function editStudent() {
   const handleSave = async () => {
     try {
       const requestBody = {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          dateOfBirth: formData.dateOfBirth,
-          email: formData.email,
-          phone: formData.phone,
-          gender: formData.gender,
-          gradeLevel: formData.gradeLevel,
-          image: formData.image,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        dateOfBirth: formData.dateOfBirth,
+        email: formData.email,
+        phone: formData.phone,
+        gender: formData.gender,
+        gradeLevel: formData.gradeLevel,
+        image: formData.image,
       };
 
       const studentId = currentUserId || id || 1;
       console.log("Saving student profile for ID:", studentId);
       console.log("Profile data to save:", requestBody);
 
-      const response = await fetch(
-        `http://localhost:3000/api/students/${studentId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
+      await apiClient.patch(`/students/${studentId}`, requestBody);
+
+      console.log("✅ Personal details updated successfully");
+      // Use Alert for React Native compatibility
+      Alert.alert(
+        "Success",
+        "Personal details updated successfully! Go back to profile?",
+        [
+          {
+            text: "Stay Here",
+            style: "cancel",
           },
-          body: JSON.stringify(requestBody),
-        }
+          {
+            text: "Go Back",
+            onPress: () => {
+              router.push("/tabs/myProfile");
+            },
+          },
+        ]
       );
-
-      if (response.ok) {
-        console.log("✅ Personal details updated successfully");
-        // Use Alert for React Native compatibility
-        Alert.alert(
-          "Success",
-          "Personal details updated successfully! Go back to profile?",
-          [
-            {
-              text: "Stay Here",
-              style: "cancel",
-            },
-            {
-              text: "Go Back",
-              onPress: () => {
-                router.push("/tabs/myProfile");
-              },
-            },
-          ]
-        );
-      } else {
-        console.error("Failed to update profile:", response.status);
-        const errorText = await response.text();
-        console.error("Error response:", errorText);
-
-        // Use Alert for React Native compatibility
-        Alert.alert("Error", "Failed to update profile. Please try again.");
-      }
     } catch (error) {
       console.error("Error updating profile:", error);
       // Use Alert for React Native compatibility

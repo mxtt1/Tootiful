@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Link, useLocalSearchParams } from "expo-router";
 import DropDownPicker from "react-native-dropdown-picker";
 import authService from "../../services/authService";
+import apiClient from "../../services/apiClient";
 
 export default function TeachingInfo() {
   const { id } = useLocalSearchParams();
@@ -68,27 +69,19 @@ export default function TeachingInfo() {
       setCurrentUserId(tutorId);
 
       console.log("Fetching teaching info for tutor ID:", tutorId);
-      const response = await fetch(
-        `http://localhost:3000/api/tutors/${tutorId}`
-      );
+      const tutorData = await apiClient.get(`/tutors/${tutorId}`);
 
-      if (response.ok) {
-        const tutorData = await response.json();
-        console.log("Fetched teaching data:", tutorData);
-        // Update form data with fetched data
-        setFormData({
-          hourlyRate: tutorData.hourlyRate || "",
-          aboutMe: tutorData.aboutMe || "",
-          education: tutorData.education || "",
-        });
+      console.log("Fetched teaching data:", tutorData);
+      // Update form data with fetched data
+      setFormData({
+        hourlyRate: tutorData.hourlyRate || "",
+        aboutMe: tutorData.aboutMe || "",
+        education: tutorData.education || "",
+      });
 
-        if (tutorData.subjects) {
-          const subjectIds = tutorData.subjects.map((subj) => subj.id);
-          setSubjectValue(subjectIds);
-        }
-      } else {
-        console.error("Failed to fetch teaching data:", response.status);
-        Alert.alert("Error", "Failed to fetch tutor data");
+      if (tutorData.subjects) {
+        const subjectIds = tutorData.subjects.map((subj) => subj.id);
+        setSubjectValue(subjectIds);
       }
     } catch (error) {
       console.error("Error fetching teaching data:", error);
@@ -101,23 +94,15 @@ export default function TeachingInfo() {
   const fetchAvailableSubjects = async () => {
     try {
       console.log("Fetching subjects from backend...");
-      const response = await fetch(
-        "http://localhost:3000/api/tutors/subjects/all"
-      );
-      if (response.ok) {
-        const subjects = await response.json();
-        console.log("Subjects received:", subjects);
-        // Convert subjects to dropdown format
-        const dropdownItems = subjects.map((subject) => ({
-          label: subject.name,
-          value: subject.id,
-        }));
-        setSubjectItems(dropdownItems);
-      } else {
-        console.error("Failed to fetch subjects:", response.status);
-        const errorText = await response.text();
-        console.error("Error response:", errorText);
-      }
+      const subjects = await apiClient.get("/tutors/subjects/all");
+
+      console.log("Subjects received:", subjects);
+      // Convert subjects to dropdown format
+      const dropdownItems = subjects.map((subject) => ({
+        label: subject.name,
+        value: subject.id,
+      }));
+      setSubjectItems(dropdownItems);
     } catch (error) {
       console.error("Error fetching subjects:", error);
     }
@@ -157,26 +142,10 @@ export default function TeachingInfo() {
       };
       console.log("Teaching data to save:", requestBody);
 
-      const response = await fetch(
-        `http://localhost:3000/api/tutors/${tutorId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        }
-      );
+      await apiClient.patch(`/tutors/${tutorId}`, requestBody);
 
-      if (response.ok) {
-        console.log("Teaching info updated successfully");
-        Alert.alert("Success", "Teaching Info updated successfully");
-      } else {
-        console.error("Failed to update teaching info:", response.status);
-        const errorText = await response.text();
-        console.error("Error response:", errorText);
-        Alert.alert("Error", "Failed to update Teaching Info");
-      }
+      console.log("Teaching info updated successfully");
+      Alert.alert("Success", "Teaching Info updated successfully");
     } catch (error) {
       console.error("Error updating teaching info:", error);
       Alert.alert("Error", "An error occurred while updating Teaching Info");
