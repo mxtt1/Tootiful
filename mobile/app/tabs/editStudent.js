@@ -47,7 +47,7 @@ export default function editStudent() {
                 .join("")
             );
             const payload = JSON.parse(jsonPayload);
-            tutorId = payload.userId;
+            studentId = payload.userId;
           } catch (error) {
             console.error("Error decoding token:", error);
           }
@@ -82,7 +82,7 @@ export default function editStudent() {
     } catch (error) {
       console.error("Error fetching student data:", error);
       Alert.alert("Error", "An error occurred while fetching data");
-      console.error("Error fetching tutor data:", error);
+      console.error("Error fetching student data:", error);
     } finally {
       setLoading(false);
     }
@@ -106,7 +106,6 @@ export default function editStudent() {
   const handleSave = async () => {
     try {
       const requestBody = {
-        studentData: {
           firstName: formData.firstName,
           lastName: formData.lastName,
           dateOfBirth: formData.dateOfBirth,
@@ -115,7 +114,6 @@ export default function editStudent() {
           gender: formData.gender,
           gradeLevel: formData.gradeLevel,
           image: formData.image,
-        },
       };
 
       const studentId = currentUserId || id || 1;
