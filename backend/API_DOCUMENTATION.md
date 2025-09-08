@@ -37,7 +37,7 @@ The API uses **JWT-based authentication** with **HTTP-only cookies** for refresh
 #### Response (200 OK):
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "accessToken": "<JWT access token>"
 }
 ```
 
@@ -61,7 +61,7 @@ The API uses **JWT-based authentication** with **HTTP-only cookies** for refresh
 #### Response (200 OK):
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "accessToken": "<JWT access token>"
 }
 ```
 
@@ -78,7 +78,7 @@ The API uses **JWT-based authentication** with **HTTP-only cookies** for refresh
 #### Response (200 OK):
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "accessToken": "<JWT access token>"
 }
 ```
 
@@ -129,6 +129,108 @@ Authorization: Bearer <access_token>
 - Requires valid access token
 - Revokes ALL refresh tokens for the user
 - Logs out from all devices/browsers
+
+---
+
+### 6. Forgot Password (Request OTP)
+**POST** `/auth/forgot-password`
+
+#### Request Body:
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+#### Response (200 OK):
+```json
+{
+  "message": "OTP sent to your email."
+}
+```
+
+#### Error Response (400 Bad Request):
+```json
+{
+  "message": "No account found with that email."
+}
+```
+
+---
+
+### 7. Resend OTP
+**POST** `/auth/resend-otp`
+
+#### Request Body:
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+#### Response (200 OK):
+```json
+{
+  "message": "If the account exists, we've sent a code.",
+  "throttled": false,
+  "retryInMs": 0
+}
+```
+
+---
+
+### 8. Verify OTP
+**POST** `/auth/verify-otp`
+
+#### Request Body:
+```json
+{
+  "email": "user@example.com",
+  "code": "123456"
+}
+```
+
+#### Response (200 OK):
+```json
+{
+  "resetToken": "<reset token>"
+}
+```
+
+#### Error Response (400 Bad Request):
+```json
+{
+  "message": "Invalid or expired code."
+}
+```
+
+---
+
+### 9. Reset Password
+**POST** `/auth/reset-password`
+
+#### Request Body:
+```json
+{
+  "email": "user@example.com",
+  "resetToken": "<reset token>",
+  "newPassword": "newSecurePassword123"
+}
+```
+
+#### Response (200 OK):
+```json
+{
+  "message": "Password updated."
+}
+```
+
+#### Error Response (400 Bad Request):
+```json
+{
+  "message": "Invalid or expired reset token."
+}
+```
 
 ---
 
