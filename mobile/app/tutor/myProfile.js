@@ -14,6 +14,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import React from "react";
 import { myProfileStyles as styles } from "../styles/myProfileStyles";
 import authService from "../../services/authService";
+import apiClient from "../../services/apiClient";
 
 // Mock tutor data for fallback
 const MOCK_TUTOR = {
@@ -98,14 +99,8 @@ export default function TutorProfileScreen() {
           // Only fetch if it's a tutor
           if (userTypeFromToken === "tutor") {
             console.log("👨‍🏫 Fetching tutor data...");
-            // Make direct fetch call
-            const response = await fetch(
-              `http://localhost:3000/api/tutors/${userId}`
-            );
-            if (!response.ok) {
-              throw new Error(`Failed to fetch tutor: ${response.status}`);
-            }
-            const userData = await response.json();
+            // Use API client instead of direct fetch
+            const userData = await apiClient.get(`/tutors/${userId}`);
 
             console.log("📄 API Response:", userData);
 
