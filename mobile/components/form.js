@@ -190,38 +190,40 @@ const Form = ({
 
       {/* Gender - Conditionally rendered */}
       {showGender && (
-        <DropDownPicker
-          open={genderOpen}
-          value={genderValue}
-          items={genderItems}
-          setOpen={setGenderOpen}
-          setValue={(value) => {
-            setGenderValue(value());
-            onInputChange("gender", value());
-          }}
-          setItems={setGenderItems}
-          placeholder="Select Gender"
-          style={styles.input}
-          dropDownContainerStyle={styles.dropdown}
-        />
+        <View style={[styles.pickerContainer, { zIndex: genderOpen ? 3000 : 1 }]}>
+          <DropDownPicker
+            open={genderOpen}
+            value={genderValue}
+            items={genderItems}
+            setOpen={setGenderOpen}
+            setValue={setGenderValue}
+            dropDownDirection="TOP"
+            onChangeValue={(v) => onInputChange("gender", v)}
+            setItems={setGenderItems}
+            placeholder="Select Gender"
+            style={styles.picker}
+            dropDownContainerStyle={styles.dropdown}
+          />
+        </View>
       )}
 
       {/* Grade Level - Conditionally rendered */}
       {showGradeLevel && (
-        <DropDownPicker
-          open={gradeOpen}
-          value={gradeValue}
-          items={gradeItems}
-          setOpen={setGradeOpen}
-          setValue={(value) => {
-            setGradeValue(value());
-            onInputChange("gradeLevel", value());
-          }}
-          setItems={setGradeItems}
-          placeholder="Select Grade Level"
-          style={styles.input}
-          dropDownContainerStyle={styles.dropdown}
-        />
+          <View style={[styles.pickerContainer, { zIndex: gradeOpen ? 5000 : 1 }]}>
+          <DropDownPicker
+            open={gradeOpen}
+            value={gradeValue}
+            items={gradeItems}
+            setValue={setGradeValue}
+            setItems={setGradeItems}
+            setOpen={setGradeOpen}
+            dropDownDirection="TOP"
+            onChangeValue={(g) => onInputChange("gradeLevel", g)}
+            placeholder="Select Grade Level"
+            style={styles.picker}
+            dropDownContainerStyle={styles.dropdown}
+          />
+        </View>
       )}
 
       {/* Save Button */}
@@ -331,6 +333,31 @@ const styles = StyleSheet.create({
     top: "50%",
     transform: [{ translateY: -10 }],
     zIndex: 1,
+  },
+  dropdown: {
+    borderWidth: 0,
+    borderRadius: 12,
+    marginTop: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+    backgroundColor: "#fff",
+  },
+  dropdownTextInput: {
+    height: 40,
+    paddingLeft: 15,
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    fontSize: 14,
+    color: "#374151",
+    borderWidth: 0,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 3,
   },
 });
 

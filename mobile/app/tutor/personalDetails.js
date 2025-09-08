@@ -134,7 +134,7 @@ export default function PersonalDetails() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Link href="/tutor/editProfile" style={styles.backLink}>
           <Ionicons
@@ -154,7 +154,7 @@ export default function PersonalDetails() {
         showGender={false}
         saveButtonText="Save"
       />
-    </ScrollView>
+    </View>
   );
 }
 
