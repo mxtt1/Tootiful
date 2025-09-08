@@ -174,6 +174,7 @@ const Form = ({
       {showGender && (
         <DropDownPicker
           open={genderOpen}
+          dropDownDirection="TOP"
           value={genderValue}
           items={genderItems}
           setOpen={setGenderOpen}
