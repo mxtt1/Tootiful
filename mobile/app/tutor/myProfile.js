@@ -6,25 +6,17 @@ import {
   Alert,
   SafeAreaView,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect } from "react";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
+import React from "react";
 import { myProfileStyles as styles } from "../styles/myProfileStyles";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
 
-// Mock user data - this will be replaced with real authentication later
-const MOCK_STUDENT = {
-  id: 1,
-  firstName: "John",
-  lastName: "Doe",
-  email: "john.doe@example.com",
-  phone: "12345678",
-  gradeLevel: "Secondary 3",
-  userType: "student",
-};
-
+// Mock tutor data for fallback
 const MOCK_TUTOR = {
   id: 1,
   firstName: "Alice",
@@ -39,43 +31,50 @@ const MOCK_TUTOR = {
   ],
 };
 
-export default function ProfileScreen() {
+export default function TutorProfileScreen() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
-  const [userType, setUserType] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch current user data
+  // Fetch current tutor data on mount
   useEffect(() => {
     fetchCurrentUser();
   }, []);
+
+  // Refresh data when user returns to this screen
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log("🔄 Tutor profile screen focused - refreshing data");
+      fetchCurrentUser();
+    }, [])
+  );
 
   const fetchCurrentUser = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      console.log("🔍 Checking authentication...");
+      console.log("🔍 Checking tutor authentication...");
 
       // Check if user is authenticated
       if (!authService.isAuthenticated()) {
-        console.log("❌ User not authenticated, showing demo data");
+        console.log("❌ Tutor not authenticated, showing demo data");
         // If not authenticated, show demo data
-        setCurrentUser(MOCK_STUDENT);
-        setUserType("student");
+        setCurrentUser(MOCK_TUTOR);
         setLoading(false);
         return;
       }
 
-      console.log("✅ User is authenticated!");
+      console.log("✅ Tutor is authenticated!");
 
       // Try to decode the JWT to get user info
       const token = authService.getCurrentToken();
       console.log("🎫 Token:", token ? "exists" : "missing");
 
       if (token) {
-        // Decode JWT payload (this is safe for client-side as it's not sensitive data)
+        // Decode JWT payload
         try {
           const base64Url = token.split(".")[1];
           const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
@@ -97,29 +96,26 @@ export default function ProfileScreen() {
 
           console.log(`👤 User ID: ${userId}, Type: ${userTypeFromToken}`);
 
-          // Only fetch student data (tutors should use the tutor profile page)
-          let userData;
-          if (userTypeFromToken === "student") {
-            console.log("📚 Fetching student data...");
-            userData = await apiClient.get(`/students/${userId}`);
-            setUserType("student");
-          } else {
-            throw new Error(
-              "This page is for students only. Tutors should use the tutor profile."
-            );
-          }
+          // Only fetch if it's a tutor
+          if (userTypeFromToken === "tutor") {
+            console.log("👨‍🏫 Fetching tutor data...");
+            // Use API client instead of direct fetch
+            const userData = await apiClient.get(`/tutors/${userId}`);
 
-          console.log("📄 API Response:", userData);
+            console.log("📄 API Response:", userData);
 
-          if (userData) {
-            const finalUser = {
-              ...userData,
-              userType: userTypeFromToken,
-            };
-            console.log("✅ Setting user data:", finalUser);
-            setCurrentUser(finalUser);
+            if (userData) {
+              const finalUser = {
+                ...userData,
+                userType: userTypeFromToken,
+              };
+              console.log("✅ Setting tutor data:", finalUser);
+              setCurrentUser(finalUser);
+            } else {
+              throw new Error("Failed to fetch tutor data");
+            }
           } else {
-            throw new Error("Failed to fetch user data");
+            throw new Error("Not a tutor account");
           }
         } catch (tokenError) {
           console.error("❌ Token decode error:", tokenError);
@@ -129,15 +125,20 @@ export default function ProfileScreen() {
         throw new Error("No token available");
       }
     } catch (error) {
-      console.error("❌ Error fetching user data:", error);
+      console.error("❌ Error fetching tutor data:", error);
       setError(error.message);
       // Fallback to demo data on error
       console.log("🔄 Falling back to demo data");
-      setCurrentUser(MOCK_STUDENT);
-      setUserType("student");
+      setCurrentUser(MOCK_TUTOR);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchCurrentUser();
+    setRefreshing(false);
   };
 
   const handleEditProfile = () => {
@@ -148,7 +149,7 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    console.log("🚪 Logout button clicked!");
+    console.log("🚪 Tutor logout button clicked!");
 
     // Use Alert for mobile compatibility
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -160,15 +161,14 @@ export default function ProfileScreen() {
   const handleActualLogout = async () => {
     try {
       await authService.logout();
-      console.log("✅ Auth service logout complete");
+      console.log("✅ Tutor auth service logout complete");
       // Reset to demo data after logout
-      setCurrentUser(MOCK_STUDENT);
-      setUserType("student");
+      setCurrentUser(MOCK_TUTOR);
       // Navigate back to login page
-      console.log("🔄 Navigating to login page");
+      console.log("🔄 Tutor navigating to login page");
       router.replace("/login");
     } catch (error) {
-      console.error("❌ Logout error:", error);
+      console.error("❌ Tutor logout error:", error);
       Alert.alert("Error", "Failed to logout. Please try again.");
     }
   };
@@ -217,7 +217,17 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={["#8B5CF6"]}
+            tintColor="#8B5CF6"
+          />
+        }
+      >
         {/* Header Section */}
         <View style={styles.header}>
           <View style={styles.profileImageContainer}>
@@ -229,23 +239,34 @@ export default function ProfileScreen() {
             </View>
             {/* Online indicator */}
             <View style={styles.onlineIndicator} />
+            {/* Verified badge for tutors */}
+            <View style={styles.verifiedBadge}>
+              <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+            </View>
           </View>
 
           <Text style={styles.userName}>
             {currentUser.firstName} {currentUser.lastName}
           </Text>
-          <Text style={styles.userRole}>Student</Text>
+          <Text style={styles.userRole}>Tutor</Text>
+
+          {/* Stats for tutors */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>12</Text>
+              <Text style={styles.statLabel}>Total Sessions</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>
+                ${currentUser.hourlyRate || "45"}
+              </Text>
+              <Text style={styles.statLabel}>Hourly Rate</Text>
+            </View>
+          </View>
         </View>
 
         {/* Profile Information */}
         <View style={styles.profileInfo}>
-          {userType === "student" && (
-            <View style={styles.infoItem}>
-              <Ionicons name="school-outline" size={20} color="#6B7280" />
-              <Text style={styles.infoText}>{currentUser.gradeLevel}</Text>
-            </View>
-          )}
-
           <View style={styles.infoItem}>
             <Ionicons name="mail-outline" size={20} color="#6B7280" />
             <Text style={styles.infoText}>{currentUser.email}</Text>
@@ -257,8 +278,36 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Subjects for tutors */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Subjects</Text>
+          {currentUser.subjects && currentUser.subjects.length > 0 ? (
+            currentUser.subjects.map((subject, index) => (
+              <View key={index} style={styles.subjectItem}>
+                <Text style={styles.subjectName}>{subject.name}</Text>
+                <Text style={styles.subjectLevel}>
+                  {subject.experienceLevel ||
+                    subject.TutorSubject?.experienceLevel ||
+                    "intermediate"}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.subjectItem}>
+              <Text style={styles.subjectName}>No subjects assigned</Text>
+              <Text style={styles.subjectLevel}>Contact admin</Text>
+            </View>
+          )}
+        </View>
+
         {/* Menu Options */}
         <View style={styles.menuContainer}>
+          <TouchableOpacity style={styles.menuItem}>
+            <Ionicons name="people-outline" size={24} color="#374151" />
+            <Text style={styles.menuText}>My students</Text>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="book-outline" size={24} color="#374151" />
             <Text style={styles.menuText}>My courses</Text>

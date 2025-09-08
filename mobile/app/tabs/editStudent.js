@@ -6,7 +6,7 @@ import { Link, useLocalSearchParams, router } from "expo-router";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
 
-export default function PersonalDetails() {
+export default function editStudent() {
   const { id } = useLocalSearchParams();
 
   const [formData, setFormData] = useState({
@@ -15,23 +15,26 @@ export default function PersonalDetails() {
     dateOfBirth: "",
     email: "",
     phone: "",
+    gender: "",
+    gradeLevel: "",
   });
 
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
-    fetchTutorData();
+    fetchStudentData();
   }, []);
 
-  const fetchTutorData = async () => {
+  const fetchStudentData = async () => {
     try {
       setLoading(true);
 
-      // Get the authenticated user's ID
-      let tutorId = id;
-      if (!tutorId && authService.isAuthenticated()) {
+      //Get the authenticated user's ID
+      let studentId = id;
+      if (!studentId && authService.isAuthenticated()) {
         const token = authService.getCurrentToken();
+
         if (token) {
           try {
             const base64Url = token.split(".")[1];
@@ -45,32 +48,34 @@ export default function PersonalDetails() {
                 .join("")
             );
             const payload = JSON.parse(jsonPayload);
-            tutorId = payload.userId;
+            studentId = payload.userId;
           } catch (error) {
             console.error("Error decoding token:", error);
           }
         }
       }
+      // Fallback to student ID 1 if no authenticated user
+      studentId = studentId || 1;
+      setCurrentUserId(studentId);
+      console.log("Fetching student data for ID:", studentId);
+      const studentData = await apiClient.get(`/students/${studentId}`);
 
-      // Fallback to tutor ID 1 if no authenticated user
-      tutorId = tutorId || 1;
-      setCurrentUserId(tutorId);
-
-      console.log("Fetching tutor data for ID:", tutorId);
-      const tutorData = await apiClient.get(`/tutors/${tutorId}`);
-
-      console.log("Fetched tutor data:", tutorData);
+      console.log("Fetched student data:", studentData);
       // Update form data with fetched data
       setFormData({
-        firstName: tutorData.firstName || "",
-        lastName: tutorData.lastName || "",
-        dateOfBirth: tutorData.dateOfBirth || "",
-        email: tutorData.email || "",
-        phone: tutorData.phone || "",
+        firstName: studentData.firstName || "",
+        lastName: studentData.lastName || "",
+        dateOfBirth: studentData.dateOfBirth || "",
+        email: studentData.email || "",
+        phone: studentData.phone || "",
+        gender: studentData.gender || "",
+        gradeLevel: studentData.gradeLevel || "",
+        image: studentData.image || null,
       });
     } catch (error) {
-      console.error("Error fetching tutor data:", error);
+      console.error("Error fetching student data:", error);
       Alert.alert("Error", "An error occurred while fetching data");
+      console.error("Error fetching student data:", error);
     } finally {
       setLoading(false);
     }
@@ -93,39 +98,44 @@ export default function PersonalDetails() {
 
   const handleSave = async () => {
     try {
-      // Wrap data in tutorData object as expected by API
       const requestBody = {
-        tutorData: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          dateOfBirth: formData.dateOfBirth,
-          email: formData.email,
-          phone: formData.phone,
-        },
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        dateOfBirth: formData.dateOfBirth,
+        email: formData.email,
+        phone: formData.phone,
+        gender: formData.gender,
+        gradeLevel: formData.gradeLevel,
+        image: formData.image,
       };
 
-      const tutorId = currentUserId || id || 1;
-      console.log("Saving tutor data for ID:", tutorId);
-      console.log("Request Body:", requestBody);
+      const studentId = currentUserId || id || 1;
+      console.log("Saving student profile for ID:", studentId);
+      console.log("Profile data to save:", requestBody);
 
-      await apiClient.patch(`/tutors/${tutorId}`, requestBody);
+      await apiClient.patch(`/students/${studentId}`, requestBody);
 
       console.log("✅ Personal details updated successfully");
-
-      // Use Alert for mobile compatibility
+      // Use Alert for React Native compatibility
       Alert.alert(
         "Success",
         "Personal details updated successfully! Go back to profile?",
         [
-          { text: "Stay Here", style: "cancel" },
+          {
+            text: "Stay Here",
+            style: "cancel",
+          },
           {
             text: "Go Back",
-            onPress: () => router.push("/tutor/myProfile"),
+            onPress: () => {
+              router.push("/tabs/myProfile");
+            },
           },
         ]
       );
     } catch (error) {
       console.error("Error updating profile:", error);
+      // Use Alert for React Native compatibility
       Alert.alert(
         "Error",
         "An error occurred while updating profile. Please try again."
@@ -136,7 +146,7 @@ export default function PersonalDetails() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Link href="/tutor/editProfile" style={styles.backLink}>
+        <Link href="/tabs/myProfile" style={styles.backLink}>
           <Ionicons
             name="arrow-back"
             size={24}
@@ -144,14 +154,16 @@ export default function PersonalDetails() {
             style={{ marginBottom: 20 }}
           />
         </Link>
-        <Text style={styles.title}>Personal Details</Text>
+        <Text style={styles.title}>Edit Profile</Text>
       </View>
+
       <Form
         formData={formData}
         onInputChange={handleInputChange}
         onSave={handleSave}
-        showGradeLevel={false}
-        showGender={false}
+        title="Edit Student Profile"
+        showGradeLevel={true}
+        showGender={true}
         saveButtonText="Save"
       />
     </ScrollView>
@@ -166,12 +178,6 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: "#FFF",
   },
-  title: {
-    fontSize: 20,
-    marginBottom: 10,
-    fontWeight: "bold",
-    color: "#6155F5",
-  },
   backLink: {
     alignSelf: "flex-start",
     marginBottom: 10,
@@ -181,5 +187,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 20,
+  },
+  title: {
+    fontSize: 20,
+    marginBottom: 10,
+    fontWeight: "bold",
+    color: "#6155F5",
   },
 });

@@ -1,13 +1,11 @@
 import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
-import cors from "cors";
 import sequelize from "./config/database.js";
 import studentRoutes from "./modules/user-management/student.routes.js";
 import tutorRoutes from "./modules/user-management/tutor.routes.js";
 import authRoutes from "./modules/user-management/auth.routes.js";
 import { seedSubjects } from "./util/seed-subjects.js";
-import { seedTutors } from "./util/seed-tutors.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 // Load environment variables
@@ -16,24 +14,33 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS Middleware
-app.use(cors({
-  origin: "*", // Allow all origins for development
-  credentials: true, // Allow cookies
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Origin", "X-Requested-With", "Content-Type", "Accept", "Authorization"],
-  optionsSuccessStatus: 200
-}));
-
+// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 app.use(cookieParser()); // Add cookie parser middleware
 
+// CORS middleware (allow all origins for now)
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Routes
-app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/tutors", tutorRoutes);
+app.use("/api/auth", authRoutes);
 
 // Global Error Handler Middleware
 app.use(errorHandler);
@@ -121,11 +128,15 @@ const startServer = async () => {
       process.env.NODE_ENV === "test"
     ) {
       await seedSubjects();
-      await seedTutors();
     }
 
     // Start the server
-    app.listen(PORT, '0.0.0.0');
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+      console.log(`Health check: http://localhost:${PORT}/health`);
+      console.log(`Students API: http://localhost:${PORT}/api/students`);
+      console.log(`Tutors API: http://localhost:${PORT}/api/tutors`);
+    });
   } catch (error) {
     console.error("Unable to start server:", error);
     process.exit(1);
