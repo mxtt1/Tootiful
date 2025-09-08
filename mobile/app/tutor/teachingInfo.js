@@ -4,12 +4,12 @@ import {
   StyleSheet,
   TextInput,
   ScrollView,
-  Alert,
   TouchableOpacity,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { Link, useLocalSearchParams } from "expo-router";
+import DropDownPicker from "react-native-dropdown-picker";
 import authService from "../../services/authService";
 
 export default function TeachingInfo() {
@@ -19,15 +19,21 @@ export default function TeachingInfo() {
     hourlyRate: "",
     aboutMe: "",
     education: "",
-    subjects: "",
   });
 
-  const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState(null);
+const [loading, setLoading] = useState(true);
+const [currentUserId, setCurrentUserId] = useState(null);
 
-  useEffect(() => {
+// Dropdown states
+const [subjectOpen, setSubjectOpen] = useState(false);
+const [subjectValue, setSubjectValue] = useState([]);
+const [subjectItems, setSubjectItems] = useState([]);
+
+useEffect(() => {
     fetchTutorData();
-  }, []);
+    fetchAvailableSubjects();
+}, []);
+
 
   const fetchTutorData = async () => {
     try {
@@ -75,6 +81,11 @@ export default function TeachingInfo() {
           aboutMe: tutorData.aboutMe || "",
           education: tutorData.education || "",
         });
+
+        if (tutorData.subjects) {
+            const subjectIds = tutorData.subjects.map((subj) => subj.id);
+            setSubjectValue(subjectIds);
+        } 
       } else {
         console.error("Failed to fetch teaching data:", response.status);
         alert("Error: Failed to fetch tutor data");
@@ -86,6 +97,31 @@ export default function TeachingInfo() {
       setLoading(false);
     }
   };
+
+  
+    const fetchAvailableSubjects = async () => {
+        try {
+            console.log('Fetching subjects from backend...');
+            const response = await fetch('http://localhost:3000/api/tutors/subjects/all');
+            if (response.ok) {
+            const subjects = await response.json();
+            console.log('Subjects received:', subjects);
+            // Convert subjects to dropdown format
+            const dropdownItems = subjects.map(subject => ({
+                label: subject.name,
+                value: subject.id,
+            }));
+            setSubjectItems(dropdownItems);
+            } else {
+                console.error('Failed to fetch subjects:', response.status);
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
+            }
+        } catch (error) {
+            console.error('Error fetching subjects:', error);
+        }
+    };
+
 
   if (loading) {
     return (
@@ -106,7 +142,6 @@ export default function TeachingInfo() {
     try {
       const tutorId = currentUserId || id || 1;
       console.log("Saving teaching info for tutor ID:", tutorId);
-      console.log("Teaching data to save:", formData);
 
       // Wrap data in tutorData object as expected by API
       const requestBody = {
@@ -115,7 +150,12 @@ export default function TeachingInfo() {
           aboutMe: formData.aboutMe,
           education: formData.education,
         },
+        subjects: subjectValue.map(subjectId => ({
+        subjectId: subjectId,
+        experienceLevel: 'intermediate' // Default 
+      }))
     };
+    console.log("Teaching data to save:", requestBody);
 
       const response = await fetch(
         `http://localhost:3000/api/tutors/${tutorId}`,
@@ -198,18 +238,24 @@ export default function TeachingInfo() {
 
 
         {/* Subjects */}
-    {/*    <Text style={styles.subTitle}>Subject of Expertise</Text>
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            multiline
-            numberOfLines={4}
-            placeholder="Physics"
-            value={formData.subjects || ""}
-            onChangeText={(text) => handleInputChange("subjects", text)}
-          />
-        </View>
-        */}
+        <Text style={styles.subTitle}>Subject of Expertise</Text>
+ <DropDownPicker
+          open={subjectOpen}
+          value={subjectValue}
+          items={subjectItems}
+          setOpen={setSubjectOpen}
+          setValue={setSubjectValue}
+          setItems={setSubjectItems}
+          multiple={true}
+          mode="BADGE"
+          badgeDotColors={["#6155F5", "#e76f51", "#e9c46a", "#2a9d8f", "#264653"]}
+          placeholder="Select subjects you teach"
+          style={styles.input}
+          dropDownContainerStyle={styles.dropdown}
+          textStyle={styles.dropdownText}
+          selectedItemLabelStyle={styles.selectedItemText}
+        />
+
 
         {/* Save Button */}
         <TouchableOpacity style={styles.button} onPress={handleSave}>
@@ -304,4 +350,27 @@ const styles = StyleSheet.create({
   formContainer: {
     marginTop: 10,
   },
+  subjectItem: {
+  padding: 15,
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderRadius: 8,
+  marginBottom: 10,
+},
+selectedSubject: {
+  backgroundColor: '#6155F5',
+  borderColor: '#6155F5',
+},
+dropdown: {
+  borderColor: "#ccc",
+  borderRadius: 12,
+  marginTop: 5,
+},
+dropdownText: {
+  fontSize: 14,
+},
+selectedItemText: {
+  color: "#6155F5",
+  fontWeight: "bold",
+},
 });

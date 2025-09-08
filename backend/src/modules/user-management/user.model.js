@@ -205,6 +205,10 @@ const Subject = sequelize.define('Subject', {
     type: DataTypes.STRING(50),
     allowNull: false
   },
+  category: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
   description: {
     type: DataTypes.TEXT,
     allowNull: true
