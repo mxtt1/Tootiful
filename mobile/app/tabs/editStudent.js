@@ -5,201 +5,220 @@ import Form from "../../components/form";
 import { Link, useLocalSearchParams, router } from "expo-router";
 import authService from "../../services/authService";
 
-
 export default function editStudent() {
-    const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams();
 
-    const [formData, setFormData] = useState({
-        firstName: "",
-        lastName: "",
-        dateOfBirth: "",
-        email: "",
-        phone: "",
-        gender: "",
-        gradeLevel: "",
-    });
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    dateOfBirth: "",
+    email: "",
+    phone: "",
+    gender: "",
+    gradeLevel: "",
+  });
 
-    const [loading, setLoading] = useState(true);
-    const [currentUserId, setCurrentUserId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
-    useEffect(() => {
-        fetchStudentData();
-    }, []);
-    
-    const fetchStudentData = async () => {
-        try {
-            setLoading(true);
+  useEffect(() => {
+    fetchStudentData();
+  }, []);
 
-            //Get the authenticated user's ID
-            let studentId = id;
-            if (!studentId && authService.isAuthenticated()) {
-                const token = authService.getCurrentToken();
+  const fetchStudentData = async () => {
+    try {
+      setLoading(true);
 
-            if (token) {
-            try {
-                const base64Url = token.split(".")[1];
-                const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-                const jsonPayload = decodeURIComponent(
-                atob(base64)
-                    .split("")
-                    .map(function (c) {
-                    return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-                    })
-                    .join("")
-                );
-                const payload = JSON.parse(jsonPayload);
-                tutorId = payload.userId;
-            } catch (error) {
-                console.error("Error decoding token:", error);
-            }
+      //Get the authenticated user's ID
+      let studentId = id;
+      if (!studentId && authService.isAuthenticated()) {
+        const token = authService.getCurrentToken();
+
+        if (token) {
+          try {
+            const base64Url = token.split(".")[1];
+            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+            const jsonPayload = decodeURIComponent(
+              atob(base64)
+                .split("")
+                .map(function (c) {
+                  return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+                })
+                .join("")
+            );
+            const payload = JSON.parse(jsonPayload);
+            tutorId = payload.userId;
+          } catch (error) {
+            console.error("Error decoding token:", error);
+          }
         }
+      }
+      // Fallback to student ID 1 if no authenticated user
+      studentId = studentId || 1;
+      setCurrentUserId(studentId);
+      console.log("Fetching student data for ID:", studentId);
+      const response = await fetch(
+        `http://localhost:3000/api/students/${studentId}`
+      );
+
+      if (response.ok) {
+        const studentData = await response.json();
+        console.log("Fetched student data:", studentData);
+        // Update form data with fetched data
+        setFormData({
+          firstName: studentData.firstName || "",
+          lastName: studentData.lastName || "",
+          dateOfBirth: studentData.dateOfBirth || "",
+          email: studentData.email || "",
+          phone: studentData.phone || "",
+          gender: studentData.gender || "",
+          gradeLevel: studentData.gradeLevel || "",
+          image: studentData.image || null,
+        });
+      } else {
+        console.error("Failed to fetch student data, status:", response.status);
+        Alert.alert("Error", "Failed to fetch student data");
+      }
+    } catch (error) {
+      console.error("Error fetching student data:", error);
+      Alert.alert("Error", "An error occurred while fetching data");
+      console.error("Error fetching tutor data:", error);
+    } finally {
+      setLoading(false);
     }
-            // Fallback to student ID 1 if no authenticated user
-            studentId = studentId || 1;
-            setCurrentUserId(studentId);
-            console.log("Fetching student data for ID:", studentId);
-            const response = await fetch(`http://localhost:3000/api/students/${studentId}`);
+  };
 
-            
-            if (response.ok) {
-                const studentData = await response.json();
-                console.log("Fetched student data:", studentData);
-                // Update form data with fetched data
-                setFormData({
-                    firstName: studentData.firstName || "",
-                    lastName: studentData.lastName || "",
-                    dateOfBirth: studentData.dateOfBirth || "",
-                    email: studentData.email || "",
-                    phone: studentData.phone || "",
-                    gender: studentData.gender || "",
-                    gradeLevel: studentData.gradeLevel || "",
-                    image: studentData.image || null,
-                });
-            } else {
-                console.error("Failed to fetch student data, status:", response.status);
-                alert("Error: Failed to fetch tutor data");
-            }
-        } catch (error) {
-            console.error("Error fetching student data:", error);
-            alert("Error: An error occurred while fetching data");
-            console.error("Error fetching tutor data:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <View style={[styles.container, styles.center]}>
-                <Text>Loading...</Text>
-            </View>
-        );
-    }
-
-    const handleInputChange = (field, value) => {
-        setFormData(prev => ({
-            ...prev,
-            [field]: value
-        }));
-    };
-
-    const handleSave = async () => {
-        try {
-            const requestBody = {
-                studentData: {
-                    firstName: formData.firstName,
-                    lastName: formData.lastName,
-                    dateOfBirth: formData.dateOfBirth,
-                    email: formData.email,
-                    phone: formData.phone,
-                    gender: formData.gender,
-                    gradeLevel: formData.gradeLevel,
-                    image: formData.image,
-                },
-            };
-
-            const studentId = currentUserId || id || 1;
-            console.log("Saving student profile for ID:", studentId);
-            console.log("Profile data to save:", requestBody);
-
-            const response = await fetch(`http://localhost:3000/api/students/${studentId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestBody),
-            });
-
-            if (response.ok) {
-                console.log("✅ Personal details updated successfully");
-                // Use confirm dialog for web compatibility
-                const shouldNavigateBack = confirm(
-                "Success: Personal details updated successfully! Go back to profile?"
-        );
-                if (shouldNavigateBack) {
-                    router.push('/tabs/myProfile');
-                }
-            } else {
-                console.error("Failed to update profile:", response.status);
-                const errorText = await response.text();
-                console.error("Error response:", errorText);
-
-                // Use confirm for web compatibility
-                confirm("Error: Failed to update profile. Please try again.");
-            }
-        } catch (error) {
-        console.error("Error updating profile:", error);
-        // Use confirm for web compatibility
-        confirm(
-            "Error: An error occurred while updating profile. Please try again."
-        );
-        }
-    };
-
+  if (loading) {
     return (
-        <ScrollView style={styles.container}>
-            <View style={styles.header}>
-                <Link href="/tabs/myProfile" style={styles.backLink}>
-                <Ionicons name="arrow-back" size={24} color="#6155F5" style={{ marginBottom: 20 }} />
-                </Link>
-                <Text style={styles.title}>Edit Profile</Text>
-            </View>
-
-            <Form 
-            formData={formData}
-            onInputChange={handleInputChange}
-            onSave={handleSave}
-            title="Edit Student Profile"
-            showGradeLevel={true}
-            showGender={true}
-            saveButtonText="Save"
-            />
-        </ScrollView>
+      <View style={[styles.container, styles.center]}>
+        <Text>Loading...</Text>
+      </View>
     );
+  }
+
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSave = async () => {
+    try {
+      const requestBody = {
+        studentData: {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          dateOfBirth: formData.dateOfBirth,
+          email: formData.email,
+          phone: formData.phone,
+          gender: formData.gender,
+          gradeLevel: formData.gradeLevel,
+          image: formData.image,
+        },
+      };
+
+      const studentId = currentUserId || id || 1;
+      console.log("Saving student profile for ID:", studentId);
+      console.log("Profile data to save:", requestBody);
+
+      const response = await fetch(
+        `http://localhost:3000/api/students/${studentId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (response.ok) {
+        console.log("✅ Personal details updated successfully");
+        // Use Alert for React Native compatibility
+        Alert.alert(
+          "Success",
+          "Personal details updated successfully! Go back to profile?",
+          [
+            {
+              text: "Stay Here",
+              style: "cancel",
+            },
+            {
+              text: "Go Back",
+              onPress: () => {
+                router.push("/tabs/myProfile");
+              },
+            },
+          ]
+        );
+      } else {
+        console.error("Failed to update profile:", response.status);
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
+
+        // Use Alert for React Native compatibility
+        Alert.alert("Error", "Failed to update profile. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      // Use Alert for React Native compatibility
+      Alert.alert(
+        "Error",
+        "An error occurred while updating profile. Please try again."
+      );
+    }
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Link href="/tabs/myProfile" style={styles.backLink}>
+          <Ionicons
+            name="arrow-back"
+            size={24}
+            color="#6155F5"
+            style={{ marginBottom: 20 }}
+          />
+        </Link>
+        <Text style={styles.title}>Edit Profile</Text>
+      </View>
+
+      <Form
+        formData={formData}
+        onInputChange={handleInputChange}
+        onSave={handleSave}
+        title="Edit Student Profile"
+        showGradeLevel={true}
+        showGender={true}
+        saveButtonText="Save"
+      />
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        paddingHorizontal: 20,
-        paddingTop: 40,
-        padding: 20,
-        backgroundColor: "#FFF",
-    },
-    backLink: {
-        alignSelf: 'flex-start',
-        marginBottom: 10,
-        marginRight: 12,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    title: {
-        fontSize: 20,
-        marginBottom: 10,
-        fontWeight: 'bold',
-        color: "#6155F5",
-    },
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    padding: 20,
+    backgroundColor: "#FFF",
+  },
+  backLink: {
+    alignSelf: "flex-start",
+    marginBottom: 10,
+    marginRight: 12,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 20,
+    marginBottom: 10,
+    fontWeight: "bold",
+    color: "#6155F5",
+  },
 });

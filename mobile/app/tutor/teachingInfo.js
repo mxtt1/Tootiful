@@ -5,6 +5,7 @@ import {
   TextInput,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,19 +22,18 @@ export default function TeachingInfo() {
     education: "",
   });
 
-const [loading, setLoading] = useState(true);
-const [currentUserId, setCurrentUserId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
-// Dropdown states
-const [subjectOpen, setSubjectOpen] = useState(false);
-const [subjectValue, setSubjectValue] = useState([]);
-const [subjectItems, setSubjectItems] = useState([]);
+  // Dropdown states
+  const [subjectOpen, setSubjectOpen] = useState(false);
+  const [subjectValue, setSubjectValue] = useState([]);
+  const [subjectItems, setSubjectItems] = useState([]);
 
-useEffect(() => {
+  useEffect(() => {
     fetchTutorData();
     fetchAvailableSubjects();
-}, []);
-
+  }, []);
 
   const fetchTutorData = async () => {
     try {
@@ -83,45 +83,45 @@ useEffect(() => {
         });
 
         if (tutorData.subjects) {
-            const subjectIds = tutorData.subjects.map((subj) => subj.id);
-            setSubjectValue(subjectIds);
-        } 
+          const subjectIds = tutorData.subjects.map((subj) => subj.id);
+          setSubjectValue(subjectIds);
+        }
       } else {
         console.error("Failed to fetch teaching data:", response.status);
-        alert("Error: Failed to fetch tutor data");
+        Alert.alert("Error", "Failed to fetch tutor data");
       }
     } catch (error) {
       console.error("Error fetching teaching data:", error);
-      alert("Error: An error occurred while fetching data");
+      Alert.alert("Error", "An error occurred while fetching data");
     } finally {
       setLoading(false);
     }
   };
 
-  
-    const fetchAvailableSubjects = async () => {
-        try {
-            console.log('Fetching subjects from backend...');
-            const response = await fetch('http://localhost:3000/api/tutors/subjects/all');
-            if (response.ok) {
-            const subjects = await response.json();
-            console.log('Subjects received:', subjects);
-            // Convert subjects to dropdown format
-            const dropdownItems = subjects.map(subject => ({
-                label: subject.name,
-                value: subject.id,
-            }));
-            setSubjectItems(dropdownItems);
-            } else {
-                console.error('Failed to fetch subjects:', response.status);
-                const errorText = await response.text();
-                console.error('Error response:', errorText);
-            }
-        } catch (error) {
-            console.error('Error fetching subjects:', error);
-        }
-    };
-
+  const fetchAvailableSubjects = async () => {
+    try {
+      console.log("Fetching subjects from backend...");
+      const response = await fetch(
+        "http://localhost:3000/api/tutors/subjects/all"
+      );
+      if (response.ok) {
+        const subjects = await response.json();
+        console.log("Subjects received:", subjects);
+        // Convert subjects to dropdown format
+        const dropdownItems = subjects.map((subject) => ({
+          label: subject.name,
+          value: subject.id,
+        }));
+        setSubjectItems(dropdownItems);
+      } else {
+        console.error("Failed to fetch subjects:", response.status);
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
+      }
+    } catch (error) {
+      console.error("Error fetching subjects:", error);
+    }
+  };
 
   if (loading) {
     return (
@@ -150,12 +150,12 @@ useEffect(() => {
           aboutMe: formData.aboutMe,
           education: formData.education,
         },
-        subjects: subjectValue.map(subjectId => ({
-        subjectId: subjectId,
-        experienceLevel: 'intermediate' // Default 
-      }))
-    };
-    console.log("Teaching data to save:", requestBody);
+        subjects: subjectValue.map((subjectId) => ({
+          subjectId: subjectId,
+          experienceLevel: "intermediate", // Default
+        })),
+      };
+      console.log("Teaching data to save:", requestBody);
 
       const response = await fetch(
         `http://localhost:3000/api/tutors/${tutorId}`,
@@ -170,16 +170,16 @@ useEffect(() => {
 
       if (response.ok) {
         console.log("Teaching info updated successfully");
-        alert("Success: Teaching Info updated successfully");
+        Alert.alert("Success", "Teaching Info updated successfully");
       } else {
         console.error("Failed to update teaching info:", response.status);
         const errorText = await response.text();
         console.error("Error response:", errorText);
-        alert("Error: Failed to update Teaching Info");
+        Alert.alert("Error", "Failed to update Teaching Info");
       }
     } catch (error) {
       console.error("Error updating teaching info:", error);
-      alert("Error: An error occurred while updating Teaching Info");
+      Alert.alert("Error", "An error occurred while updating Teaching Info");
     }
   };
 
@@ -236,10 +236,9 @@ useEffect(() => {
           />
         </View>
 
-
         {/* Subjects */}
         <Text style={styles.subTitle}>Subject of Expertise</Text>
- <DropDownPicker
+        <DropDownPicker
           open={subjectOpen}
           value={subjectValue}
           items={subjectItems}
@@ -248,14 +247,19 @@ useEffect(() => {
           setItems={setSubjectItems}
           multiple={true}
           mode="BADGE"
-          badgeDotColors={["#6155F5", "#e76f51", "#e9c46a", "#2a9d8f", "#264653"]}
+          badgeDotColors={[
+            "#6155F5",
+            "#e76f51",
+            "#e9c46a",
+            "#2a9d8f",
+            "#264653",
+          ]}
           placeholder="Select subjects you teach"
           style={styles.input}
           dropDownContainerStyle={styles.dropdown}
           textStyle={styles.dropdownText}
           selectedItemLabelStyle={styles.selectedItemText}
         />
-
 
         {/* Save Button */}
         <TouchableOpacity style={styles.button} onPress={handleSave}>
@@ -351,26 +355,26 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   subjectItem: {
-  padding: 15,
-  borderWidth: 1,
-  borderColor: '#ccc',
-  borderRadius: 8,
-  marginBottom: 10,
-},
-selectedSubject: {
-  backgroundColor: '#6155F5',
-  borderColor: '#6155F5',
-},
-dropdown: {
-  borderColor: "#ccc",
-  borderRadius: 12,
-  marginTop: 5,
-},
-dropdownText: {
-  fontSize: 14,
-},
-selectedItemText: {
-  color: "#6155F5",
-  fontWeight: "bold",
-},
+    padding: 15,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  selectedSubject: {
+    backgroundColor: "#6155F5",
+    borderColor: "#6155F5",
+  },
+  dropdown: {
+    borderColor: "#ccc",
+    borderRadius: 12,
+    marginTop: 5,
+  },
+  dropdownText: {
+    fontSize: 14,
+  },
+  selectedItemText: {
+    color: "#6155F5",
+    fontWeight: "bold",
+  },
 });
