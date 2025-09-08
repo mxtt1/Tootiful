@@ -3,8 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE_URL = "http://localhost:3000/api";
 
-// For testing on physical device, you might need to use your computer's IP
-// const API_BASE_URL = 'http://192.168.1.XXX:3000/api'; // Replace XXX with your IP
 
 class ApiClient {
   constructor() {
