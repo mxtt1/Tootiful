@@ -1,5 +1,5 @@
 export function otpTemplate({ name = "there", otp, ttlMinutes = 10 }) {
-  const subject = "Your Tootiful verification code";
+  const subject = "Your Tutiful verification code";
   const text =
 `Hi ${name},
 
@@ -8,7 +8,7 @@ Your verification code is: ${otp}
 This code expires in ${ttlMinutes} minutes.
 If you didn’t request this, you can ignore this email.
 
-— Tootiful`;
+— Tutiful`;
   const html = `
   <div style="font-family:Arial,sans-serif;line-height:1.6">
     <p>Hi ${name},</p>
@@ -16,13 +16,13 @@ If you didn’t request this, you can ignore this email.
     <p style="font-size:22px;font-weight:700;letter-spacing:2px">${otp}</p>
     <p>This code expires in <b>${ttlMinutes} minutes</b>.</p>
     <p>If you didn’t request this, you can ignore this email.</p>
-    <p>— Tootiful</p>
+    <p>— Tutiful</p>
   </div>`;
   return { subject, text, html };
 }
 
 export function passwordResetTemplate({ name = "there", resetLink, ttlMinutes = 15 }) {
-  const subject = "Reset your Tootiful password";
+  const subject = "Reset your Tutiful password";
   const text =
 `Hi ${name},
 
@@ -32,7 +32,7 @@ ${resetLink}
 
 If you didn’t request this, you can ignore this email.
 
-— Tootiful`;
+— Tutiful`;
   const html = `
   <div style="font-family:Arial,sans-serif;line-height:1.6">
     <p>Hi ${name},</p>
@@ -45,7 +45,7 @@ If you didn’t request this, you can ignore this email.
     </p>
     <p>This link expires in <b>${ttlMinutes} minutes</b>.</p>
     <p>If you didn’t request this, you can ignore this email.</p>
-    <p>— Tootiful</p>
+    <p>— Tutiful</p>
   </div>`;
   return { subject, text, html };
 }
