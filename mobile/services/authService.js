@@ -5,13 +5,20 @@ class AuthService {
   async loginStudent(email, password) {
     try {
       const response = await apiClient.loginStudent(email, password);
+
+      // If backend returns success flag, check it
+      if (!response.success) {
+        throw new Error(response.message || "Invalid email or password");
+      }
+
       // Token is automatically stored in apiClient
-      return response; // Return full response including user data
+      return response; // Only return if success
     } catch (error) {
       console.error("Student login failed:", error);
-      throw error;
+      throw error; // Important so LoginScreen's catch can Alert
     }
   }
+
 
   // Tutor login
   async loginTutor(email, password) {
