@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { Link, useRouter } from "expo-router";
+import jwtDecode from "jwt-decode";
 import authService from "../services/authService.js";
 
 export default function LoginScreen() {
@@ -18,6 +19,39 @@ export default function LoginScreen() {
   const [role, setRole] = useState("Student");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  // Check if user is already logged in on first render
+  useEffect(() => {
+    (async () => {
+      const isLoggedIn = await checkAlreadyLoggedIn();
+      if (isLoggedIn) {
+        const decoded = jwtDecode(authService.getCurrentToken());
+        if (decoded.userType === "student") {
+          router.replace("/tabs");
+        } else {
+          router.replace("/tutor");
+        }
+      }
+    })();
+  }, []);
+
+  async function checkAlreadyLoggedIn() {
+    const token = authService.getCurrentToken();
+    if (!token) return false;
+
+    try {
+      const decoded = jwtDecode(token);
+      if (decoded.exp * 1000 > Date.now()) {
+        // Token is valid
+        return true;
+      } else {
+        // Token expired, try to refresh
+        return await authService.autoRefreshToken();
+      }
+    } catch {
+      return false;
+    }
+  }
 
   const handleLogin = async () => {
     try {

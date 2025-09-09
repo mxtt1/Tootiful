@@ -144,7 +144,7 @@ export default function editStudent() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Link href="/tabs/myProfile" style={styles.backLink}>
           <Ionicons
@@ -166,7 +166,7 @@ export default function editStudent() {
         showGender={true}
         saveButtonText="Save"
       />
-    </ScrollView>
+    </View>
   );
 }
 
