@@ -96,7 +96,7 @@ class ApiClient {
           console.error("Token refresh failed:", refreshError);
           // Clear token and re-throw original 401 error
           await this.clearAccessToken();
-          throw new Error("Authentication failed. Please log in again.");
+          throw new Error("Invalid Credentials. Please log in again."); //login error message
         }
       }
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import studentService from '../services/studentService.js';
-import tutorService from '../services/tutorService.js';
+import studentService from "../services/studentService.js";
+import tutorService from "../services/tutorService.js";
 import {
     View,
     Text,
@@ -19,41 +19,63 @@ export default function RegisterScreen() {
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [role, setRole] = useState("Student");
+    const [errors, setErrors] = useState({});
     const router = useRouter();
 
+    const validateFields = () => {
+        const newErrors = {};
+
+        if (!firstName.trim()) newErrors.firstName = "First name is required";
+        else if (firstName.length < 2) newErrors.firstName = "Too short";
+
+        if (!lastName.trim()) newErrors.lastName = "Last name is required";
+        else if (lastName.length < 2) newErrors.lastName = "Too short";
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email.trim()) newErrors.email = "Email is required";
+        else if (!emailRegex.test(email)) newErrors.email = "Invalid email";
+
+        if (!password) newErrors.password = "Password is required";
+        else if (password.length < 6)
+            newErrors.password = "Password must be ≥ 6 chars";
+
+        if (confirmPassword !== password)
+            newErrors.confirmPassword = "Passwords do not match";
+
+        return newErrors;
+    };
+
     const handleRegister = async () => {
+        const validationErrors = validateFields();
+        if (Object.keys(validationErrors).length > 0) {
+            setErrors(validationErrors);
+            return;
+        }
+        setErrors({});
+
         try {
-            if (!firstName || !lastName || !email || !password || !confirmPassword) {
-                throw new Error('All fields are required');
-            }
-
-            if (password !== confirmPassword) {
-                throw new Error('Passwords do not match');
-            }
-
-            const payload = {
-                firstName,
-                lastName,
-                email,
-                password
-            };
-
-            console.log('Registering:', payload);
-
+            const payload = { firstName, lastName, email, password };
             let data;
             if (role === "Student") {
                 data = await studentService.createStudent(payload);
-            } else if (role === "Tutor") {
+            } else {
                 data = await tutorService.createTutor(payload);
             }
-            
-            console.log('Registration successful:', data);
+
+            console.log("Registration successful:", data);
             router.replace("/login");
         } catch (error) {
             console.error("Registration error:", error);
-            // Handle error display
+
+            // Backend Sequelize errors
+            if (error.data?.errors && Array.isArray(error.data.errors)) {
+                setErrors({ backend: error.data.errors.join("\n") });
+            } else {
+                setErrors({ backend: error.message || "Something went wrong" });
+            }
         }
     };
+
     return (
         <View style={styles.container}>
             {/* Logo */}
@@ -72,6 +94,7 @@ export default function RegisterScreen() {
                 value={firstName}
                 onChangeText={setFirstName}
             />
+            {errors.firstName && <Text style={styles.error}>{errors.firstName}</Text>}
 
             {/* Last Name */}
             <TextInput
@@ -80,6 +103,7 @@ export default function RegisterScreen() {
                 value={lastName}
                 onChangeText={setLastName}
             />
+            {errors.lastName && <Text style={styles.error}>{errors.lastName}</Text>}
 
             {/* Email */}
             <TextInput
@@ -88,6 +112,7 @@ export default function RegisterScreen() {
                 value={email}
                 onChangeText={setEmail}
             />
+            {errors.email && <Text style={styles.error}>{errors.email}</Text>}
 
             {/* Password */}
             <TextInput
@@ -97,6 +122,7 @@ export default function RegisterScreen() {
                 value={password}
                 onChangeText={setPassword}
             />
+            {errors.password && <Text style={styles.error}>{errors.password}</Text>}
 
             {/* Confirm Password */}
             <TextInput
@@ -106,6 +132,9 @@ export default function RegisterScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
             />
+            {errors.confirmPassword && (
+                <Text style={styles.error}>{errors.confirmPassword}</Text>
+            )}
 
             {/* Role Dropdown */}
             <View style={styles.pickerWrapper}>
@@ -118,6 +147,13 @@ export default function RegisterScreen() {
                     <Picker.Item label="Tutor" value="Tutor" />
                 </Picker>
             </View>
+
+            {/* Backend errors */}
+            {errors.backend && (
+                <Text style={[styles.error, { textAlign: "center" }]}>
+                    {errors.backend}
+                </Text>
+            )}
 
             {/* Sign Up button */}
             <TouchableOpacity style={styles.button} onPress={handleRegister}>
@@ -137,17 +173,35 @@ const styles = StyleSheet.create({
     logo: { width: 120, height: 120, alignSelf: "center", marginBottom: 20 },
     title: { fontSize: 22, fontWeight: "bold", color: "#6a5acd", marginBottom: 20 },
     input: {
-        borderWidth: 1, borderColor: "#ccc", borderRadius: 8,
-        paddingHorizontal: 12, height: 48, fontSize: 16, marginBottom: 12
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        height: 48,
+        fontSize: 16,
+        marginBottom: 6,
     },
     pickerWrapper: {
-        borderWidth: 1, borderColor: "#ccc", borderRadius: 8, marginBottom: 20
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 8,
+        marginBottom: 20,
     },
     picker: { height: 48, width: "100%" },
     button: {
-        backgroundColor: "#00c4cc", borderRadius: 8, height: 50,
-        justifyContent: "center", alignItems: "center", marginBottom: 20
+        backgroundColor: "#00c4cc",
+        borderRadius: 8,
+        height: 50,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: 20,
     },
     buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-    back: { textAlign: "center", fontSize: 14, color: "#000", textDecorationLine: "underline" }
+    back: {
+        textAlign: "center",
+        fontSize: 14,
+        color: "#000",
+        textDecorationLine: "underline",
+    },
+    error: { color: "red", fontSize: 13, marginBottom: 8 },
 });
