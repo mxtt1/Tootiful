@@ -6,12 +6,6 @@ class AuthService {
     try {
       const response = await apiClient.loginStudent(email, password);
 
-      // If backend returns success flag, check it
-      if (!response.success) {
-        throw new Error(response.message || "Invalid email or password");
-      }
-
-      // Token is automatically stored in apiClient
       return response; // Only return if success
     } catch (error) {
       console.error("Student login failed:", error);
@@ -74,10 +68,6 @@ class AuthService {
 
   // Auto-refresh token with retry logic
   async autoRefreshToken() {
-    if (!this.isAuthenticated()) {
-      return false;
-    }
-
     try {
       await this.refreshToken();
       return true;

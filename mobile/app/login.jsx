@@ -10,8 +10,9 @@ import {
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { Link, useRouter } from "expo-router";
-import jwtDecode from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 import authService from "../services/authService.js";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -25,18 +26,36 @@ export default function LoginScreen() {
     (async () => {
       const isLoggedIn = await checkAlreadyLoggedIn();
       if (isLoggedIn) {
-        const decoded = jwtDecode(authService.getCurrentToken());
-        if (decoded.userType === "student") {
+        const token = await AsyncStorage.getItem("accessToken");
+        if (!token || token === "null" || token.trim() === "") {
+          return;
+        }
+        let decoded;
+        try {
+          decoded = jwtDecode(token);
+        } catch (err) {
+          console.error("JWT decode failed:", err, "Token:", token);
+          return;
+        }
+        if (decoded && decoded.userType === "student") {
           router.replace("/tabs");
-        } else {
+        } else if (decoded && decoded.userType === "tutor") {
           router.replace("/tutor");
+        } else {
+          console.warn("Decoded token missing userType:", decoded);
         }
       }
     })();
   }, []);
 
   async function checkAlreadyLoggedIn() {
-    const token = authService.getCurrentToken();
+    const token = await AsyncStorage.getItem("accessToken");
+    const decoded = jwtDecode(token);
+    if (decoded) {
+      console.log("Decoded token:", decoded);
+    } else {
+      console.warn("Decoded token is null or undefined");
+    }
     if (!token) return false;
 
     try {
