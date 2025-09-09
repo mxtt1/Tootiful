@@ -20,6 +20,7 @@ const Form = ({
   formData,
   onInputChange,
   onSave,
+  errors,
   showGradeLevel = true,
   showGender = true,
 }) => {
@@ -116,76 +117,73 @@ const Form = ({
       {/* First Name */}
       <View style={styles.inputContainer}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.firstName && styles.inputError]}
           placeholder="First Name"
           value={formData.firstName}
           onChangeText={(text) => onInputChange("firstName", text)}
         />
+        {errors.firstName && (
+          <Text style={styles.errorText}>{errors.firstName}</Text>
+        )}
       </View>
 
       {/* Last Name */}
       <View style={styles.inputContainer}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.lastName && styles.inputError]}
           placeholder="Last Name"
           value={formData.lastName}
           onChangeText={(text) => onInputChange("lastName", text)}
         />
+        {errors.lastName && (
+          <Text style={styles.errorText}>{errors.lastName}</Text>
+        )}
       </View>
 
       {/* Date of Birth */}
       <View style={styles.inputContainer}>
-        {/*
-        <TouchableOpacity onPress={showDatePicker} style={ styles.calendarIcon}>
-        <Ionicons name="calendar-outline" size={20} style={styles.calendarIcon}
-        />
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.input, styles.inputWithIcon, styles.dateInput]} onPress={showDatePicker}>
-        */}
+
         <Ionicons name="calendar-outline" size={20} style={styles.styleIcon} />
         <TextInput
-          style={[styles.input, styles.inputWithIcon]}
+          style={[styles.input, styles.inputWithIcon, errors.dateOfBirth && styles.inputError]}
           placeholder="Date of Birth"
           value={formData.dateOfBirth}
           onChangeText={(text) => onInputChange("dateOfBirth", text)}
           keyboardType="birth-date"
         />
-
-        {/*
-        {showDatePickerModal && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={onDateChange}
-            maximumDate={new Date()}
-          />
+        {errors.dateOfBirth && (
+          <Text style={styles.errorText}>{errors.dateOfBirth}</Text>
         )}
-          */}
       </View>
 
       {/* Email */}
       <View style={styles.inputContainer}>
         <Ionicons name="mail-outline" size={20} style={styles.styleIcon} />
         <TextInput
-          style={[styles.input, styles.inputWithIcon]}
+          style={[styles.input, styles.inputWithIcon, errors.email && styles.inputError]}
           placeholder="Email"
           value={formData.email}
           onChangeText={(text) => onInputChange("email", text)}
           keyboardType="email-address"
         />
+        {errors.email && (
+          <Text style={styles.errorText}>{errors.email}</Text>
+        )}
       </View>
 
       {/* Phone Number */}
       <View style={[styles.inputContainer]}>
         <Ionicons name="call-outline" size={20} style={styles.styleIcon} />
         <TextInput
-          style={[styles.input, styles.inputWithIcon]}
+          style={[styles.input, styles.inputWithIcon, errors.phone && styles.inputError]}
           placeholder="Phone Number"
           value={formData.phone}
           onChangeText={(text) => onInputChange("phone", text)}
           keyboardType="phone-pad"
         />
+        {errors.phone && (
+          <Text style={styles.errorText}>{errors.phone}</Text>
+        )}
       </View>
 
       {/* Gender - Conditionally rendered */}

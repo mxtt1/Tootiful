@@ -5,9 +5,12 @@ import Form from "../../components/form";
 import { Link, useLocalSearchParams, router } from "expo-router";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
+import { validateName, validateEmail, validatePhone } from "../utils/validation";
 
 export default function PersonalDetails() {
   const { id } = useLocalSearchParams();
+  const [errors, setErrors] = useState({});
+  
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -89,9 +92,44 @@ export default function PersonalDetails() {
       ...prev,
       [field]: value,
     }));
+    // real time validation
+    let error = "";
+    if (field === 'firstName' || field === 'lastName') {
+      error = validateName(value);
+    }
+    else if (field === 'email') {
+      error = validateEmail(value);
+    }
+    else if (field === 'phone') {
+      error = validatePhone(value);
+    }
+    setErrors((prev) => ({
+      ...prev,
+      [field]: error
+    }));
   };
 
   const handleSave = async () => {
+    setErrors({}); //clear prev errors
+
+    //validate fields
+    const emailError = validateEmail(formData.email);
+    const phoneError = validatePhone(formData.phone);
+    const firstNameError = validateName(formData.firstName);
+    const lastNameError = validateName(formData.lastName);
+    
+    if (emailError || phoneError || firstNameError || lastNameError) {
+    
+    setErrors({
+      email: emailError,
+      phone: phoneError,
+      firstName: firstNameError,
+      lastName: lastNameError,
+      });
+      return;
+
+    }
+    
     try {
       // Wrap data in tutorData object as expected by API
       const requestBody = {
@@ -153,6 +191,7 @@ export default function PersonalDetails() {
         showGradeLevel={false}
         showGender={false}
         saveButtonText="Save"
+        errors={errors}
       />
     </View>
   );
