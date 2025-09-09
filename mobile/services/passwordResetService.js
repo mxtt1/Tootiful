@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || "http://192.168.1.196/api";
+  process.env.EXPO_PUBLIC_API_BASE_URL || "http://10.0.2.2:3000/api";
 const API = API_BASE_URL.replace("/api", ""); // Remove /api suffix for this service
 
 // mobile/services/passwordResetService.js
