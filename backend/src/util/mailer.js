@@ -1,4 +1,3 @@
-// backend/src/util/mailer.js
 import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import { fileURLToPath } from "url";
