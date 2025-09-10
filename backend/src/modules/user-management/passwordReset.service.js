@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { Op } from "sequelize";
-import { Student, Tutor, PasswordResetToken } from "./user.model.js";
+import { User, PasswordResetToken } from "../../models/index.js";
 import { sendEmail } from "../../util/mailer.js";
 import { otpTemplate } from "../../util/emailTemplates.js";
 
@@ -16,19 +16,16 @@ function generateOtp() {
 }
 
 async function findUserByEmail(email) {
-  const student = await Student.findOne({ where: { email } });
-  if (student) return { user: student, userType: "student" };
-  const tutor = await Tutor.findOne({ where: { email } });
-  if (tutor) return { user: tutor, userType: "tutor" };
-  return { user: null, userType: null };
+  const user = await User.findOne({ where: { email } });
+  return user;
 }
 
 export async function requestReset(email) {
-  const { user, userType } = await findUserByEmail(email);
+  const user = await findUserByEmail(email);
   if (!user) return { ok: false, notFound: true };
 
   const latest = await PasswordResetToken.findOne({
-    where: { userId: user.id, userType },
+    where: { userId: user.id },
     order: [["created_at", "DESC"]], // snake_case column in DB
   });
 
@@ -46,7 +43,6 @@ export async function requestReset(email) {
 
   await PasswordResetToken.create({
     userId: user.id,
-    userType,
     codeHash,
     expiresAt: new Date(Date.now() + OTP_TTL_MS),
     attempts: 0,
@@ -69,13 +65,13 @@ export async function requestReset(email) {
 }
 
 export async function verifyCode(email, code) {
-  const { user, userType } = await findUserByEmail(email);
+  const user = await findUserByEmail(email);
   if (!user) return { ok: false, message: "Invalid or expired code." };
 
+  // Find latest valid, unused token
   const token = await PasswordResetToken.findOne({
     where: {
       userId: user.id,
-      userType,
       usedAt: { [Op.is]: null },
       expiresAt: { [Op.gt]: new Date() },
     },
@@ -103,13 +99,12 @@ export async function verifyCode(email, code) {
 }
 
 export async function resetPassword(email, resetToken, newPassword) {
-  const { user, userType } = await findUserByEmail(email);
+  const user = await findUserByEmail(email);
   if (!user) return { ok: false, message: "Invalid or expired token." };
 
   const token = await PasswordResetToken.findOne({
     where: {
       userId: user.id,
-      userType,
       usedAt: { [Op.is]: null },
       expiresAt: { [Op.gt]: new Date() },
     },
@@ -120,8 +115,7 @@ export async function resetPassword(email, resetToken, newPassword) {
   const valid = await bcrypt.compare(resetToken, token.codeHash);
   if (!valid) return { ok: false, message: "Invalid or expired token." };
 
-  user.password = newPassword;
-  await user.save();
+ await user.update({ password: newPassword });
 
   await token.update({ usedAt: new Date() });
   return { ok: true };

@@ -7,11 +7,7 @@ import { requestReset, verifyCode, resetPassword } from "./passwordReset.service
 const router = express.Router();
 const authService = new AuthService();
 
-
-// router.post('/register', asyncHandler(authService.handleRegister.bind(authService)));
-
-router.post('/student/login', asyncHandler(authService.handleStudentLogin.bind(authService)));
-router.post('/tutor/login', asyncHandler(authService.handleTutorLogin.bind(authService)));
+router.post('/login', asyncHandler(authService.handleLogin.bind(authService)));
 
 // Refresh access token endpoint (gets token from cookie)
 router.post('/refresh', asyncHandler(authService.handleRefreshToken.bind(authService)));

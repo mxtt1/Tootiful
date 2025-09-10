@@ -19,7 +19,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser()); // Add cookie parser middleware
 
-// CORS middleware (allow all origins for now)
+// Manual CORS middleware (allow all origins for now)
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header(

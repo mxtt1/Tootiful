@@ -1,5 +1,5 @@
 import { DataTypes } from 'sequelize';
-import sequelize from '../../config/database.js';
+import sequelize from '../config/database.js';
 
 const RefreshToken = sequelize.define('RefreshToken', {
   id: {
@@ -18,11 +18,6 @@ const RefreshToken = sequelize.define('RefreshToken', {
     type: DataTypes.UUID,
     allowNull: false,
     comment: 'User ID this token belongs to'
-  },
-  userType: {
-    type: DataTypes.ENUM('student', 'tutor'),
-    allowNull: false,
-    comment: 'Type of user (student or tutor)'
   },
   expiresAt: {
     type: DataTypes.DATE,
@@ -49,7 +44,7 @@ const RefreshToken = sequelize.define('RefreshToken', {
       unique: true
     },
     {
-      fields: ['userId', 'userType']
+      fields: ['userId']
     },
     {
       fields: ['expiresAt']
@@ -57,5 +52,5 @@ const RefreshToken = sequelize.define('RefreshToken', {
   ]
 });
 
-export { RefreshToken };
 export default RefreshToken;
+

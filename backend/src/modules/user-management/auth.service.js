@@ -1,39 +1,25 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import bcrypt from 'bcrypt';
 import { Op } from 'sequelize';
-import StudentService from './student.service.js';
-import TutorService from './tutor.service.js';
-import RefreshToken from './refreshToken.model.js';
+import { User, RefreshToken } from '../../models/index.js';
 
 export default class AuthService {
     constructor() {
         this.accessTokenSecret = process.env.JWT_ACCESS_SECRET || 'access-secret';
-
-        // Initialize services
-        this.studentService = new StudentService();
-        this.tutorService = new TutorService();
     }
 
     // Separate login handlers with HTTP cookies
-    async handleStudentLogin(req, res) {
+    async handleLogin(req, res) {
         const { email, password } = req.body;
 
-        const student = await this.studentService.authenticateStudent(email, password);
-        const tokens = await this.generateTokens(student.id, 'student');
+        const user = await User.findOne({ where: { email }});
 
-        // Set refresh token as HTTP-only cookie
-        this.setRefreshTokenCookie(res, tokens.refreshToken);
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            throw new Error('Invalid email or password');
+        }
 
-        res.status(200).json({
-            accessToken: tokens.accessToken
-        });
-    }
-
-    async handleTutorLogin(req, res) {
-        const { email, password } = req.body;
-
-        const tutor = await this.tutorService.authenticateTutor(email, password);
-        const tokens = await this.generateTokens(tutor.id, 'tutor');
+        const tokens = await this.generateTokens(user);
 
         // Set refresh token as HTTP-only cookie
         this.setRefreshTokenCookie(res, tokens.refreshToken);
@@ -53,10 +39,10 @@ export default class AuthService {
             });
         }
 
-        const tokens = await this.refreshAccessToken(refreshToken);
+        const token = await this.refreshAccessToken(refreshToken);
 
         res.status(200).json({
-            accessToken: tokens.accessToken
+            accessToken: token
         });
     }
 
@@ -77,9 +63,9 @@ export default class AuthService {
     }
 
     async handleLogoutAll(req, res) {
-        const { userId, userType } = req.user; // From JWT middleware
+        const { userId } = req.user; // From JWT middleware
 
-        await this.revokeAllUserTokens(userId, userType);
+        await this.revokeAllUserTokens(userId);
 
         // Clear refresh token cookie
         this.clearRefreshTokenCookie(res);
@@ -91,12 +77,12 @@ export default class AuthService {
     }
 
     // Business logic methods
-    async generateTokens(userId, userType) {
+    async generateTokens(user) {
         // Generate access token (still JWT)
         const accessToken = jwt.sign(
             {
-                userId,
-                userType,
+                userId: user.id,
+                userType: user.role,
                 type: 'access'
             },
             this.accessTokenSecret,
@@ -107,7 +93,7 @@ export default class AuthService {
         const refreshToken = crypto.randomBytes(32).toString('hex');
 
         // Store refresh token in database
-        await this.storeRefreshToken(refreshToken, userId, userType);
+        await this.storeRefreshToken(refreshToken, user.id);
 
         return { accessToken, refreshToken };
     }
@@ -120,11 +106,12 @@ export default class AuthService {
             throw new Error('Invalid or expired refresh token');
         }
 
+        const user = await tokenRecord.getUser();
         // Generate new access token only (no new refresh token)
         const accessToken = jwt.sign(
             {
                 userId: tokenRecord.userId,
-                userType: tokenRecord.userType,
+                userType: user.role,
                 type: 'access'
             },
             this.accessTokenSecret,
@@ -134,7 +121,7 @@ export default class AuthService {
         // Update last used timestamp but keep same refresh token
         await tokenRecord.update({ lastUsedAt: new Date() });
 
-        return { accessToken }; // Only return new access token
+        return accessToken; // Only return new access token
     }
 
     async revokeRefreshToken(refreshToken) {
@@ -155,22 +142,21 @@ export default class AuthService {
         }
     }
 
-    async revokeAllUserTokens(userId, userType) {
+    async revokeAllUserTokens(userId) {
         await RefreshToken.update(
             { isRevoked: true },
             {
                 where: {
                     userId,
-                    userType,
                     isRevoked: false
                 }
             }
         );
-        console.log(`Revoked all tokens for user ${userId} of type ${userType}`);
+        console.log(`Revoked all tokens for user ${userId}`);
     }
 
     // Database operations for refresh tokens
-    async storeRefreshToken(token, userId, userType) {
+    async storeRefreshToken(token, userId) {
         const hashedToken = this.hashToken(token);
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
@@ -178,7 +164,6 @@ export default class AuthService {
         await RefreshToken.create({
             token: hashedToken,
             userId,
-            userType,
             expiresAt,
             isRevoked: false
         });

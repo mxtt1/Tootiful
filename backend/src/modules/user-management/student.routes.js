@@ -24,7 +24,4 @@ router.patch('/:id/password', asyncHandler(studentService.handleChangePassword.b
 // DELETE /api/students/:id - Delete student
 router.delete('/:id', asyncHandler(studentService.handleDeleteStudent.bind(studentService)));
 
-// PATCH /api/students/:id/deactivate - Soft delete student
-router.patch('/:id/deactivate', asyncHandler(studentService.handleDeactivateStudent.bind(studentService)));
-
 export default router;

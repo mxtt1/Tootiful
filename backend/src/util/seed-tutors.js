@@ -1,8 +1,8 @@
 import {
-  Tutor,
+  User,
   Subject,
   TutorSubject,
-} from "../modules/user-management/user.model.js";
+} from "../models/user.model.js";
 
 const SAMPLE_TUTORS = [
   {
@@ -73,13 +73,13 @@ export async function seedTutors() {
 
     for (const tutorData of SAMPLE_TUTORS) {
       // Check if tutor already exists
-      const existingTutor = await Tutor.findOne({
-        where: { email: tutorData.email },
+      const existingTutor = await User.findOne({
+        where: { email: tutorData.email, role: 'tutor' },
       });
 
       if (!existingTutor) {
         // Create tutor (password will be automatically hashed by model hooks)
-        const tutor = await Tutor.create({
+        const tutor = await User.create({
           firstName: tutorData.firstName,
           lastName: tutorData.lastName,
           email: tutorData.email,
@@ -87,6 +87,7 @@ export async function seedTutors() {
           phone: tutorData.phone,
           hourlyRate: tutorData.hourlyRate,
           isActive: true,
+          role: 'tutor',
         });
 
         // Add subjects
@@ -116,8 +117,8 @@ export async function seedTutors() {
       }
     }
 
-    const tutorCount = await Tutor.count({ where: { isActive: true } });
-    console.log(`Tutors seeding complete: ${tutorCount} total active tutors`);
+  const tutorCount = await User.count({ where: { isActive: true, role: 'tutor' } });
+  console.log(`Tutors seeding complete: ${tutorCount} total active tutors`);
   } catch (error) {
     console.error("Error seeding tutors:", error);
   }
