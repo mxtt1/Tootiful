@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, Alert } from "react-native";
+import { View, Text, StyleSheet, Alert } from "react-native";
 import React, { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import Form from "../../components/form";
@@ -6,20 +6,13 @@ import { Link, useLocalSearchParams, router } from "expo-router";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
 import { validateName, validateEmail, validatePhone } from "../utils/validation";
+import { jwtDecode } from "jwt-decode"
 
 export default function editStudent() {
   const { id } = useLocalSearchParams();
 
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    dateOfBirth: "",
-    email: "",
-    phone: "",
-    gender: "",
-    gradeLevel: "",
-  });
-
+  const [formData, setFormData] = useState(null);
+  const [initialData, setInitialData] = useState(null); // To track original data for changes
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [errors, setErrors] = useState({});
@@ -35,29 +28,18 @@ export default function editStudent() {
       //Get the authenticated user's ID
       let studentId = id;
       if (!studentId && authService.isAuthenticated()) {
-        const token = authService.getCurrentToken();
+        const token = await authService.getCurrentToken();
 
         if (token) {
           try {
-            const base64Url = token.split(".")[1];
-            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-            const jsonPayload = decodeURIComponent(
-              atob(base64)
-                .split("")
-                .map(function (c) {
-                  return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-                })
-                .join("")
-            );
-            const payload = JSON.parse(jsonPayload);
-            studentId = payload.userId;
+            const decoded = jwtDecode(token);
+            studentId = decoded.userId;
           } catch (error) {
             console.error("Error decoding token:", error);
           }
         }
       }
-      // Fallback to student ID 1 if no authenticated user
-      studentId = studentId || 1;
+
       setCurrentUserId(studentId);
       console.log("Fetching student data for ID:", studentId);
       const studentData = await apiClient.get(`/students/${studentId}`);
@@ -71,9 +53,21 @@ export default function editStudent() {
         email: studentData.email || "",
         phone: studentData.phone || "",
         gender: studentData.gender || "",
-        gradeLevel: studentData.gradeLevel || "",
-        image: studentData.image || null,
+        gradeLevel: studentData.gradeLevel ||"",
+        image: studentData.image || "",
       });
+
+      setInitialData({
+        firstName: studentData.firstName || "",
+        lastName: studentData.lastName || "",
+        dateOfBirth: studentData.dateOfBirth || "",
+        email: studentData.email || "",
+        phone: studentData.phone || "",
+        gender: studentData.gender || "",
+        gradeLevel: studentData.gradeLevel || "",
+        image: studentData.image || "",
+      });
+
     } catch (error) {
       console.error("Error fetching student data:", error);
       Alert.alert("Error", "An error occurred while fetching data");
@@ -114,8 +108,6 @@ export default function editStudent() {
     }));
   };
 
-
-
   const handleSave = async () => {
     setErrors({}); //clear prev errors
 
@@ -126,30 +118,30 @@ export default function editStudent() {
     const lastNameError = validateName(formData.lastName);
 
     if (emailError || phoneError || firstNameError || lastNameError) {
-    
-    setErrors({
-      email: emailError,
-      phone: phoneError,
-      firstName: firstNameError,
-      lastName: lastNameError,
+
+      setErrors({
+        email: emailError,
+        phone: phoneError,
+        firstName: firstNameError,
+        lastName: lastNameError,
       });
       return;
-
     }
 
     try {
-      const requestBody = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        dateOfBirth: formData.dateOfBirth,
-        email: formData.email,
-        phone: formData.phone,
-        gender: formData.gender,
-        gradeLevel: formData.gradeLevel,
-        image: formData.image,
-      };
+      const requestBody = {};
+      Object.keys(formData).forEach((key) => {
+        if (formData[key] !== initialData[key]) {
+          requestBody[key] = formData[key];
+        }
+      });
 
-      const studentId = currentUserId || id || 1;
+      // Only send if there are changes
+      if (Object.keys(requestBody).length === 0) {
+        Alert.alert("No changes detected.");
+        return;
+      }
+      const studentId = currentUserId || id;
       console.log("Saving student profile for ID:", studentId);
       console.log("Profile data to save:", requestBody);
 

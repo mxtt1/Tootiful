@@ -21,9 +21,10 @@ export const validateEmail = (email) => {
 
 // validate phone
 export const validatePhone = (phone) => {
-  if (!phone) return "Phone number is required."; 
-  if (phone.length !== 8) return "Phone number must be 8 digits.";
-  if (!/^\d+$/.test(phone)) return "Phone number must contain only digits."; 
+  if (phone && phone.length > 0) {
+    if (phone.length !== 8) return "Phone number must be 8 digits.";
+    if (!/^\d+$/.test(phone)) return "Phone number must contain only digits."; 
+  }
   return null; 
 };
 
