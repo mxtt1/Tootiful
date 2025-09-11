@@ -219,4 +219,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
+  },
 });

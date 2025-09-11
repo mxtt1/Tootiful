@@ -227,4 +227,9 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#6155F5",
   },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
+  },
 });
