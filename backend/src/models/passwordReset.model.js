@@ -1,5 +1,5 @@
 import { DataTypes } from "sequelize";
-import sequelize from "../../config/database.js";
+import sequelize from "../config/database.js";
 
 const PasswordResetToken = sequelize.define(
   "PasswordResetToken",
@@ -11,14 +11,9 @@ const PasswordResetToken = sequelize.define(
     },
     // Must match Student/Tutor PK type (UUID in your DB)
     userId: {
-      type: DataTypes.STRING(36), // or DataTypes.UUID
+      type: DataTypes.UUID, // or DataTypes.UUID
       allowNull: false,
       field: "user_id",
-    },
-    userType: {
-      type: DataTypes.ENUM("student", "tutor"),
-      allowNull: false,
-      field: "user_type",
     },
     codeHash: {
       type: DataTypes.STRING(255),
@@ -51,4 +46,4 @@ const PasswordResetToken = sequelize.define(
   }
 );
 
-export { PasswordResetToken };
+export default PasswordResetToken;

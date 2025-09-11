@@ -5,17 +5,16 @@ import Form from "../../components/form";
 import { Link, useLocalSearchParams, router } from "expo-router";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
+import { validateName, validateEmail, validatePhone } from "../utils/validation";
+import { jwtDecode } from "jwt-decode";
 
 export default function PersonalDetails() {
   const { id } = useLocalSearchParams();
+  const [errors, setErrors] = useState({});
 
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    dateOfBirth: "",
-    email: "",
-    phone: "",
-  });
+
+  const [formData, setFormData] = useState(null);
+  const [initialData, setInitialData] = useState(null); // To track original data for changes
 
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -34,26 +33,13 @@ export default function PersonalDetails() {
         const token = authService.getCurrentToken();
         if (token) {
           try {
-            const base64Url = token.split(".")[1];
-            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-            const jsonPayload = decodeURIComponent(
-              atob(base64)
-                .split("")
-                .map(function (c) {
-                  return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-                })
-                .join("")
-            );
-            const payload = JSON.parse(jsonPayload);
-            tutorId = payload.userId;
+            const decoded = jwtDecode(token);
+            tutorId = decoded.userId;
           } catch (error) {
             console.error("Error decoding token:", error);
           }
         }
       }
-
-      // Fallback to tutor ID 1 if no authenticated user
-      tutorId = tutorId || 1;
       setCurrentUserId(tutorId);
 
       console.log("Fetching tutor data for ID:", tutorId);
@@ -68,6 +54,15 @@ export default function PersonalDetails() {
         email: tutorData.email || "",
         phone: tutorData.phone || "",
       });
+
+      setInitialData({
+        firstName: tutorData.firstName || "",
+        lastName: tutorData.lastName || "",
+        dateOfBirth: tutorData.dateOfBirth || "",
+        email: tutorData.email || "",
+        phone: tutorData.phone || "",
+      });
+
     } catch (error) {
       console.error("Error fetching tutor data:", error);
       Alert.alert("Error", "An error occurred while fetching data");
@@ -89,22 +84,63 @@ export default function PersonalDetails() {
       ...prev,
       [field]: value,
     }));
+    // real time validation
+    let error = "";
+    if (field === 'firstName' || field === 'lastName') {
+      error = validateName(value);
+    }
+    else if (field === 'email') {
+      error = validateEmail(value);
+    }
+    else if (field === 'phone') {
+      error = validatePhone(value);
+    }
+    setErrors((prev) => ({
+      ...prev,
+      [field]: error
+    }));
   };
 
   const handleSave = async () => {
-    try {
-      // Wrap data in tutorData object as expected by API
-      const requestBody = {
-        tutorData: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          dateOfBirth: formData.dateOfBirth,
-          email: formData.email,
-          phone: formData.phone,
-        },
-      };
+    setErrors({}); //clear prev errors
 
-      const tutorId = currentUserId || id || 1;
+    //validate fields
+    const emailError = validateEmail(formData.email);
+    const phoneError = validatePhone(formData.phone);
+    const firstNameError = validateName(formData.firstName);
+    const lastNameError = validateName(formData.lastName);
+
+    if (emailError || phoneError || firstNameError || lastNameError) {
+
+      setErrors({
+        email: emailError,
+        phone: phoneError,
+        firstName: firstNameError,
+        lastName: lastNameError,
+      });
+      return;
+
+    }
+
+    try {
+      // Prepare only changed fields
+      const changedFields = {};
+      Object.keys(formData).forEach((key) => {
+        if (formData[key] !== initialData[key]) {
+          changedFields[key] = formData[key];
+        }
+      });
+
+      // Only send if there are changes
+      if (Object.keys(changedFields).length === 0) {
+        Alert.alert("No changes detected.");
+        return;
+      }
+
+      // Wrap in tutorData object
+      const requestBody = { tutorData: changedFields };
+
+      const tutorId = currentUserId || id;
       console.log("Saving tutor data for ID:", tutorId);
       console.log("Request Body:", requestBody);
 
@@ -153,6 +189,7 @@ export default function PersonalDetails() {
         showGradeLevel={false}
         showGender={false}
         saveButtonText="Save"
+        errors={errors}
       />
     </View>
   );
@@ -181,5 +218,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 20,
+  },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
   },
 });

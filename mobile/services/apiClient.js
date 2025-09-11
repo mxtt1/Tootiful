@@ -175,19 +175,8 @@ class ApiClient {
   }
 
   // Authentication methods
-  async loginStudent(email, password) {
-    const response = await this.post("/auth/student/login", {
-      email,
-      password,
-    });
-    if (response.accessToken) {
-      await this.setAccessToken(response.accessToken);
-    }
-    return response;
-  }
-
-  async loginTutor(email, password) {
-    const response = await this.post("/auth/tutor/login", {
+  async login(email, password) {
+    const response = await this.post("/auth/login", {
       email,
       password,
     });
@@ -217,6 +206,7 @@ class ApiClient {
     } finally {
       // Always clear token even if logout request fails
       await this.clearAccessToken();
+      await AsyncStorage.removeItem("accessToken");
     }
   }
 
@@ -226,6 +216,7 @@ class ApiClient {
     } finally {
       // Always clear token even if logout request fails
       await this.clearAccessToken();
+      await AsyncStorage.removeItem("accessToken");
     }
   }
 }

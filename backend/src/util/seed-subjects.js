@@ -1,4 +1,4 @@
-import { Subject } from '../modules/user-management/user.model.js';
+import { Subject } from '../models/index.js';
 
 export async function seedSubjects() {
   try {

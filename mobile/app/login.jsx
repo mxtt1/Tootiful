@@ -10,46 +10,46 @@ import {
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { Link, useRouter } from "expo-router";
-import jwtDecode from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 import authService from "../services/authService.js";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("Student");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   // Check if user is already logged in on first render
   useEffect(() => {
-    (async () => {
-      const isLoggedIn = await checkAlreadyLoggedIn();
-      if (isLoggedIn) {
-        const decoded = jwtDecode(authService.getCurrentToken());
-        if (decoded.userType === "student") {
-          router.replace("/tabs");
-        } else {
-          router.replace("/tutor");
-        }
-      }
-    })();
+    checkAndBypassLogin();
   }, []);
 
-  async function checkAlreadyLoggedIn() {
-    const token = authService.getCurrentToken();
-    if (!token) return false;
+  async function checkAndBypassLogin() {
+    const token = await AsyncStorage.getItem("accessToken");
+    if (!token || token === "null" || token.trim() === "") return;
 
     try {
       const decoded = jwtDecode(token);
       if (decoded.exp * 1000 > Date.now()) {
-        // Token is valid
-        return true;
+        // Token is valid, route user
+        if (decoded.userType === "student") {
+          router.replace("/tabs");
+        } else if (decoded.userType === "tutor") {
+          router.replace("/tutor");
+        } else {
+          console.warn("Decoded token missing userType:", decoded);
+        }
       } else {
         // Token expired, try to refresh
-        return await authService.autoRefreshToken();
+        const refreshed = await authService.autoRefreshToken();
+        if (refreshed) {
+          // Optionally, re-run this function to route after refresh
+          await checkAndBypassLogin();
+        }
       }
-    } catch {
-      return false;
+    } catch (err) {
+      console.warn("Token decode or refresh failed:", err);
     }
   }
 
@@ -61,19 +61,15 @@ export default function LoginScreen() {
       }
 
       setIsLoading(true);
-      console.log("Logging in as:", role, "with email:", email);
+      console.log("Logging in with email: ", email);
 
-      let response;
-      if (role === "Student") {
-        response = await authService.loginStudent(email, password);
-      } else {
-        response = await authService.loginTutor(email, password);
-      }
-
+      const response = await authService.login(email, password);
+      const decoded = jwtDecode(response.accessToken);
       console.log("Login successful:", response);
 
-      // Navigate based on selected role
-      if (role === "Student") {
+
+      // Navigate based on userType from token
+      if (decoded.userType === "student") {
         router.replace("/tabs"); // Student dashboard
       } else {
         router.replace("/tutor"); // Tutor dashboard
@@ -113,18 +109,6 @@ export default function LoginScreen() {
         value={password}
         onChangeText={setPassword}
       />
-
-      {/* Role Selector */}
-      <View style={styles.pickerWrapper}>
-        <Picker
-          selectedValue={role}
-          style={styles.picker}
-          onValueChange={(itemValue) => setRole(itemValue)}
-        >
-          <Picker.Item label="Student" value="Student" />
-          <Picker.Item label="Tutor" value="Tutor" />
-        </Picker>
-      </View>
 
       <Text style={{ textAlign: "right", marginTop: 2, marginBottom: 20 }}>
         <Link href="/forgot_password" style={{ color: "#666" }}>

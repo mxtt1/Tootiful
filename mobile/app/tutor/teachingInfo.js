@@ -13,23 +13,24 @@ import { Link, useLocalSearchParams } from "expo-router";
 import DropDownPicker from "react-native-dropdown-picker";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
+import { validateHourlyRate } from "../utils/validation";
+import { jwtDecode } from "jwt-decode";
 
 export default function TeachingInfo() {
   const { id } = useLocalSearchParams();
 
-  const [formData, setFormData] = useState({
-    hourlyRate: "",
-    aboutMe: "",
-    education: "",
-  });
+  const [formData, setFormData] = useState(null);
+  const [initialData, setInitialData] = useState(null); // track original data if changed
+  const [initialSubjects, setInitialSubjects] = useState([]); // track original subjects if changed
 
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [errors, setErrors] = useState({});
 
   // Dropdown states
   const [subjectOpen, setSubjectOpen] = useState(false);
-  const [subjectValue, setSubjectValue] = useState([]);
-  const [subjectItems, setSubjectItems] = useState([]);
+  const [subjectValue, setSubjectValue] = useState([]); //selected subjects
+  const [subjectItems, setSubjectItems] = useState([]); //available subjects
 
   useEffect(() => {
     fetchTutorData();
@@ -46,26 +47,14 @@ export default function TeachingInfo() {
         const token = authService.getCurrentToken();
         if (token) {
           try {
-            const base64Url = token.split(".")[1];
-            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-            const jsonPayload = decodeURIComponent(
-              atob(base64)
-                .split("")
-                .map(function (c) {
-                  return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-                })
-                .join("")
-            );
-            const payload = JSON.parse(jsonPayload);
-            tutorId = payload.userId;
+            const decoded = jwtDecode(token);
+            tutorId = decoded.userId;
           } catch (error) {
             console.error("Error decoding token:", error);
           }
         }
       }
 
-      // Fallback to tutor ID 1 if no authenticated user
-      tutorId = tutorId || 1;
       setCurrentUserId(tutorId);
 
       console.log("Fetching teaching info for tutor ID:", tutorId);
@@ -73,16 +62,26 @@ export default function TeachingInfo() {
 
       console.log("Fetched teaching data:", tutorData);
       // Update form data with fetched data
+
       setFormData({
         hourlyRate: tutorData.hourlyRate || "",
         aboutMe: tutorData.aboutMe || "",
         education: tutorData.education || "",
       });
 
+      setInitialData({
+        hourlyRate: tutorData.hourlyRate || "",
+        aboutMe: tutorData.aboutMe || "",
+        education: tutorData.education || "",
+      });
+
       if (tutorData.subjects) {
-        const subjectIds = tutorData.subjects.map((subj) => subj.id);
-        setSubjectValue(subjectIds);
+          const subjectIds = tutorData.subjects.map((subj) => subj.id);
+          setSubjectValue(subjectIds);
+          setInitialSubjects(subjectIds);
       }
+
+
     } catch (error) {
       console.error("Error fetching teaching data:", error);
       Alert.alert("Error", "An error occurred while fetching data");
@@ -94,13 +93,16 @@ export default function TeachingInfo() {
   const fetchAvailableSubjects = async () => {
     try {
       console.log("Fetching subjects from backend...");
+      // fetch all subjects
       const subjects = await apiClient.get("/tutors/subjects/all");
 
       console.log("Subjects received:", subjects);
+    
       // Convert subjects to dropdown format
       const dropdownItems = subjects.map((subject) => ({
-        label: subject.name,
+        label: subject.name, 
         value: subject.id,
+        gradeLevel: subject.gradeLevel || "Not specified"
       }));
       setSubjectItems(dropdownItems);
     } catch (error) {
@@ -121,25 +123,74 @@ export default function TeachingInfo() {
       ...prev,
       [field]: value,
     }));
-  };
+
+  // real time validation 
+  if (field === 'hourlyRate') {
+    const error = validateHourlyRate(value);
+    setErrors((prev) => ({
+      ...prev,
+      hourlyRate: error
+    }));
+  }
+};
+
 
   const handleSave = async () => {
+    setErrors({}); // clear prev errors
+
+    const newErrors = {}
+
+    // validate hourlyRate field
+    const hourlyRateError = validateHourlyRate(formData.hourlyRate);
+
+    if (hourlyRateError) {
+      setErrors({
+        hourlyRate: hourlyRateError,
+      });
+      return     
+    }
+
     try {
-      const tutorId = currentUserId || id || 1;
-      console.log("Saving teaching info for tutor ID:", tutorId);
+
+      // prepare only changed fields
+      const changedFields = {};
+      let subjectsChanged = false;
+
+      Object.keys(formData).forEach((key) => {
+        if(formData[key] !== initialData[key]) {
+          changedFields[key] = formData[key];
+        }
+      });
+
+      //check if tutor changed subjects
+      if (subjectValue.length !== initialSubjects.length) {
+        subjectsChanged = true;
+      } else {
+        // same num of subjects, now check if subjects are diff
+        for (let i = 0; i < subjectValue.length; i++) {
+          if (!initialSubjects.includes(subjectValue[i])) {
+            subjectsChanged = true;
+            break;
+          }
+        }
+      }
+
+      // only send if there are changes
+      if (Object.keys(changedFields).length === 0 && !subjectsChanged) {
+        Alert.alert("No changes detected.");
+        return;
+      }
 
       // Wrap data in tutorData object as expected by API
-      const requestBody = {
-        tutorData: {
-          hourlyRate: formData.hourlyRate,
-          aboutMe: formData.aboutMe,
-          education: formData.education,
-        },
+      const requestBody = { tutorData: changedFields,
         subjects: subjectValue.map((subjectId) => ({
           subjectId: subjectId,
           experienceLevel: "intermediate", // Default
         })),
       };
+
+      const tutorId = currentUserId || id;
+      console.log("Saving tutor data for ID:", tutorId);
       console.log("Teaching data to save:", requestBody);
 
       await apiClient.patch(`/tutors/${tutorId}`, requestBody);
@@ -171,14 +222,17 @@ export default function TeachingInfo() {
         <View style={styles.inputContainer}>
           <Ionicons name="cash-outline" size={20} style={styles.styleIcon} />
           <TextInput
-            style={[styles.input, styles.inputWithIcon]}
+            style={[styles.input, styles.inputWithIcon, errors.hourlyRate && styles.inputError]}
             placeholder="Hourly Rate"
             value={formData.hourlyRate || ""}
             onChangeText={(text) => handleInputChange("hourlyRate", text)}
             keyboardType="numeric"
           />
+          {errors.hourlyRate && (
+                    <Text style={styles.errorText}>{errors.hourlyRate}
+          </Text>
+          )}
         </View>
-
         {/* About Me */}
         <Text style={styles.subTitle}>About Me</Text>
         <View style={styles.inputContainer}>
@@ -345,5 +399,20 @@ const styles = StyleSheet.create({
   selectedItemText: {
     color: "#6155F5",
     fontWeight: "bold",
+  },
+  inputError: {
+    borderColor: 'red',
+    borderWidth: 1,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 12,
+    marginTop: 5,
+    marginLeft: 10,
+  },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
   },
 });

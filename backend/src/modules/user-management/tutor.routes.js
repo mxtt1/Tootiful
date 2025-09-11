@@ -24,9 +24,6 @@ router.patch('/:id/password', asyncHandler(tutorService.handleChangePassword.bin
 // DELETE /api/tutors/:id - Delete tutor
 router.delete('/:id', asyncHandler(tutorService.handleDeleteTutor.bind(tutorService)));
 
-// PATCH /api/tutors/:id/deactivate - Soft delete tutor
-router.patch('/:id/deactivate', asyncHandler(tutorService.handleDeactivateTutor.bind(tutorService)));
-
 // Subject management routes
 // GET /api/tutors/subjects - Get all subjects
 router.get('/subjects/all', asyncHandler(tutorService.handleGetAllSubjects.bind(tutorService)));

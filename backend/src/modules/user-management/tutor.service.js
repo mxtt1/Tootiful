@@ -1,4 +1,4 @@
-import { Tutor, Subject, TutorSubject } from './user.model.js';
+import { User, Subject, TutorSubject } from '../../models/index.js';
 import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
 import bcrypt from 'bcrypt';
@@ -94,13 +94,6 @@ export default class TutorService {
         res.status(200).json();
     }
 
-    async handleDeactivateTutor(req, res) {
-        const { id } = req.params;
-        await this.deactivateTutor(id);
-
-        res.status(200).json();
-    }
-
     async handleGetAllSubjects(req, res) {
         const subjects = await this.getAllSubjects();
         res.status(200).json(subjects);
@@ -114,14 +107,13 @@ export default class TutorService {
 
     // Business logic methods
     async createTutor(tutorData) {
-            // Check if email already exists
-            const existingTutor = await Tutor.findOne({ where: { email: tutorData.email } });
-            if (existingTutor) {
-                throw new Error('Tutor with this email already exists');
-            }
-
-            // Create tutor
-            return await Tutor.create(tutorData);
+        // Check if email already exists
+        const existingTutor = await User.findOne({ where: { email: tutorData.email } });
+        if (existingTutor) {
+            throw new Error('User with this email already exists');
+        }
+        // Create tutor
+        return await User.create({ ...tutorData, role: 'tutor' });
     }
 
     async getTutors(options = {}) {
@@ -133,11 +125,8 @@ export default class TutorService {
             maxRate, 
             subjects = []
         } = options;
-        
         const offset = (page - 1) * limit;
-
-        // Build where clause dynamically
-        const where = {};
+        const where = { role: 'tutor' };
         const include = [
             {
                 model: Subject,
@@ -145,13 +134,9 @@ export default class TutorService {
                 through: { attributes: ['experienceLevel'] }
             }
         ];
-
-        // Filter by active status
         if (active !== undefined) {
             where.isActive = active === 'true' || active === true;
         }
-
-        // Filter by hourly rate range
         if (minRate !== undefined && maxRate !== undefined) {
             where.hourlyRate = {
                 [Op.between]: [parseFloat(minRate), parseFloat(maxRate)]
@@ -165,28 +150,21 @@ export default class TutorService {
                 [Op.lte]: parseFloat(maxRate)
             };
         }
-
-        // Filter by subjects
         if (subjects.length > 0) {
             const subjectWhere = {};
-
             if (subjects.length === 1) {
-                // Single subject - use ILIKE for partial matching
                 subjectWhere.name = {
                     [Op.iLike]: `%${subjects[0]}%`
                 };
             } else {
-                // Multiple subjects - use IN for exact matching
                 subjectWhere.name = {
                     [Op.in]: subjects
                 };
             }
-
             include[0].where = subjectWhere;
-            include[0].required = true; // Inner join to only get tutors with matching subjects
+            include[0].required = true;
         }
-
-        return await Tutor.findAndCountAll({
+        return await User.findAndCountAll({
             attributes: { exclude: ['password'] },
             where,
             include,
@@ -198,7 +176,8 @@ export default class TutorService {
     }
 
     async getTutorById(id) {
-        const tutor = await Tutor.findByPk(id, {
+        const tutor = await User.findOne({
+            where: { id, role: 'tutor' },
             include: [
                 {
                     model: Subject,
@@ -207,41 +186,23 @@ export default class TutorService {
                 }
             ]
         });
-
         if (!tutor) {
             throw new Error('Tutor not found');
         }
         return tutor;
     }
 
-    async getTutorByEmail(email) {
-        return await Tutor.findOne({
-            where: { email },
-            include: [
-                {
-                    model: Subject,
-                    as: 'subjects',
-                    through: { attributes: ['experienceLevel'] }
-                }
-            ]
-        });
-    }
-
     async updateTutor(id, updateData, subjects = null) {
         const transaction = await sequelize.transaction();
         try {
-            // If email is being updated, check if it already exists
             if (updateData.email) {
-                const existingTutor = await Tutor.findOne({ where: { email: updateData.email } });
+                const existingTutor = await User.findOne({ where: { email: updateData.email} });
                 if (existingTutor && existingTutor.id !== id) {
-                    throw new Error('Email already exists for another tutor');
+                    throw new Error('Email already exists for another user');
                 }
             }
-
             const tutor = await this.getTutorById(id);
             await tutor.update(updateData, { transaction });
-
-            // Update subjects if provided
             if (subjects !== null) {
                 await TutorSubject.destroy({ where: { tutorId: id }, transaction });
                 if (subjects.length > 0) {
@@ -253,7 +214,6 @@ export default class TutorService {
                     await TutorSubject.bulkCreate(tutorSubjects, { transaction });
                 }
             }
-
             await transaction.commit();
             return await this.getTutorById(id);
         } catch (error) {
@@ -267,28 +227,19 @@ export default class TutorService {
         await tutor.destroy();
     }
 
-    async deactivateTutor(id) {
-        return await this.updateTutor(id, { isActive: false });
-    }
-
     async addSubjectToTutor(tutorId, subjectId, experienceLevel = 'intermediate') {
         const tutor = await this.getTutorById(tutorId);
-
-        // Check if this tutor-subject relationship already exists
         const existingRelation = await TutorSubject.findOne({
             where: { tutorId, subjectId }
         });
-
         if (existingRelation) {
             throw new Error('Tutor already teaches this subject');
         }
-
         await TutorSubject.create({
             tutorId,
             subjectId,
             experienceLevel
         });
-
         return await this.getTutorById(tutorId);
     }
 
@@ -296,11 +247,9 @@ export default class TutorService {
         const relation = await TutorSubject.findOne({
             where: { tutorId, subjectId }
         });
-
         if (!relation) {
             throw new Error('Tutor does not teach this subject');
         }
-
         await relation.update({ experienceLevel });
         return await this.getTutorById(tutorId);
     }
@@ -309,11 +258,9 @@ export default class TutorService {
         const deleted = await TutorSubject.destroy({
             where: { tutorId, subjectId }
         });
-
         if (deleted === 0) {
             throw new Error('Tutor does not teach this subject');
         }
-
         return await this.getTutorById(tutorId);
     }
 
@@ -337,33 +284,12 @@ export default class TutorService {
         }
     }
 
-    // Password management methods
-    async authenticateTutor(email, password) {
-        const tutor = await this.getTutorByEmail(email);
-        if (!tutor) {
-            throw new Error('Invalid email or password');
-        }
-
-        const isValidPassword = await bcrypt.compare(password, tutor.password);
-        if (!isValidPassword) {
-            throw new Error('Invalid email or password');
-        }
-
-        // Return tutor without password
-        const { password: _, ...tutorData } = tutor.toJSON();
-        return tutorData;
-    }
-
     async changePassword(tutorId, currentPassword, newPassword) {
         const tutor = await this.getTutorById(tutorId);
-
-        // Verify current password
         const isValidCurrentPassword = await bcrypt.compare(currentPassword, tutor.password);
         if (!isValidCurrentPassword) {
             throw new Error('Current password is incorrect');
         }
-
-        // Update with new password (will be automatically hashed by model hook)
         return await tutor.update({ password: newPassword });
     }
 }

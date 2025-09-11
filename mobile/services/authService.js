@@ -2,26 +2,14 @@ import apiClient from "./apiClient.js";
 
 class AuthService {
   // Student login
-  async loginStudent(email, password) {
+  async login(email, password) {
     try {
-      const response = await apiClient.loginStudent(email, password);
-      // Token is automatically stored in apiClient
-      return response;
-    } catch (error) {
-      console.error("Student login failed:", error);
-      throw error;
-    }
-  }
+      const response = await apiClient.login(email, password);
 
-  // Tutor login
-  async loginTutor(email, password) {
-    try {
-      const response = await apiClient.loginTutor(email, password);
-      // Token is automatically stored in apiClient
-      return response; // Return full response including user data
+      return response; // Only return if success
     } catch (error) {
-      console.error("Tutor login failed:", error);
-      throw error;
+      console.error("Login failed:", error);
+      throw error; // Important so LoginScreen's catch can Alert
     }
   }
 
@@ -67,10 +55,6 @@ class AuthService {
 
   // Auto-refresh token with retry logic
   async autoRefreshToken() {
-    if (!this.isAuthenticated()) {
-      return false;
-    }
-
     try {
       await this.refreshToken();
       return true;
