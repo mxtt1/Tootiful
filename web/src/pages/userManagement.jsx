@@ -2,184 +2,291 @@ import React, { useEffect, useState } from "react";
 import API from "../api/apiClient"; // your backend service
 
 import {
-    Table,
-    TableHead,
-    TableBody,
-    TableRow,
-    TableCell,
-    Button,
-    TextField,
-    Select,
-    MenuItem,
-    IconButton,
-    CircularProgress,
-} from "@mui/material";
-
-import { Edit, Delete } from "@mui/icons-material";
+  Table,
+  Button,
+  TextInput,
+  Select,
+  ActionIcon,
+  Loader,
+  Text,
+  Group,
+  Stack,
+  Badge,
+  Container,
+  Title,
+  Card,
+  Pagination,
+  Alert,
+} from "@mantine/core";
+import { IconEdit, IconTrash, IconSearch } from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
 
 export default function UserManagement() {
-    const [rows, setRows] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [page, setPage] = useState(1);
-    const [limit] = useState(10);
-    const [error, setError] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [error, setError] = useState(null);
+  const [totalPages, setTotalPages] = useState(1);
 
-    const [search, setSearch] = useState("");
-    const [roleFilter, setRoleFilter] = useState("");
-    const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
-    useEffect(() => {
-        const fetchUsers = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const offset = (page - 1) * limit;
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const offset = (page - 1) * limit;
 
-                // Fix 1: Change from /users to /students (matches your backend)
-                // Fix 2: Build query params properly
-                const params = new URLSearchParams({
-                    limit: limit.toString(),
-                    offset: offset.toString(),
-                    ...(search && { search }),
-                    ...(roleFilter && { role: roleFilter }),
-                    ...(statusFilter && { active: statusFilter === 'Active' ? 'true' : 'false' })
-                });
+        // Fix 1: Change from /users to /students (matches your backend)
+        // Fix 2: Build query params properly
+        const params = new URLSearchParams({
+          limit: limit.toString(),
+          offset: offset.toString(),
+          ...(search && { search }),
+          ...(roleFilter && { role: roleFilter }),
+          ...(statusFilter && {
+            active: statusFilter === "Active" ? "true" : "false",
+          }),
+        });
 
-                const res = await API.get(`/students?${params.toString()}`);
+        const res = await API.get(`/students?${params.toString()}`);
 
-                // Fix 3: Handle your backend response structure and map fields
-                const users = res.rows || res.data || res || [];
-                const mappedUsers = users.map(user => ({
-                    id: user.id,
-                    fullName: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username,
-                    email: user.email,
-                    username: user.username,
-                    status: user.isActive ? 'Active' : 'Inactive',
-                    role: user.role || 'Student',
-                    joinedDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : ''
-                }));
+        // Fix 3: Handle your backend response structure and map fields
+        const users = res.rows || res.data || res || [];
+        const mappedUsers = users.map((user) => ({
+          id: user.id,
+          fullName:
+            [user.firstName, user.lastName].filter(Boolean).join(" ") ||
+            user.username,
+          email: user.email,
+          username: user.username,
+          status: user.isActive ? "Active" : "Inactive",
+          role: user.role || "Student",
+          joinedDate: user.createdAt
+            ? new Date(user.createdAt).toLocaleDateString()
+            : "",
+        }));
 
-                setRows(mappedUsers);
-            } catch (err) {
-                console.error('Fetch error:', err);
-                setError("Failed to load users");
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchUsers();
-    }, [page, limit, search, roleFilter, statusFilter]);
+        setRows(mappedUsers);
 
+        // Calculate total pages if response includes count
+        if (res.count) {
+          setTotalPages(Math.ceil(res.count / limit));
+        }
+      } catch (err) {
+        console.error("Fetch error:", err);
+        setError("Failed to load users");
+        notifications.show({
+          title: "Error",
+          message: "Failed to load users",
+          color: "red",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, [page, limit, search, roleFilter, statusFilter]);
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "Active":
+        return "green";
+      case "Inactive":
+        return "gray";
+      case "Suspended":
+        return "orange";
+      case "Pending":
+        return "blue";
+      case "Banned":
+        return "red";
+      default:
+        return "gray";
+    }
+  };
+
+  const handleEditUser = (userId) => {
+    // TODO: Implement edit functionality
+    notifications.show({
+      title: "Coming Soon",
+      message: "User editing functionality will be available soon.",
+      color: "blue",
+    });
+  };
+
+  const handleDeleteUser = (userId) => {
+    // TODO: Implement delete functionality
+    notifications.show({
+      title: "Coming Soon",
+      message: "User deletion functionality will be available soon.",
+      color: "blue",
+    });
+  };
+
+  const applyFilters = () => {
+    setPage(1); // Reset to first page when applying filters
+  };
+
+  if (loading && rows.length === 0) {
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
-            <h2 className="text-2xl font-bold mb-4">User Management</h2>
-
-            {/* Filters */}
-            <div className="flex items-center gap-4 mb-6">
-                <TextField
-                    label="Search"
-                    variant="outlined"
-                    size="small"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                />
-                <Select
-                    value={roleFilter}
-                    onChange={(e) => setRoleFilter(e.target.value)}
-                    displayEmpty
-                    size="small"
-                >
-                    <MenuItem value="">All Roles</MenuItem>
-                    <MenuItem value="Admin">Admin</MenuItem>
-                    <MenuItem value="User">User</MenuItem>
-                    <MenuItem value="Moderator">Moderator</MenuItem>
-                    <MenuItem value="Guest">Guest</MenuItem>
-                </Select>
-                <Select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    displayEmpty
-                    size="small"
-                >
-                    <MenuItem value="">All Status</MenuItem>
-                    <MenuItem value="Active">Active</MenuItem>
-                    <MenuItem value="Inactive">Inactive</MenuItem>
-                    <MenuItem value="Suspended">Suspended</MenuItem>
-                    <MenuItem value="Pending">Pending</MenuItem>
-                    <MenuItem value="Banned">Banned</MenuItem>
-                </Select>
-                <Button variant="contained" onClick={() => setPage(1)}>
-                    Apply
-                </Button>
-            </div>
-
-            {/* Table */}
-            {loading ? (
-                <CircularProgress />
-            ) : error ? (
-                <p className="text-red-500">{error}</p>
-            ) : (
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Full Name</TableCell>
-                            <TableCell>Email</TableCell>
-                            <TableCell>Username</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Role</TableCell>
-                            <TableCell>Joined Date</TableCell>
-                            <TableCell>Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {rows.map((user) => (
-                            <TableRow key={user.id}>
-                                <TableCell>{user.fullName}</TableCell>
-                                <TableCell>{user.email}</TableCell>
-                                <TableCell>{user.username}</TableCell>
-                                <TableCell>
-                                    <span
-                                        className={`px-2 py-1 rounded text-white ${user.status === "Active"
-                                            ? "bg-green-500"
-                                            : user.status === "Inactive"
-                                                ? "bg-gray-500"
-                                                : user.status === "Suspended"
-                                                    ? "bg-orange-500"
-                                                    : user.status === "Pending"
-                                                        ? "bg-blue-500"
-                                                        : "bg-red-500"
-                                            }`}
-                                    >
-                                        {user.status}
-                                    </span>
-                                </TableCell>
-                                <TableCell>{user.role}</TableCell>
-                                <TableCell>{user.joinedDate}</TableCell>
-                                <TableCell>
-                                    <IconButton size="small" color="primary">
-                                        <Edit />
-                                    </IconButton>
-                                    <IconButton size="small" color="error">
-                                        <Delete />
-                                    </IconButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            )}
-
-            {/* Pagination */}
-            <div className="flex justify-center mt-4 gap-2">
-                <Button
-                    disabled={page === 1}
-                    onClick={() => setPage((prev) => prev - 1)}
-                >
-                    Prev
-                </Button>
-                <span className="px-2">Page {page}</span>
-                <Button onClick={() => setPage((prev) => prev + 1)}>Next</Button>
-            </div>
+      <Container size="xl" py="xl">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "400px",
+          }}
+        >
+          <Loader size="lg" />
         </div>
+      </Container>
     );
+  }
+
+  return (
+    <Container size="xl" py="xl">
+      <Stack spacing="lg">
+        <Title order={2}>User Management</Title>
+
+        {/* Filters */}
+        <Card shadow="sm" padding="lg" radius="md" withBorder>
+          <Group spacing="md" mb="md">
+            <TextInput
+              placeholder="Search users..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              leftSection={<IconSearch size={16} />}
+              style={{ flexGrow: 1, minWidth: 200 }}
+            />
+
+            <Select
+              placeholder="All Roles"
+              data={[
+                { value: "", label: "All Roles" },
+                { value: "Admin", label: "Admin" },
+                { value: "Student", label: "Student" },
+                { value: "Tutor", label: "Tutor" },
+                { value: "Moderator", label: "Moderator" },
+              ]}
+              value={roleFilter}
+              onChange={setRoleFilter}
+              clearable
+              style={{ minWidth: 150 }}
+            />
+
+            <Select
+              placeholder="All Status"
+              data={[
+                { value: "", label: "All Status" },
+                { value: "Active", label: "Active" },
+                { value: "Inactive", label: "Inactive" },
+                { value: "Suspended", label: "Suspended" },
+                { value: "Pending", label: "Pending" },
+                { value: "Banned", label: "Banned" },
+              ]}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              clearable
+              style={{ minWidth: 150 }}
+            />
+
+            <Button onClick={applyFilters}>Apply Filters</Button>
+          </Group>
+        </Card>
+
+        {/* Error Display */}
+        {error && (
+          <Alert color="red" title="Error">
+            {error}
+          </Alert>
+        )}
+
+        {/* Table */}
+        <Card shadow="sm" padding="lg" radius="md" withBorder>
+          {loading ? (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                padding: "40px",
+              }}
+            >
+              <Loader />
+            </div>
+          ) : rows.length === 0 ? (
+            <Text align="center" py="xl" color="dimmed">
+              No users found
+            </Text>
+          ) : (
+            <Table striped highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Full Name</Table.Th>
+                  <Table.Th>Email</Table.Th>
+                  <Table.Th>Username</Table.Th>
+                  <Table.Th>Status</Table.Th>
+                  <Table.Th>Role</Table.Th>
+                  <Table.Th>Joined Date</Table.Th>
+                  <Table.Th>Actions</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {rows.map((user) => (
+                  <Table.Tr key={user.id}>
+                    <Table.Td>{user.fullName}</Table.Td>
+                    <Table.Td>{user.email}</Table.Td>
+                    <Table.Td>{user.username}</Table.Td>
+                    <Table.Td>
+                      <Badge
+                        color={getStatusColor(user.status)}
+                        variant="filled"
+                      >
+                        {user.status}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>{user.role}</Table.Td>
+                    <Table.Td>{user.joinedDate}</Table.Td>
+                    <Table.Td>
+                      <Group spacing="xs">
+                        <ActionIcon
+                          color="blue"
+                          variant="light"
+                          onClick={() => handleEditUser(user.id)}
+                        >
+                          <IconEdit size={16} />
+                        </ActionIcon>
+                        <ActionIcon
+                          color="red"
+                          variant="light"
+                          onClick={() => handleDeleteUser(user.id)}
+                        >
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Group>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          )}
+        </Card>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Group justify="center">
+            <Pagination
+              value={page}
+              onChange={setPage}
+              total={totalPages}
+              size="sm"
+            />
+          </Group>
+        )}
+      </Stack>
+    </Container>
+  );
 }
