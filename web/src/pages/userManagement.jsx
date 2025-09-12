@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import API from "../api/api"; // your backend service
+import API from "../api/apiClient"; // your backend service
 
 import {
     Table,
@@ -34,11 +34,34 @@ export default function UserManagement() {
             setError(null);
             try {
                 const offset = (page - 1) * limit;
-                const res = await API.get(
-                    `/users?limit=${limit}&offset=${offset}&search=${search}&role=${roleFilter}&status=${statusFilter}`
-                );
-                setRows(res.data);
+
+                // Fix 1: Change from /users to /students (matches your backend)
+                // Fix 2: Build query params properly
+                const params = new URLSearchParams({
+                    limit: limit.toString(),
+                    offset: offset.toString(),
+                    ...(search && { search }),
+                    ...(roleFilter && { role: roleFilter }),
+                    ...(statusFilter && { active: statusFilter === 'Active' ? 'true' : 'false' })
+                });
+
+                const res = await API.get(`/students?${params.toString()}`);
+
+                // Fix 3: Handle your backend response structure and map fields
+                const users = res.rows || res.data || res || [];
+                const mappedUsers = users.map(user => ({
+                    id: user.id,
+                    fullName: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username,
+                    email: user.email,
+                    username: user.username,
+                    status: user.isActive ? 'Active' : 'Inactive',
+                    role: user.role || 'Student',
+                    joinedDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : ''
+                }));
+
+                setRows(mappedUsers);
             } catch (err) {
+                console.error('Fetch error:', err);
                 setError("Failed to load users");
             } finally {
                 setLoading(false);
@@ -117,14 +140,14 @@ export default function UserManagement() {
                                 <TableCell>
                                     <span
                                         className={`px-2 py-1 rounded text-white ${user.status === "Active"
-                                                ? "bg-green-500"
-                                                : user.status === "Inactive"
-                                                    ? "bg-gray-500"
-                                                    : user.status === "Suspended"
-                                                        ? "bg-orange-500"
-                                                        : user.status === "Pending"
-                                                            ? "bg-blue-500"
-                                                            : "bg-red-500"
+                                            ? "bg-green-500"
+                                            : user.status === "Inactive"
+                                                ? "bg-gray-500"
+                                                : user.status === "Suspended"
+                                                    ? "bg-orange-500"
+                                                    : user.status === "Pending"
+                                                        ? "bg-blue-500"
+                                                        : "bg-red-500"
                                             }`}
                                     >
                                         {user.status}
