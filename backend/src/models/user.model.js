@@ -102,9 +102,9 @@ const User = sequelize.define(
     },
     // Role
     role: {
-      type: DataTypes.ENUM("student", "tutor"),
+      type: DataTypes.ENUM("student", "tutor", "admin"),
       allowNull: false,
-      comment: "User role: student or tutor",
+      comment: "User role: student, tutor, or admin",
     },
     isActive: {
       type: DataTypes.BOOLEAN,
