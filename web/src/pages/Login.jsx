@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Paper,
@@ -28,6 +28,21 @@ const Login = () => {
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
+
+  // Load saved credentials on component mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("rememberedEmail");
+    const savedPassword = localStorage.getItem("rememberedPassword");
+    const wasRemembered = localStorage.getItem("rememberMe") === "true";
+
+    if (wasRemembered && savedEmail && savedPassword) {
+      form.setValues({
+        email: savedEmail,
+        password: savedPassword,
+        rememberMe: true,
+      });
+    }
+  }, []);
 
   const form = useForm({
     initialValues: {
@@ -60,12 +75,25 @@ const Login = () => {
       );
 
       if (result.success) {
+        // Handle Remember Me functionality
+        if (values.rememberMe) {
+          // Save credentials to localStorage
+          localStorage.setItem("rememberedEmail", values.email);
+          localStorage.setItem("rememberedPassword", values.password);
+          localStorage.setItem("rememberMe", "true");
+        } else {
+          // Clear saved credentials if not remembering
+          localStorage.removeItem("rememberedEmail");
+          localStorage.removeItem("rememberedPassword");
+          localStorage.removeItem("rememberMe");
+        }
+
         notifications.show({
           title: "Welcome back!",
           message: "You have successfully logged in.",
           color: "green",
         });
-        navigate("/dashboard");
+        navigate("/admin/dashboard");
       } else {
         setSubmitError(result.error);
       }
@@ -80,6 +108,18 @@ const Login = () => {
   const handleForgotPassword = () => {
     // Navigate to Brian's forgot password page
     navigate("/forgot-password");
+  };
+
+  const handleRememberMeChange = (event) => {
+    const isChecked = event.currentTarget.checked;
+    form.setFieldValue("rememberMe", isChecked);
+
+    // If unchecking remember me, optionally clear saved credentials immediately
+    if (!isChecked) {
+      localStorage.removeItem("rememberedEmail");
+      localStorage.removeItem("rememberedPassword");
+      localStorage.removeItem("rememberMe");
+    }
   };
 
   return (
@@ -142,7 +182,8 @@ const Login = () => {
 
               <Checkbox
                 label="Remember me"
-                {...form.getInputProps("rememberMe", { type: "checkbox" })}
+                checked={form.values.rememberMe}
+                onChange={handleRememberMeChange}
                 style={{ marginTop: "0.5rem" }}
               />
 

@@ -71,6 +71,11 @@ class ApiClient {
                 }
             }
 
+            // Handle empty responses (common with DELETE requests)
+            if (response.status === 204 || response.headers.get('content-length') === '0') {
+                return {}; // Return empty object for successful empty responses
+            }
+
             if (!response.ok) {
                 let errorData;
                 try {
