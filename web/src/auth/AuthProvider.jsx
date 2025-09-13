@@ -19,17 +19,45 @@ const AuthProvider = ({ children }) => {
   // 🚧 DEVELOPMENT MODE - Set to true to bypass authentication
   const DEV_MODE_BYPASS = true; // Change to false for production
 
+  // Pre-made admin accounts for team members
+  const ADMIN_ACCOUNTS = {
+    "kyaw@example.com": {
+      password: "kyaw123",
+      name: "Kyaw",
+      role: "Admin",
+    },
+    "matthew@example.com": {
+      password: "matthew123",
+      name: "Matthew",
+      role: "Admin",
+    },
+    "alastair@example.com": {
+      password: "alastair123",
+      name: "Alastair",
+      role: "Admin",
+    },
+    "tarsha@example.com": {
+      password: "tarsha123",
+      name: "Tarsha",
+      role: "Admin",
+    },
+    "brian@example.com": {
+      password: "brian123",
+      name: "Brian",
+      role: "Admin",
+    },
+  };
+
   // Check if user is authenticated on app load
   useEffect(() => {
     if (DEV_MODE_BYPASS) {
-      // Mock admin user for development
-      setUser({
-        id: 1,
-        name: "Admin User",
-        email: "admin@tutiful.com",
-        role: "admin",
-      });
-      setIsAuthenticated(true);
+      // Check if user was previously logged in
+      const savedUser = localStorage.getItem("dev_user");
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        setUser(user);
+        setIsAuthenticated(true);
+      }
       setLoading(false);
     } else {
       checkAuthStatus();
@@ -61,17 +89,30 @@ const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password, rememberMe = false) => {
-    // 🚧 DEVELOPMENT MODE - Auto-success for any login attempt
+    // 🚧 DEVELOPMENT MODE - Check against pre-made admin accounts
     if (DEV_MODE_BYPASS) {
-      const mockUser = {
-        id: 1,
-        name: "Admin User",
-        email: email,
-        role: "admin",
-      };
-      setUser(mockUser);
-      setIsAuthenticated(true);
-      return { success: true, user: mockUser };
+      const account = ADMIN_ACCOUNTS[email];
+      if (account && account.password === password) {
+        const mockUser = {
+          id: Date.now(),
+          name: account.name,
+          email: email,
+          role: account.role,
+        };
+
+        // Store user for persistence
+        localStorage.setItem("dev_user", JSON.stringify(mockUser));
+
+        setUser(mockUser);
+        setIsAuthenticated(true);
+        return { success: true, user: mockUser };
+      } else {
+        return {
+          success: false,
+          error:
+            "Invalid credentials. Use team accounts: kyaw@example.com, matthew@example.com, etc.",
+        };
+      }
     }
 
     try {
@@ -117,6 +158,7 @@ const AuthProvider = ({ children }) => {
       // Clear local storage and state regardless of backend response
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
+      localStorage.removeItem("dev_user"); // Clear dev user
       setUser(null);
       setIsAuthenticated(false);
     }

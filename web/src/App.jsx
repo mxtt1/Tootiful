@@ -20,7 +20,7 @@ function AppRoutes() {
       <Route path="/verify" element={<VerifyCode />} />
       <Route path="/new-password" element={<NewPassword />} />
       <Route path="/success" element={<ResetSuccess />} />
-      
+
       {/* Admin */}
       <Route
         path="/admin/*"
