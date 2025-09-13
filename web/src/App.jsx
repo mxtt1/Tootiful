@@ -8,6 +8,7 @@ import NewPassword from "./pages/ForgotPassword/NewPassword";
 import ResetSuccess from "./pages/ForgotPassword/ResetSuccess";
 import User from "./pages/userManagement";
 import AdminLayout from "./layouts/AdminLayout";
+import AdminDashboard from "./pages/adminDashboard";
 
 function AppRoutes() {
   return (
@@ -27,6 +28,7 @@ function AppRoutes() {
         element={
           <AdminLayout>
             <Routes>
+              <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="users" element={<User />} />
               <Route index element={<Navigate to="users" replace />} />
             </Routes>

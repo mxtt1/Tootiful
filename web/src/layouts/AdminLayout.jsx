@@ -36,6 +36,11 @@ const AdminLayout = ({ children }) => {
 
   const menuItems = [
     {
+      label: "Dashboard",
+      icon: IconDashboard,
+      path: "/admin/dashboard",
+    },
+    {
       label: "User Management",
       icon: IconUsers,
       path: "/admin/users",

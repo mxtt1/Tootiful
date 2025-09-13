@@ -93,7 +93,7 @@ const Login = () => {
           message: "You have successfully logged in.",
           color: "green",
         });
-        navigate("/admin/users");
+        navigate("/admin/dashboard");
       } else {
         setSubmitError(result.error);
       }
