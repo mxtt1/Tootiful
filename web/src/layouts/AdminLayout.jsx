@@ -50,7 +50,11 @@ const AdminLayout = ({ children }) => {
       <div className="admin-sidebar">
         {/* Logo */}
         <div className="sidebar-logo">
-          <h2>Tutiful</h2>
+          <img
+            src="/src/assets/tooty.png"
+            alt="Tutiful"
+            className="sidebar-logo-img"
+          />
         </div>
 
         {/* Navigation */}

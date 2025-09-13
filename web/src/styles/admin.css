@@ -67,7 +67,7 @@ body {
   width: 100vw;
   height: 100vh;
   display: grid;
-  grid-template-columns: auto 1fr; /* Left: content size, Right: fill remaining */
+  grid-template-columns: 2fr 3fr;
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -83,7 +83,7 @@ body {
   justify-content: center;
   padding: var(--spacing-xl);
   background-color: white;
-  width: 500px; /* Fixed width for consistent sizing */
+  width: 100%;
   height: 100vh;
   overflow-y: auto;
 }
@@ -358,9 +358,16 @@ body {
 
 /* Sidebar Navigation */
 .sidebar-logo {
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md) var(--spacing-lg);
   border-bottom: 1px solid var(--tutiful-gray-200);
   text-align: center;
+}
+
+.sidebar-logo-img {
+  max-width: 120px;
+  height: auto;
+  max-height: 50px;
+  object-fit: contain;
 }
 
 .sidebar-logo h2 {
