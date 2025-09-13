@@ -1,128 +1,263 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Title, Text, Button, Group, Anchor, PinInput, Stack, Image } from "@mantine/core";
+import {
+  Title,
+  Text,
+  Button,
+  Group,
+  Anchor,
+  PinInput,
+  Stack,
+  Image,
+  Box,
+} from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import api from "../../api/apiClient";
 import logo from "../../assets/tooty.png";
 
 const RESEND_SECONDS = 60;
 
+// tolerant helpers for various backend/axios/fetch shapes
+function getData(resLike) {
+  return resLike?.data ?? resLike ?? {};
+}
+function extractResetToken(resLike) {
+  const d = getData(resLike);
+  return (
+    d.resetToken ??
+    d.token ??
+    d.reset_token ??
+    d.passwordResetToken ??
+    null
+  );
+}
+function isOk(resLike) {
+  const s = resLike?.status ?? resLike?.statusCode ?? 200;
+  return s >= 200 && s < 300;
+}
+
 export default function VerifyCode() {
   const navigate = useNavigate();
   const location = useLocation();
-  const email = location?.state?.email;
+  const emailFromState = location?.state?.email;
 
+  // keep email in session in case of hard refresh
+  const [email, setEmail] = useState(
+    emailFromState || sessionStorage.getItem("fp_email") || ""
+  );
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [cooldown, setCooldown] = useState(RESEND_SECONDS);
-  const [resending, setResending] = useState(false);
+
+  // resend countdown
+  const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
 
   useEffect(() => {
-    if (!email) navigate("/forgot-password", { replace: true });
-  }, [email, navigate]);
-
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [cooldown]);
-
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    if (!code || code.length !== 6) {
-      notifications.show({ color: "red", title: "Invalid code", message: "Enter the 6-digit code." });
+    if (!email) {
+      notifications.show({
+        color: "yellow",
+        title: "Email required",
+        message: "Please enter your email again.",
+      });
+      navigate("/forgot-password", { replace: true });
       return;
     }
+    sessionStorage.setItem("fp_email", email);
+  }, [email, navigate]);
+
+  // handle countdown persistently
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    sessionStorage.setItem("fp_resend_seconds", String(secondsLeft));
+    const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [secondsLeft]);
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    if (!email || code.length !== 6) {
+      notifications.show({
+        color: "red",
+        title: "Invalid code",
+        message: "Please enter the 6-digit code sent to your email.",
+      });
+      return;
+    }
+
     try {
       setSubmitting(true);
-      const { resetToken } = await api.verifyOtp(email, code);
-      navigate("/new-password", { state: { email, resetToken } });
+      const res = await api.verifyOtp(email.toLowerCase().trim(), code.trim());
+      if (!isOk(res)) throw new Error("Could not verify code.");
+
+      const resetToken = extractResetToken(res);
+      if (!resetToken) throw new Error("Reset token missing.");
+
+      // persist for next screen
+      sessionStorage.setItem("fp_email", email);
+      sessionStorage.setItem("fp_reset_token", resetToken);
+
+      notifications.show({
+        color: "green",
+        title: "Code verified",
+        message: "You can now set a new password.",
+      });
+
+      navigate("/forgot-password/new", {
+        state: { email, resetToken },
+        replace: true,
+      });
     } catch (err) {
-      const status = err?.response?.status;
-      const backendMsg = err?.response?.data?.message;
-      let msg;
-      if (backendMsg) {
-        msg = backendMsg;
-      } else if (status === 400) {
-        msg = "The code is invalid or has expired.";
-      } else {
-        msg = "Something went wrong. Please try again.";
-      }
-      notifications.show({ color: "red", title: "Verification failed", message: msg });
+      notifications.show({
+        color: "red",
+        title: "Verification failed",
+        message:
+          err?.message ||
+          "The code is invalid or expired. Please try again or resend.",
+      });
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
-  const onResend = async () => {
+  async function handleResend() {
+    if (secondsLeft > 0) return;
     try {
-      setResending(true);
-      await api.resendOtp(email);
-      setCooldown(RESEND_SECONDS);
-      notifications.show({ color: "green", title: "Code resent", message: "Check your email again." });
+      const res = await api.resendOtp(email.toLowerCase().trim());
+      const d = getData(res);
+      const retryMs = Number(d.retryInMs ?? 0);
+      const next = retryMs > 0 ? Math.ceil(retryMs / 1000) : RESEND_SECONDS;
+      setSecondsLeft(next);
+      sessionStorage.setItem("fp_resend_seconds", String(next));
+      notifications.show({
+        color: "blue",
+        title: "New code sent",
+        message: `Please check your inbox. You can resend again in ${next}s.`,
+      });
     } catch (err) {
-      const backendMsg = err?.response?.data?.message;
       notifications.show({
         color: "red",
-        title: "Couldn’t resend",
-        message: backendMsg || "Please try again later.",
+        title: "Could not resend",
+        message:
+          err?.message ||
+          "We could not resend the code right now. Please try again shortly.",
       });
-    } finally {
-      setResending(false);
     }
-  };
+  }
 
   return (
-    <div className="auth-grid">
-      <div className="auth-left">
-        <div className="auth-left-inner">
-          <Image src={logo} alt="Tutiful" width={140} className="auth-logo" />
-          <Stack gap={6} mt={10}>
-            <Title order={2} fw={700}>Verify Code</Title>
-            <Text c="dimmed" size="sm">We sent a code to <strong>{email}</strong>. Enter it below.</Text>
-          </Stack>
+    <div className="auth-container">
+      {/* Left (Form) */}
+      <div className="auth-form-section">
+        <div
+          className="auth-form"
+          style={{
+            maxWidth: 520,
+            padding: "2rem",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: 32,
+            }}
+          >
+            {/* Bigger, standardized logo */}
+            <Image src={logo} alt="Logo" w={240} fit="contain" />
+          </div>
 
-          <form onSubmit={onSubmit} style={{ marginTop: 22 }}>
-            <Stack gap="md">
-              <Group justify="center">
-                <PinInput length={6} size="lg" radius="md" type="number" oneTimeCode value={code} onChange={setCode} />
+          {/* Larger heading + subtitle to match ForgotEmail */}
+          <Title order={2} size="2rem" mb="sm">
+            Verify your email
+          </Title>
+          <Text c="dimmed" size="md" mb="lg">
+            We’ve sent a 6-digit code to <b>{email}</b>
+          </Text>
+
+          <form onSubmit={onSubmit}>
+            <Stack gap="lg">
+              {/* Bigger PinInput boxes */}
+              <PinInput
+                length={6}
+                type="number"
+                value={code}
+                onChange={setCode}
+                oneTimeCode
+                // size controls padding; styles lets us control box size explicitly
+                size="xl"
+                styles={{
+                  input: {
+                    width: 58,
+                    height: 58,
+                    fontSize: 22,
+                    borderRadius: 10,
+                  },
+                }}
+              />
+
+              <Group justify="space-between" mt="xs">
+                <Anchor
+                  component="button"
+                  type="button"
+                  size="sm"
+                  onClick={() =>
+                    navigate("/forgot-password", { replace: true })
+                  }
+                >
+                  Use a different email
+                </Anchor>
+
+                <Button
+                  variant="subtle"
+                  onClick={handleResend}
+                  disabled={secondsLeft > 0}
+                  size="md"
+                >
+                  {secondsLeft > 0 ? `Resend in ${secondsLeft}s` : "Resend code"}
+                </Button>
               </Group>
-              <Button type="submit" size="md" radius="md" loading={submitting} fullWidth styles={{ root: { height: 44 } }}>
+
+              <Button
+                type="submit"
+                loading={submitting}
+                disabled={code.length !== 6}
+                mt="sm"
+                size="md"
+              >
                 Continue
               </Button>
-              <Group justify="space-between" mt="xs">
-                <Text size="sm" c="dimmed">Didn’t get a code?</Text>
-                <Anchor component="button" type="button" onClick={onResend} disabled={cooldown > 0 || resending} fz="sm">
-                  {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
-                </Anchor>
-              </Group>
             </Stack>
           </form>
         </div>
       </div>
 
-      <div className="hero-pane" />
-
-      <style>{`
-        .auth-grid { min-height: 100vh; display: grid; grid-template-columns: 1fr; }
-        @media (min-width: 960px) { .auth-grid { grid-template-columns: 480px 1fr; } }
-        .auth-left { display: flex; align-items: center; padding: 64px 56px; }
-        .auth-left-inner { width: 100%; max-width: 420px; margin: 0 auto; padding: 0 8px; }
-        .auth-logo { display: block; }
-        .hero-pane { display: none; }
-        @media (min-width: 960px) {
-          .hero-pane {
-            display: block; position: relative;
-            background-image: url('/images/stock_image.jpeg');
-            background-size: cover; background-position: center; min-height: 100vh;
-          }
-          .hero-pane::after { content: ""; position: absolute; inset: 0; background: rgba(122,73,255,0.55); }
-          .hero-pane::before {
-            position: absolute; right: 8%; top: 45%; transform: translateY(-50%);
-            color: #fff; font-weight: 800; font-size: 38px; text-align: center;
-          }
-        }
-      `}</style>
+      {/* Right (Image area) */}
+      <div className="auth-image-section forgot-bg">
+        <Box
+          ta="center"
+          c="white"
+          p="xl"
+          style={{
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+          }}
+        >
+          <Title
+            order={2}
+            mb="md"
+            style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.3)" }}
+          >
+            Welcome Back!
+          </Title>
+          <Text
+            size="lg"
+            style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.3)" }}
+          >
+            Continue managing your tutoring platform
+          </Text>
+        </Box>
+      </div>
     </div>
   );
 }
