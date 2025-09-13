@@ -1,6 +1,5 @@
 class ApiClient {
     constructor() {
-        // For web apps, we can use relative URLs in production and localhost in development
         this.baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
         this.accessToken = null;
         this.loadTokenFromStorage();
@@ -10,7 +9,7 @@ class ApiClient {
         }
     }
 
-    // Load access token from localStorage (web equivalent of AsyncStorage)
+    // Load access token from localStorage
     async loadTokenFromStorage() {
         try {
             const token = localStorage.getItem('accessToken');
@@ -22,7 +21,6 @@ class ApiClient {
         }
     }
 
-    // Set access token
     async setAccessToken(token) {
         this.accessToken = token;
         try {
@@ -32,7 +30,6 @@ class ApiClient {
         }
     }
 
-    // Clear access token
     async clearAccessToken() {
         this.accessToken = null;
         try {
@@ -42,24 +39,18 @@ class ApiClient {
         }
     }
 
-    // Core HTTP request method
+    // Core HTTP request
     async request(endpoint, options = {}, isRetry = false) {
         const url = `${this.baseURL}${endpoint}`;
-
         const headers = {
             'Content-Type': 'application/json',
             ...options.headers,
         };
-
         if (this.accessToken) {
             headers.Authorization = `Bearer ${this.accessToken}`;
         }
 
-        const config = {
-            ...options,
-            headers,
-            // credentials: 'include', // Include cookies for refresh tokens
-        };
+        const config = { ...options, headers };
 
         try {
             if (import.meta.env.VITE_DEBUG === 'true') {
@@ -68,14 +59,14 @@ class ApiClient {
 
             const response = await fetch(url, config);
 
-            // Handle 401 - try refresh token
+            // Handle 401 with refresh
             if (response.status === 401 && !isRetry && endpoint !== '/auth/refresh') {
                 try {
                     await this.refreshToken();
                     return await this.request(endpoint, options, true);
                 } catch (refreshError) {
                     await this.clearAccessToken();
-                    window.location.href = '/login'; // Redirect to login
+                    window.location.href = '/login';
                     throw new Error('Session expired. Please log in again.');
                 }
             }
@@ -91,6 +82,7 @@ class ApiClient {
                 const error = new Error(errorData.message || `HTTP error! status: ${response.status}`);
                 error.status = response.status;
                 error.data = errorData;
+                error.response = { status: response.status, data: errorData };
                 throw error;
             }
 
@@ -106,7 +98,7 @@ class ApiClient {
         }
     }
 
-    // HTTP methods
+    // Generic helpers
     async get(endpoint, headers = {}) {
         return this.request(endpoint, { method: 'GET', headers });
     }
@@ -127,7 +119,7 @@ class ApiClient {
         return this.request(endpoint, { method: 'DELETE', headers });
     }
 
-    // Auth methods
+    // --- Auth methods ---
     async login(email, password) {
         const response = await this.post('/auth/login', { email, password });
         if (response.accessToken) {
@@ -155,6 +147,28 @@ class ApiClient {
         } finally {
             await this.clearAccessToken();
         }
+    }
+
+    /* ---------- Forgot Password flow ---------- */
+
+    // Backend expects /auth/forgot-password for initial OTP
+    async requestOtp(email) {
+        return this.post('/auth/forgot-password', { email });
+    }
+
+    // For "Resend code" button
+    async resendOtp(email) {
+        return this.post('/auth/resend-otp', { email });
+    }
+
+    // Verify the 6-digit code; server returns { resetToken }
+    async verifyOtp(email, code) {
+        return this.post('/auth/verify-otp', { email, code });
+    }
+
+    // Use short-lived resetToken to set new password
+    async resetPassword(email, resetToken, newPassword) {
+        return this.post('/auth/reset-password', { email, resetToken, newPassword });
     }
 }
 
