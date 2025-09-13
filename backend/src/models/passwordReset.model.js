@@ -5,7 +5,7 @@ const PasswordResetToken = sequelize.define(
   "PasswordResetToken",
   {
     id: {
-      type: DataTypes.BIGINT.UNSIGNED,
+      type: DataTypes.BIGINT,
       autoIncrement: true,
       primaryKey: true,
     },

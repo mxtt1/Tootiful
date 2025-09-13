@@ -55,81 +55,17 @@ app.get("/health", (req, res) => {
 });
 
 // Database connection and server start
-const dropOrphanedTables = async () => {
-  try {
-    console.log("Checking for orphaned tables...");
-
-    // Get all tables in database
-    const [results] = await sequelize.query(
-      `SELECT TABLE_NAME as table_name FROM information_schema.tables 
-       WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'`
-    );
-    const existingTables = results
-      .map((row) => row.table_name || row.TABLE_NAME)
-      .filter(Boolean);
-
-    // Get all model table names
-    const modelTables = Object.keys(sequelize.models).map(
-      (modelName) => sequelize.models[modelName].tableName
-    );
-
-    // System tables to never drop
-    const systemTables = ["SequelizeMeta", "SequelizeData"];
-
-    console.log("Existing tables:", existingTables);
-    console.log("Model tables:", modelTables);
-
-    // Find orphaned tables
-    const orphanedTables = existingTables.filter(
-      (table) => !modelTables.includes(table) && !systemTables.includes(table)
-    );
-
-    if (orphanedTables.length > 0) {
-      console.log(
-        `Found ${orphanedTables.length} orphaned table(s):`,
-        orphanedTables
-      );
-
-      // Drop orphaned tables
-      for (const table of orphanedTables) {
-        await sequelize.query(`DROP TABLE IF EXISTS \`${table}\``);
-        console.log(`✅ Dropped orphaned table: ${table}`);
-      }
-    } else {
-      console.log("✅ No orphaned tables found");
-    }
-  } catch (error) {
-    console.error("❌ Error during orphaned table cleanup:", error.message);
-    // Don't throw - continue with normal startup
-  }
-};
-
 const startServer = async () => {
   try {
     // Test database connection
     await sequelize.authenticate();
-    console.log("Database connection has been established successfully.");
-
-    // Clean up orphaned tables if enabled
-    if (
-      process.env.NODE_ENV === "development" &&
-      process.env.DROP_ORPHANED_TABLES === "true"
-    ) {
-      await dropOrphanedTables();
-    }
+    console.log("Database connection has been established successfully.");  
 
     // Sync database models (create tables if they don't exist)
-    await sequelize.sync({ alter: true });
+    /*await sequelize.sync();
     console.log("Database synchronized successfully.");
-
-    // Seed subjects for dev and test environments
-    if (
-      process.env.NODE_ENV === "development" ||
-      process.env.NODE_ENV === "test"
-    ) {
-      await seedSubjects();
-    }
-
+    */
+   
     // Start the server
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server is running on port ${PORT}`);
