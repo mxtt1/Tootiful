@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import ApiClient from '../api/apiClient';
 import UserPieChart from '../components/userChart';
-import GrowthLineChart from '../components/growthChart';
+import GrowthChart from '../components/growthChart';
 import { notifications } from "@mantine/notifications";
 import { FaMoneyBillAlt, FaChartLine, FaUsers, FaBook, FaGraduationCap } from 'react-icons/fa';  
 
-
 const AdminDashboard = () => {
-    const [totalTutors, setTotalTutors] = useState(0);
-    const [totalStudents, setTotalStudents] = useState(0);
+    const [totalTutors, setTotalTutors] = useState(40);
+    const [totalStudents, setTotalStudents] = useState(20);
     const [totalAgencies, setTotalAgencies] = useState(10);
+    const [totalSubscriptions, setTotalSubscriptions] = useState(5);
+    const [totalRevenue, setTotalRevenue] = useState(116);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -60,7 +61,7 @@ const AdminDashboard = () => {
 
     if (loading) {
         return (
-            <div style={{ padding: '2rem', textAlign: 'center' }}>
+            <div style={{ padding: '2rem', textAlign: 'center'}}>
                 <div>Loading dashboard data...</div>
             </div>
         );
@@ -68,8 +69,8 @@ const AdminDashboard = () => {
 
     return (
         <>
-            <div className="admin-dashboard-wrapper">
-                <div className="admin-dashboard-container">
+            <div>
+                <div>
                     <h2 style={{ marginBottom: '1.5rem' }}>Admin Dashboard</h2>
                     
                     {/* Main Content Grid */}
@@ -77,18 +78,22 @@ const AdminDashboard = () => {
                         display: 'grid', 
                         gridTemplateColumns: '2fr 1fr', 
                         gap: '2rem',
-                        alignItems: 'start',
+                        alignItems: 'stretch', 
                         marginBottom: '2rem'
                     }}>
                         
                         {/* Left Column - Stats Cards */}
-                        <div>
+                        <div style={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            gap: '1.5rem' 
+                        }}>
                             {/* Row 1 */}
                             <div style={{ 
                                 display: 'grid', 
                                 gridTemplateColumns: 'repeat(3, 1fr)', 
-                                gap: '1.5rem', 
-                                marginBottom: '1.5rem' 
+                                gap: '1.5rem',
+                                flex: 1 // Added flex property
                             }}>
                                 {/* TOTAL AGENCIES */}
                                 <div style={{ 
@@ -97,7 +102,11 @@ const AdminDashboard = () => {
                                     borderRadius: '8px', 
                                     backgroundColor: 'white',
                                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                    position: 'relative'
+                                    position: 'relative',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    height: '100%' 
                                 }}>
                                     <div style={{ 
                                         display: 'flex',
@@ -148,7 +157,11 @@ const AdminDashboard = () => {
                                     borderRadius: '8px', 
                                     backgroundColor: 'white',
                                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                    position: 'relative'
+                                    position: 'relative',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    height: '100%' 
                                 }}>
                                     <div style={{ 
                                         display: 'flex', 
@@ -199,7 +212,11 @@ const AdminDashboard = () => {
                                     borderRadius: '8px', 
                                     backgroundColor: 'white',
                                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                    position: 'relative'
+                                    position: 'relative',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    height: '100%'
                                 }}>
                                     <div style={{ 
                                         display: 'flex', 
@@ -248,8 +265,8 @@ const AdminDashboard = () => {
                             <div style={{ 
                                 display: 'grid', 
                                 gridTemplateColumns: 'repeat(2, 1fr)', 
-                                gap: '1.5rem', 
-                                marginBottom: '2rem' 
+                                gap: '1.5rem',
+                                flex: 1 
                             }}>
                                 {/* TOTAL SUBSCRIPTIONS */}
                                 <div style={{ 
@@ -258,7 +275,11 @@ const AdminDashboard = () => {
                                     borderRadius: '8px', 
                                     backgroundColor: 'white',
                                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                    position: 'relative'
+                                    position: 'relative',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    height: '100%' 
                                 }}>
                                     <div style={{ 
                                         display: 'flex', 
@@ -298,7 +319,7 @@ const AdminDashboard = () => {
                                         </div>
                                     </div>
                                     <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0, color: '#0A0A0A' }}>
-                                        156
+                                        {totalSubscriptions}
                                     </p>
                                 </div>
                                 
@@ -309,7 +330,11 @@ const AdminDashboard = () => {
                                     borderRadius: '8px', 
                                     backgroundColor: 'white', 
                                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                    position: 'relative'
+                                    position: 'relative',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    height: '100%'
                                 }}>
                                     <div style={{ 
                                         display: 'flex', 
@@ -349,7 +374,7 @@ const AdminDashboard = () => {
                                         </div>
                                     </div>
                                     <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0, color: '#0A0A0A' }}>
-                                        $12,456
+                                        ${totalRevenue}
                                     </p>
                                 </div>
                             </div>
@@ -365,9 +390,7 @@ const AdminDashboard = () => {
                             textAlign: 'center',
                             display: 'flex',
                             flexDirection: 'column',
-                            height: '100%',
-                            position: 'relative',
-                            overflow: 'hidden'
+                            height: '100%', 
                         }}>
                             <h3 style={{ 
                                 margin: '0 0 0.8rem 0', 
@@ -379,25 +402,22 @@ const AdminDashboard = () => {
                                 User Distribution
                             </h3>
                             <div style={{ 
+                                flex: 1, 
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 justifyContent: 'center',
-                                height: '220px'
                             }}>
                                 <div style={{ 
                                     width: '100%', 
                                     height: '100%',
-                                    position: 'relative',
-                                    overflow: 'hidden'
                                 }}>
-                                    <UserPieChart tutors={totalTutors} students={totalStudents}
-                                    agencies = {totalAgencies} />
+                                    <UserPieChart tutors={totalTutors} students={totalStudents} agencies={totalAgencies} />
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Line Chart */}
+                    {/* Area Chart */}
                     <div style={{ 
                         padding: '1.5rem', 
                         border: '1px solid #dee2e6', 
@@ -412,9 +432,9 @@ const AdminDashboard = () => {
                             fontWeight: 'normal', 
                             textAlign: 'center' 
                         }}>
-                            Revenue
+                            Revenue & Subscription Growth
                         </h3>
-                        <GrowthLineChart />
+                        <GrowthChart />
                     </div>
                 </div>
             </div>

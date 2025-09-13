@@ -1,6 +1,5 @@
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import './UserChart.css';
 
 const UserPieChart = ({ tutors, students, agencies }) => {
     const data = [
@@ -12,15 +11,16 @@ const UserPieChart = ({ tutors, students, agencies }) => {
     const COLORS = ['#EA4335', '#FBBC05', '#4285B4'];
 
     return (
-        <div className="pie-chart-container">
-            <ResponsiveContainer width="100%" height="100%">
+        <div className="pie-chart-container" style={{ width: '100%', height: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%" minHeight={250}>
                 <PieChart>
                     <Pie
                         data={data}
                         cx="50%"
                         cy="50%"
-                        outerRadius="var(--pie-radius, 100)"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={65}
+                        innerRadius={30}
+                        label
                         dataKey="value"
                         nameKey="name"
                     >
@@ -29,12 +29,28 @@ const UserPieChart = ({ tutors, students, agencies }) => {
                         ))}
                     </Pie>
                     <Tooltip 
-                        formatter={(value, name) => [`${value} users`, name]}
+                        formatter={(value, name) => {
+                            return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    <span>{`${value}`}</span>
+                                    <span style={{ color: '#888' }}>{name}</span>
+                                </div>
+                            );
+                        }}
+                        contentStyle={{
+                            padding: '10px',
+                            borderRadius: '4px',
+                            backgroundColor: '#fff',
+                            boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
+                        }}
+
                     />
                     <Legend 
-                        verticalAlign="bottom" 
-                        height={36}
-                        wrapperStyle={{ color: '#333' }}
+                        iconSize={10}
+                        iconType="circle"
+                        layout="horizontal"
+                        verticalAlign="bottom"
+                        wrapperStyle={{ paddingTop: '10px', fontSize: '14px' }}
                     />
                 </PieChart>
             </ResponsiveContainer>
