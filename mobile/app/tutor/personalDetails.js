@@ -7,6 +7,7 @@ import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
 import { validateName, validateEmail, validatePhone, validateDateOfBirth } from "../utils/validation";
 import { jwtDecode } from "jwt-decode";
+import supabase from "../../services/supabaseClient";
 
 export default function PersonalDetails() {
   const { id } = useLocalSearchParams();
@@ -53,6 +54,7 @@ export default function PersonalDetails() {
         dateOfBirth: tutorData.dateOfBirth || "",
         email: tutorData.email || "",
         phone: tutorData.phone || "",
+        image: tutorData.image || "",
       });
 
       setInitialData({
@@ -61,6 +63,7 @@ export default function PersonalDetails() {
         dateOfBirth: tutorData.dateOfBirth || "",
         email: tutorData.email || "",
         phone: tutorData.phone || "",
+        image: tutorData.image || "",
       });
 
     } catch (error) {
@@ -125,6 +128,41 @@ export default function PersonalDetails() {
       });
       return;
 
+    }
+    // Upload image to Supabase Storage if it's a local file
+    let imageUrl = formData.image;
+    if (imageUrl && imageUrl.startsWith('file://')) {
+      try {
+        const imageExt = imageUrl.split('.').pop();
+
+        let contentType = 'image/png'; // default
+        if (imageExt === 'jpg' || imageExt === 'jpeg') {
+          contentType = 'image/jpeg';
+        } else if (imageExt === 'png') {
+          contentType = 'image/png';
+        } // add more types as needed
+
+        const fileName = `tutor_${currentUserId || id}_${Date.now()}.${imageExt}`;
+        const response = await fetch(imageUrl);
+        const arrayBuffer = await response.arrayBuffer();
+        const { data, error } = await supabase.storage.from('avatars').upload(fileName, arrayBuffer, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: contentType // sets the correct MIME type,
+        });
+        console.log("Supabase upload response:", data, error);
+        if (error) {
+          throw new Error('Image upload failed: ' + error.message);
+        }
+        // Get public URL
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
+        imageUrl = urlData.publicUrl;
+        console.log("Image public URL:", imageUrl);
+        setFormData(prev => ({ ...prev, image: imageUrl }));
+      } catch (err) {
+        Alert.alert('Error', 'Image upload failed: ' + err.message);
+        return;
+      }
     }
 
     try {

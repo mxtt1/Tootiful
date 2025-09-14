@@ -7,6 +7,7 @@ import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
 import { validateName, validateEmail, validatePhone, validateDateOfBirth } from "../utils/validation";
 import { jwtDecode } from "jwt-decode"
+import supabase from "../../services/supabaseClient";
 
 export default function editStudent() {
   const { id } = useLocalSearchParams();
@@ -53,7 +54,7 @@ export default function editStudent() {
         email: studentData.email || "",
         phone: studentData.phone || "",
         gender: studentData.gender || "",
-        gradeLevel: studentData.gradeLevel ||"",
+        gradeLevel: studentData.gradeLevel || "",
         image: studentData.image || "",
       });
 
@@ -133,6 +134,42 @@ export default function editStudent() {
       return;
     }
 
+    // Upload image to Supabase Storage if it's a local file
+    let imageUrl = formData.image;
+    if (imageUrl && imageUrl.startsWith('file://')) {
+      try {
+        const imageExt = imageUrl.split('.').pop();
+
+        let contentType = 'image/png'; // default
+        if (imageExt === 'jpg' || imageExt === 'jpeg') {
+          contentType = 'image/jpeg';
+        } else if (imageExt === 'png') {
+          contentType = 'image/png';
+        } // add more types as needed
+
+        const fileName = `student_${currentUserId || id}.${imageExt}`;
+        const response = await fetch(imageUrl);
+        const arrayBuffer = await response.arrayBuffer();
+        const { data, error } = await supabase.storage.from('avatars').upload(fileName, arrayBuffer, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: contentType // sets the correct MIME type,
+        });
+        console.log("Supabase upload response:", data, error);
+        if (error) {
+          throw new Error('Image upload failed: ' + error.message);
+        }
+        // Get public URL
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
+        imageUrl = urlData.publicUrl;
+        console.log("Image public URL:", imageUrl);
+        setFormData(prev => ({ ...prev, image: imageUrl }));
+      } catch (err) {
+        Alert.alert('Error', 'Image upload failed: ' + err.message);
+        return;
+      }
+    }
+    
     try {
       const requestBody = {};
       Object.keys(formData).forEach((key) => {
