@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import API from "../api/apiClient"; // your backend service
+import studentService from "../api/services/studentService";
+import tutorService from "../api/services/tutorService";
 
 import {
   Table,
@@ -84,7 +85,7 @@ export default function UserManagement() {
         // Fetch students
         if (!roleFilter || roleFilter === "Student") {
           try {
-            const studentsRes = await API.get(`/students?${new URLSearchParams(params).toString()}`);
+            const studentsRes = await studentService.getStudents(params);
             const students = (studentsRes.rows || studentsRes.data || studentsRes || []).map(user => ({
               ...user,
               role: "Student"
@@ -95,10 +96,10 @@ export default function UserManagement() {
           }
         }
 
-        // Fetch tutors (if you have a tutors endpoint)
+        // Fetch tutors
         if (!roleFilter || roleFilter === "Tutor") {
           try {
-            const tutorsRes = await API.get(`/tutors?${new URLSearchParams(params).toString()}`);
+            const tutorsRes = await tutorService.getTutors(params);
             const tutors = (tutorsRes.rows || tutorsRes.data || tutorsRes || []).map(user => ({
               ...user,
               role: "Tutor"
@@ -205,28 +206,18 @@ export default function UserManagement() {
         }
       };
 
-      let updateEndpoint;
       if (editingUser.role === "Student") {
-        updateEndpoint = `/students/${editingUser.id}`;
-        // For students, send data directly (no tutorData wrapper)
-        await API.patch(updateEndpoint, {
+        await studentService.updateStudent(editingUser.id, {
           firstName: editForm.firstName,
           lastName: editForm.lastName,
           email: editForm.email,
           isActive: editForm.isActive,
         });
       } else if (editingUser.role === "Tutor") {
-        updateEndpoint = `/tutors/${editingUser.id}`;
-        // For tutors, wrap in tutorData
-        await API.patch(updateEndpoint, updateData);
+        await tutorService.updateTutor(editingUser.id, updateData);
       } else {
-        updateEndpoint = `/users/${editingUser.id}`;
-        await API.patch(updateEndpoint, {
-          firstName: editForm.firstName,
-          lastName: editForm.lastName,
-          email: editForm.email,
-          isActive: editForm.isActive,
-        });
+        // For other roles, you might need a generic userService
+        throw new Error("Unsupported role for update");
       }
 
       // Update local state
@@ -275,17 +266,14 @@ export default function UserManagement() {
     setDeleting(true);
     try {
       // Check the user's role and use the correct endpoint
-      let deleteEndpoint;
       if (userToDelete.role === "Student") {
-        deleteEndpoint = `/students/${userToDelete.id}`;
+        await studentService.deleteStudent(userToDelete.id);
       } else if (userToDelete.role === "Tutor") {
-        deleteEndpoint = `/tutors/${userToDelete.id}`;
+        await tutorService.deleteTutor(userToDelete.id);
       } else {
-        // For other roles, you might need different endpoints
-        deleteEndpoint = `/users/${userToDelete.id}`;
+        // For other roles, you might need a generic userService
+        throw new Error("Unsupported role for delete");
       }
-
-      await API.delete(deleteEndpoint);
 
       // Remove from local state
       setRows(prevRows => prevRows.filter(user => user.id !== userToDelete.id));

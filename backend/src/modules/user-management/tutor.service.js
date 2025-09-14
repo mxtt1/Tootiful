@@ -7,8 +7,8 @@ export default class TutorService {
     // Route handler methods with complete HTTP response logic
     async handleGetAllTutors(req, res) {
         const {
-            page = 1,
-            limit = 10,
+            page,
+            limit,
             active,
             minRate,
             maxRate,
@@ -27,14 +27,19 @@ export default class TutorService {
             subjects
         });
 
-        res.status(200).json({
-            data: result.rows,
-            pagination: {
+        // Only include pagination if page and limit are present
+        let pagination = undefined;
+        if (page && limit) {
+            pagination = {
                 total: result.count,
                 page: parseInt(page),
                 limit: parseInt(limit),
                 totalPages: Math.ceil(result.count / limit)
-            }
+            };
+        }
+        res.status(200).json({
+            data: result.rows,
+            ...(pagination ? { pagination } : {})
         });
     }
 
@@ -118,14 +123,13 @@ export default class TutorService {
 
     async getTutors(options = {}) {
         const { 
-            page = 1, 
-            limit = 10, 
-            active, 
-            minRate, 
-            maxRate, 
+            page,
+            limit,
+            active,
+            minRate,
+            maxRate,
             subjects = []
         } = options;
-        const offset = (page - 1) * limit;
         const where = { role: 'tutor' };
         const include = [
             {
@@ -164,15 +168,18 @@ export default class TutorService {
             include[0].where = subjectWhere;
             include[0].required = true;
         }
-        return await User.findAndCountAll({
+        const queryOptions = {
             attributes: { exclude: ['password'] },
             where,
             include,
-            limit: parseInt(limit),
-            offset: parseInt(offset),
             order: [['createdAt', 'DESC']],
             distinct: true
-        });
+        };
+        if (page && limit) {
+            queryOptions.limit = parseInt(limit);
+            queryOptions.offset = (parseInt(page) - 1) * parseInt(limit);
+        }
+        return await User.findAndCountAll(queryOptions);
     }
 
     async getTutorById(id) {
