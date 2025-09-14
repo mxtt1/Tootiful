@@ -22,7 +22,7 @@ import { useAuth } from "../auth/AuthProvider";
 const AdminLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const toggleSidebar = () => {
@@ -48,15 +48,32 @@ const AdminLayout = ({ children }) => {
   ];
 
   const getUserInitials = () => {
-    if (user?.name) {
-      return user.name
-        .split(" ")
-        .map((n) => n.charAt(0))
-        .join("")
-        .toUpperCase();
+    if (user?.firstName || user?.lastName) {
+      const initials = `${user.firstName?.[0] || ""}${
+        user.lastName?.[0] || ""
+      }`;
+      return initials.toUpperCase() || "A";
     }
     return "A";
   };
+
+  if (loading) {
+    // You can customize this loader as you wish
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <Text size="lg" fw={600}>
+          Loading...
+        </Text>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-layout">
@@ -138,7 +155,11 @@ const AdminLayout = ({ children }) => {
                     </Avatar>
                     <Box style={{ flex: 1 }}>
                       <Text size="sm" fw={500}>
-                        {user?.name || "Admin"}
+                        {user && (user.firstName || user.lastName)
+                          ? `${user.firstName || ""} ${
+                              user.lastName || ""
+                            }`.trim()
+                          : "Admin"}
                       </Text>
                       <Text size="xs" c="dimmed">
                         {user?.email || "admin@tutiful.com"}
