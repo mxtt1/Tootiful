@@ -1,18 +1,29 @@
-import { View, Text, StyleSheet, ScrollView, Alert } from "react-native";
+import {
+  SafeAreaView,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+} from "react-native";
 import React, { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import Form from "../../components/form";
 import { Link, useLocalSearchParams, router } from "expo-router";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
-import { validateName, validateEmail, validatePhone, validateDateOfBirth } from "../utils/validation";
+import {
+  validateName,
+  validateEmail,
+  validatePhone,
+  validateDateOfBirth,
+} from "../utils/validation";
 import { jwtDecode } from "jwt-decode";
 import supabase from "../../services/supabaseClient";
 
 export default function PersonalDetails() {
   const { id } = useLocalSearchParams();
   const [errors, setErrors] = useState({});
-
 
   const [formData, setFormData] = useState(null);
   const [initialData, setInitialData] = useState(null); // To track original data for changes
@@ -65,7 +76,6 @@ export default function PersonalDetails() {
         phone: tutorData.phone || "",
         image: tutorData.image || "",
       });
-
     } catch (error) {
       console.error("Error fetching tutor data:", error);
       Alert.alert("Error", "An error occurred while fetching data");
@@ -89,21 +99,18 @@ export default function PersonalDetails() {
     }));
     // real time validation
     let error = "";
-    if (field === 'firstName' || field === 'lastName') {
+    if (field === "firstName" || field === "lastName") {
       error = validateName(value);
-    }
-    else if (field === 'email') {
+    } else if (field === "email") {
       error = validateEmail(value);
-    }
-    else if (field === 'phone') {
+    } else if (field === "phone") {
       error = validatePhone(value);
-    }
-    else if (field === 'dateOfBirth') {
+    } else if (field === "dateOfBirth") {
       error = validateDateOfBirth(value);
     }
     setErrors((prev) => ({
       ...prev,
-      [field]: error
+      [field]: error,
     }));
   };
 
@@ -117,8 +124,13 @@ export default function PersonalDetails() {
     const lastNameError = validateName(formData.lastName);
     const dateOfBirthError = validateDateOfBirth(formData.dateOfBirth);
 
-    if (emailError || phoneError || firstNameError || lastNameError || dateOfBirthError) {
-
+    if (
+      emailError ||
+      phoneError ||
+      firstNameError ||
+      lastNameError ||
+      dateOfBirthError
+    ) {
       setErrors({
         email: emailError,
         phone: phoneError,
@@ -127,40 +139,45 @@ export default function PersonalDetails() {
         dateOfBirth: dateOfBirthError,
       });
       return;
-
     }
     // Upload image to Supabase Storage if it's a local file
     let imageUrl = formData.image;
-    if (imageUrl && imageUrl.startsWith('file://')) {
+    if (imageUrl && imageUrl.startsWith("file://")) {
       try {
-        const imageExt = imageUrl.split('.').pop();
+        const imageExt = imageUrl.split(".").pop();
 
-        let contentType = 'image/png'; // default
-        if (imageExt === 'jpg' || imageExt === 'jpeg') {
-          contentType = 'image/jpeg';
-        } else if (imageExt === 'png') {
-          contentType = 'image/png';
+        let contentType = "image/png"; // default
+        if (imageExt === "jpg" || imageExt === "jpeg") {
+          contentType = "image/jpeg";
+        } else if (imageExt === "png") {
+          contentType = "image/png";
         } // add more types as needed
 
-        const fileName = `tutor_${currentUserId || id}_${Date.now()}.${imageExt}`;
+        const fileName = `tutor_${
+          currentUserId || id
+        }_${Date.now()}.${imageExt}`;
         const response = await fetch(imageUrl);
         const arrayBuffer = await response.arrayBuffer();
-        const { data, error } = await supabase.storage.from('avatars').upload(fileName, arrayBuffer, {
-          cacheControl: '3600',
-          upsert: true,
-          contentType: contentType // sets the correct MIME type,
-        });
+        const { data, error } = await supabase.storage
+          .from("avatars")
+          .upload(fileName, arrayBuffer, {
+            cacheControl: "3600",
+            upsert: true,
+            contentType: contentType, // sets the correct MIME type,
+          });
         console.log("Supabase upload response:", data, error);
         if (error) {
-          throw new Error('Image upload failed: ' + error.message);
+          throw new Error("Image upload failed: " + error.message);
         }
         // Get public URL
-        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
+        const { data: urlData } = supabase.storage
+          .from("avatars")
+          .getPublicUrl(fileName);
         imageUrl = urlData.publicUrl;
         console.log("Image public URL:", imageUrl);
-        setFormData(prev => ({ ...prev, image: imageUrl }));
+        setFormData((prev) => ({ ...prev, image: imageUrl }));
       } catch (err) {
-        Alert.alert('Error', 'Image upload failed: ' + err.message);
+        Alert.alert("Error", "Image upload failed: " + err.message);
         return;
       }
     }
@@ -213,30 +230,32 @@ export default function PersonalDetails() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Link href="/tutor/editProfile" style={styles.backLink}>
-          <Ionicons
-            name="arrow-back"
-            size={24}
-            color="#6155F5"
-            style={{ marginBottom: 20 }}
+    <SafeAreaView style={{ flex: 1 }}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Link href="/tutor/editProfile" style={styles.backLink}>
+            <Ionicons
+              name="arrow-back"
+              size={24}
+              color="#6155F5"
+              style={{ marginBottom: 20 }}
+            />
+          </Link>
+          <Text style={styles.title}>Personal Details</Text>
+        </View>
+        <ScrollView>
+          <Form
+            formData={formData}
+            onInputChange={handleInputChange}
+            onSave={handleSave}
+            showGradeLevel={false}
+            showGender={false}
+            saveButtonText="Save"
+            errors={errors}
           />
-        </Link>
-        <Text style={styles.title}>Personal Details</Text>
+        </ScrollView>
       </View>
-      <ScrollView>
-        <Form
-          formData={formData}
-          onInputChange={handleInputChange}
-          onSave={handleSave}
-          showGradeLevel={false}
-          showGender={false}
-          saveButtonText="Save"
-          errors={errors}
-        />
-      </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -265,8 +284,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   center: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     flex: 1,
   },
 });
