@@ -136,6 +136,7 @@ export default function editStudent() {
 
     // Upload image to Supabase Storage if it's a local file
     let imageUrl = formData.image;
+    let imageUploaded = false;
     if (imageUrl && imageUrl.startsWith('file://')) {
       try {
         const imageExt = imageUrl.split('.').pop();
@@ -162,6 +163,7 @@ export default function editStudent() {
         // Get public URL
         const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
         imageUrl = urlData.publicUrl;
+        imageUploaded = true;
         console.log("Image public URL:", imageUrl);
         // Do NOT rely on setFormData here, just use imageUrl for PATCH
       } catch (err) {
@@ -173,8 +175,8 @@ export default function editStudent() {
     try {
       const requestBody = {};
       Object.keys(formData).forEach((key) => {
-        // For image, use the latest public URL if it was just uploaded
-        if (key === 'image' && imageUrl !== initialData.image) {
+        // If a new image was uploaded, always set image field
+        if (key === 'image' && imageUploaded) {
           requestBody[key] = imageUrl;
         } else if (formData[key] !== initialData[key] && key !== 'image') {
           requestBody[key] = formData[key];

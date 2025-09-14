@@ -184,8 +184,8 @@ export default function PersonalDetails() {
       // Prepare only changed fields
       const changedFields = {};
       Object.keys(formData).forEach((key) => {
-        // For image, use the latest public URL if it was just uploaded
-        if (key === 'image' && imageUrl !== initialData.image) {
+        // If a new image was uploaded, always set image field
+        if (key === 'image' && imageUrl && imageUrl.startsWith('http')) {
           changedFields[key] = imageUrl;
         } else if (formData[key] !== initialData[key] && key !== 'image') {
           changedFields[key] = formData[key];
