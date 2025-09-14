@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
-import studentService from "../api/services/studentService";
-import tutorService from "../api/services/tutorService";
+import apiClient from "../api/apiClient";
 
 import {
   Table,
@@ -85,7 +84,7 @@ export default function UserManagement() {
         // Fetch students
         if (!roleFilter || roleFilter === "Student") {
           try {
-            const studentsRes = await studentService.getStudents(params);
+            const studentsRes = await apiClient.get(`/students?${new URLSearchParams(params).toString()}`);
             const students = (studentsRes.rows || studentsRes.data || studentsRes || []).map(user => ({
               ...user,
               role: "Student"
@@ -99,7 +98,7 @@ export default function UserManagement() {
         // Fetch tutors
         if (!roleFilter || roleFilter === "Tutor") {
           try {
-            const tutorsRes = await tutorService.getTutors(params);
+            const tutorsRes = await apiClient.get(`/tutors?${new URLSearchParams(params).toString()}`);
             const tutors = (tutorsRes.rows || tutorsRes.data || tutorsRes || []).map(user => ({
               ...user,
               role: "Tutor"
@@ -207,16 +206,15 @@ export default function UserManagement() {
       };
 
       if (editingUser.role === "Student") {
-        await studentService.updateStudent(editingUser.id, {
+        await apiClient.patch(`/students/${editingUser.id}`, {
           firstName: editForm.firstName,
           lastName: editForm.lastName,
           email: editForm.email,
           isActive: editForm.isActive,
         });
       } else if (editingUser.role === "Tutor") {
-        await tutorService.updateTutor(editingUser.id, updateData);
+        await apiClient.patch(`/tutors/${editingUser.id}`, updateData);
       } else {
-        // For other roles, you might need a generic userService
         throw new Error("Unsupported role for update");
       }
 
@@ -267,11 +265,10 @@ export default function UserManagement() {
     try {
       // Check the user's role and use the correct endpoint
       if (userToDelete.role === "Student") {
-        await studentService.deleteStudent(userToDelete.id);
+        await apiClient.delete(`/students/${userToDelete.id}`);
       } else if (userToDelete.role === "Tutor") {
-        await tutorService.deleteTutor(userToDelete.id);
+        await apiClient.delete(`/tutors/${userToDelete.id}`);
       } else {
-        // For other roles, you might need a generic userService
         throw new Error("Unsupported role for delete");
       }
 
