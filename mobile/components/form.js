@@ -14,7 +14,6 @@ import DropDownPicker from "react-native-dropdown-picker";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "react-native";
-//import DateTimePicker from '@react-native-community/datetimepicker';
 
 const Form = ({
   formData,
@@ -70,7 +69,7 @@ const Form = ({
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 1,
@@ -82,25 +81,6 @@ const Form = ({
     }
   };
 
-  /*
-  const [showDatePickerModal, setShowDatePickerModal] = useState(false);
-  // if dateOfBirth exists, convert to Date object, else use current date
-  const [date, setDate] = useState(formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date());
-
-  const onDateChange = (event, selectedDate) => {
-    // For ios, manually close the picker after selection
-    setShowDatePickerModal(Platform.OS === 'ios');
-    if (selectedDate) {
-      setDate(selectedDate);
-      const formattedDate = selectedDate.toISOString().split('T')[0];
-      onInputChange('dateOfBirth', formattedDate);
-    }
-  };
-
-  const showDatePicker = () => {
-    setShowDatePickerModal(true);
-  }
-*/
   return (
     <View style={styles.formContainer}>
       {/* Profile Image */}
@@ -146,10 +126,10 @@ const Form = ({
         <Ionicons name="calendar-outline" size={20} style={styles.styleIcon} />
         <TextInput
           style={[styles.input, styles.inputWithIcon, errors.dateOfBirth && styles.inputError]}
-          placeholder="Date of Birth"
+          placeholder="DD-MM-YYYY"
           value={formData.dateOfBirth}
           onChangeText={(text) => onInputChange("dateOfBirth", text)}
-          keyboardType="birth-date"
+          keyboardType="numbers-and-punctuation"
         />
         {errors.dateOfBirth && (
           <Text style={styles.errorText}>{errors.dateOfBirth}</Text>
@@ -188,7 +168,7 @@ const Form = ({
 
       {/* Gender - Conditionally rendered */}
       {showGender && (
-        <View style={[styles.pickerContainer, { zIndex: genderOpen ? 3000 : 1 }]}>
+        <View style={[styles.pickerContainer, { zIndex: genderOpen ? 1000 : 1 }]}>
           <DropDownPicker
             open={genderOpen}
             value={genderValue}
@@ -207,7 +187,7 @@ const Form = ({
 
       {/* Grade Level - Conditionally rendered */}
       {showGradeLevel && (
-          <View style={[styles.pickerContainer, { zIndex: gradeOpen ? 5000 : 1 }]}>
+          <View style={[styles.pickerContainer, { zIndex: gradeOpen ? 2000 : 1 }]}>
           <DropDownPicker
             open={gradeOpen}
             value={gradeValue}

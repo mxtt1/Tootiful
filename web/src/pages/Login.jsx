@@ -58,6 +58,7 @@ const Login = () => {
       },
       password: (value) => {
         if (!value) return "Password is required";
+        if (value.length < 6) return "Password must be at least 6 characters";
         return null;
       },
     },
@@ -95,7 +96,19 @@ const Login = () => {
         });
         navigate("/admin/dashboard");
       } else {
-        setSubmitError(result.error);
+        // Show specific error for invalid email or password
+        if (result.error) {
+          const err = result.error.toLowerCase();
+          if (err.includes("invalid email")) {
+            setSubmitError("Invalid email. Please try again.");
+          } else if (err.includes("invalid password")) {
+            setSubmitError("Invalid password. Please try again.");
+          } else {
+            setSubmitError(result.error);
+          }
+        } else {
+          setSubmitError("Login failed. Please try again.");
+        }
       }
     } catch (error) {
       console.error("Login error:", error);

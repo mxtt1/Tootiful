@@ -16,52 +16,12 @@ const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // 🚧 DEVELOPMENT MODE - Set to true to bypass authentication
-  const DEV_MODE_BYPASS = true; // Change to false for production
-
-  // Pre-made admin accounts for team members
-  const ADMIN_ACCOUNTS = {
-    "kyaw@example.com": {
-      password: "kyaw123",
-      name: "Kyaw",
-      role: "Admin",
-    },
-    "matthew@example.com": {
-      password: "matthew123",
-      name: "Matthew",
-      role: "Admin",
-    },
-    "alastair@example.com": {
-      password: "alastair123",
-      name: "Alastair",
-      role: "Admin",
-    },
-    "tarsha@example.com": {
-      password: "tarsha123",
-      name: "Tarsha",
-      role: "Admin",
-    },
-    "brian@example.com": {
-      password: "brian123",
-      name: "Brian",
-      role: "Admin",
-    },
-  };
+  // Admin account emails:
+  // "e1123046@u.nus.edu", "mattlow1504@gmail.com", "e1122690@u.nus.edu","e1155487@u.nus.edu","E1138943@u.nus.edu"
 
   // Check if user is authenticated on app load
   useEffect(() => {
-    if (DEV_MODE_BYPASS) {
-      // Check if user was previously logged in
-      const savedUser = localStorage.getItem("dev_user");
-      if (savedUser) {
-        const user = JSON.parse(savedUser);
-        setUser(user);
-        setIsAuthenticated(true);
-      }
-      setLoading(false);
-    } else {
-      checkAuthStatus();
-    }
+    checkAuthStatus();
   }, []);
 
   const checkAuthStatus = async () => {
@@ -74,8 +34,8 @@ const AuthProvider = ({ children }) => {
 
       // Verify token with backend and get user info
       const response = await apiClient.get("/auth/me");
-      if (response.data && response.data.user) {
-        setUser(response.data.user);
+      if (response && response.user) {
+        setUser(response.user);
         setIsAuthenticated(true);
       }
     } catch (error) {
@@ -89,39 +49,13 @@ const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password, rememberMe = false) => {
-    // 🚧 DEVELOPMENT MODE - Check against pre-made admin accounts
-    if (DEV_MODE_BYPASS) {
-      const account = ADMIN_ACCOUNTS[email];
-      if (account && account.password === password) {
-        const mockUser = {
-          id: Date.now(),
-          name: account.name,
-          email: email,
-          role: account.role,
-        };
-
-        // Store user for persistence
-        localStorage.setItem("dev_user", JSON.stringify(mockUser));
-
-        setUser(mockUser);
-        setIsAuthenticated(true);
-        return { success: true, user: mockUser };
-      } else {
-        return {
-          success: false,
-          error:
-            "Invalid credentials. Use team accounts: kyaw@example.com, matthew@example.com, etc.",
-        };
-      }
-    }
-
     try {
       const response = await apiClient.post("/auth/login", {
         email,
         password,
       });
 
-      const { accessToken, refreshToken, user: userData } = response.data;
+      const { accessToken, refreshToken, user: userData } = response;
 
       // Store tokens
       localStorage.setItem("accessToken", accessToken);
@@ -136,9 +70,13 @@ const AuthProvider = ({ children }) => {
       return { success: true, user: userData };
     } catch (error) {
       console.error("Login failed:", error);
-      const message =
-        error.response?.data?.message ||
-        "Login failed. Please check your credentials.";
+      // Only pass backend error message, let Login.jsx handle user-facing text
+      let message =
+        error.response?.data?.message || error.message || "Unknown error";
+      // If error is a network error or has no message, provide a generic fallback
+      if (message === "Failed to fetch" || !message) {
+        message = "Network error. Please try again.";
+      }
       return { success: false, error: message };
     }
   };

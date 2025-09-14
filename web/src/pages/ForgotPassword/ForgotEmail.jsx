@@ -1,9 +1,27 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Title, Text, TextInput, Button, Stack, Image } from "@mantine/core";
+import { Title, Text, TextInput, Button, Stack, Image, Box, Anchor } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import api from "../../api/apiClient";
 import logo from "../../assets/tooty.png";
+
+// Robust success detector that works with either Axios response or plain data
+function isSuccessResponse(resLike) {
+  const status = resLike?.status ?? resLike?.statusCode ?? 200;
+  const data = resLike?.data ?? resLike ?? {};
+  const msg = (data?.message ?? data?.msg ?? "").toString();
+
+  const hasSuccessFlag =
+    data?.success === true ||
+    data?.ok === true ||
+    data?.status === "ok" ||
+    data?.status === "success";
+
+  const hasSuccessWords = /sent|success|ok/i.test(msg);
+  const isHttpOk = typeof status === "number" && status >= 200 && status < 300;
+
+  return isHttpOk || hasSuccessFlag || hasSuccessWords;
+}
 
 export default function ForgotEmail() {
   const [email, setEmail] = useState("");
@@ -12,46 +30,65 @@ export default function ForgotEmail() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    const trimmed = email.trim();
+    const trimmed = email.trim().toLowerCase();
 
     if (!trimmed) {
       notifications.show({ color: "red", title: "Email required", message: "Please enter your email." });
       return;
     }
     if (!/^\S+@\S+\.\S+$/.test(trimmed)) {
-      notifications.show({ color: "red", title: "Invalid email", message: "Enter a valid email address." });
+      notifications.show({ color: "red", title: "Invalid email", message: "Please enter a valid email address." });
       return;
     }
 
     try {
       setSubmitting(true);
-      await api.requestOtp(trimmed);
-      notifications.show({ color: "green", title: "Code sent", message: "We’ve emailed you a 6-digit code." });
-      navigate("/verify", { state: { email: trimmed } });
-    } catch (err) {
-      const status = err?.response?.status;
-      const backendMsg = err?.response?.data?.message;
-      let msg;
-      if (backendMsg) {
-        msg = backendMsg;
-      } else if (status === 404) {
-        msg = "We couldn’t find an account with that email.";
-      } else if (status === 429) {
-        msg = "Too many attempts. Please wait a moment before retrying.";
+      const res = await api.post("/auth/forgot-password", { email: trimmed });
+
+      if (isSuccessResponse(res)) {
+        const data = res?.data ?? res ?? {};
+        const msg = (data?.message ?? "Check your inbox for the 6-digit code.").toString();
+
+        notifications.show({ color: "green", title: "Code sent", message: msg });
+
+        // Persist for Verify page
+        localStorage.setItem("resetEmail", trimmed);
+
+        // Carry the email in route state too
+        navigate("/forgot-password/verify", { state: { email: trimmed, justSent: true }, replace: true });
       } else {
-        msg = "Something went wrong. Please try again.";
+        const data = res?.data ?? res ?? {};
+        notifications.show({
+          color: "red",
+          title: "Unable to send code",
+          message: (data?.message ?? "Please try again.").toString(),
+        });
       }
-      notifications.show({ color: "red", title: "Error", message: msg });
+    } catch (err) {
+      // Some backends still send the email but reply 4xx with a “sent” message.
+      const data = err?.response?.data ?? {};
+      const msg = (data?.message ?? "").toString();
+
+      if (/sent/i.test(msg)) {
+        notifications.show({ color: "green", title: "Code sent", message: msg || "Check your inbox for the 6-digit code." });
+        localStorage.setItem("resetEmail", trimmed);
+        navigate("/forgot-password/verify", { state: { email: trimmed, justSent: true }, replace: true });
+      } else {
+        notifications.show({ color: "red", title: "Server error", message: msg || "Please try again." });
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="auth-grid">
-      <div className="auth-left">
-        <div className="auth-left-inner">
-          <Image src={logo} alt="Tutiful" width={140} className="auth-logo" />
+    <div className="auth-container">
+      {/* Left (Form) */}
+      <div className="auth-form-section">
+        <div className="auth-form-container">
+          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+            <Image src={logo} alt="Tutiful" width={140} className="auth-logo" />
+          </div>
 
           <Stack gap={6} mt={10}>
             <Title order={2} fw={700}>Forgot Password?</Title>
@@ -65,13 +102,20 @@ export default function ForgotEmail() {
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.currentTarget.value)}
-                required
-                radius="md"
                 size="md"
+                withAsterisk
               />
+
               <Button type="submit" size="md" radius="md" loading={submitting} fullWidth styles={{ root: { height: 44 } }}>
                 Send Code
               </Button>
+
+              <Text size="sm" c="dimmed">
+                Remembered your password?{" "}
+                <Anchor onClick={() => navigate("/login")} component="button" type="button">
+                  Back to login
+                </Anchor>
+              </Text>
             </Stack>
           </form>
 
@@ -81,28 +125,17 @@ export default function ForgotEmail() {
         </div>
       </div>
 
-      <div className="hero-pane" />
-
-      <style>{`
-        .auth-grid { min-height: 100vh; display: grid; grid-template-columns: 1fr; }
-        @media (min-width: 960px) { .auth-grid { grid-template-columns: 480px 1fr; } }
-        .auth-left { display: flex; align-items: center; padding: 64px 56px; }
-        .auth-left-inner { width: 100%; max-width: 420px; margin: 0 auto; padding: 0 8px; }
-        .auth-logo { display: block; }
-        .hero-pane { display: none; }
-        @media (min-width: 960px) {
-          .hero-pane {
-            display: block; position: relative;
-            background-image: url('/images/stock_image.jpeg');
-            background-size: cover; background-position: center; min-height: 100vh;
-          }
-          .hero-pane::after { content: ""; position: absolute; inset: 0; background: rgba(122,73,255,0.55); }
-          .hero-pane::before {
-            position: absolute; right: 8%; top: 45%; transform: translateY(-50%);
-            color: #fff; font-weight: 800; font-size: 38px; text-align: center;
-          }
-        }
-      `}</style>
+      {/* Right (Image) */}
+      <div className="auth-image-section forgot-bg">
+        <Box ta="center" c="white" p="xl" style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <Title order={2} mb="md" style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.3)" }}>
+            Welcome Back!
+          </Title>
+          <Text size="lg" style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.3)" }}>
+            Continue managing your tutoring platform
+          </Text>
+        </Box>
+      </div>
     </div>
   );
 }

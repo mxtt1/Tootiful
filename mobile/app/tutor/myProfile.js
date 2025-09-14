@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
+  Image
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect } from "react";
@@ -15,6 +16,7 @@ import React from "react";
 import { myProfileStyles as styles } from "../styles/myProfileStyles";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
+import { jwtDecode } from "jwt-decode";
 
 // Mock tutor data for fallback
 const MOCK_TUTOR = {
@@ -76,18 +78,7 @@ export default function TutorProfileScreen() {
       if (token) {
         // Decode JWT payload
         try {
-          const base64Url = token.split(".")[1];
-          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-          const jsonPayload = decodeURIComponent(
-            atob(base64)
-              .split("")
-              .map(function (c) {
-                return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-              })
-              .join("")
-          );
-
-          const payload = JSON.parse(jsonPayload);
+          const payload = jwtDecode(token);
           console.log("📋 Token payload:", payload);
 
           // Get user ID and type from token
@@ -231,12 +222,16 @@ export default function TutorProfileScreen() {
         {/* Header Section */}
         <View style={styles.header}>
           <View style={styles.profileImageContainer}>
-            <View style={styles.profileImagePlaceholder}>
-              <Text style={styles.profileImageText}>
-                {currentUser.firstName[0]}
-                {currentUser.lastName[0]}
-              </Text>
-            </View>
+            {currentUser.image ? (
+              <Image source={{ uri: currentUser.image }} style={styles.profileImagePlaceholder} />
+            ) : (
+              <View style={styles.profileImagePlaceholder}>
+                <Text style={styles.profileImageText}>
+                  {currentUser.firstName[0]}
+                  {currentUser.lastName[0]}
+                </Text>
+              </View>
+            )}
             {/* Online indicator */}
             <View style={styles.onlineIndicator} />
             {/* Verified badge for tutors */}
@@ -253,7 +248,7 @@ export default function TutorProfileScreen() {
           {/* Stats for tutors */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>12</Text>
+              <Text style={styles.statNumber}>0</Text>
               <Text style={styles.statLabel}>Total Sessions</Text>
             </View>
             <View style={styles.statItem}>

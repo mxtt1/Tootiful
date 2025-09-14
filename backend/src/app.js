@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 import sequelize from "./config/database.js";
 import studentRoutes from "./modules/user-management/student.routes.js";
 import tutorRoutes from "./modules/user-management/tutor.routes.js";
@@ -19,23 +20,21 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser()); // Add cookie parser middleware
 
-// Manual CORS middleware (allow all origins for now)
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-  );
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
-});
+// Proper CORS middleware for credentials support
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: [
+      "Origin",
+      "X-Requested-With",
+      "Content-Type",
+      "Accept",
+      "Authorization",
+    ],
+  })
+);
 
 // Routes
 app.use("/api/students", studentRoutes);
@@ -59,15 +58,15 @@ const startServer = async () => {
   try {
     // Test database connection
     await sequelize.authenticate();
-    console.log("Database connection has been established successfully.");  
+    console.log("Database connection has been established successfully.");
 
     // Sync database models (create tables if they don't exist)
     /*await sequelize.sync();
     console.log("Database synchronized successfully.");
     */
-   
+
     // Start the server
-    app.listen(PORT, '0.0.0.0', () => {
+    app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server is running on port ${PORT}`);
       console.log(`Health check: http://localhost:${PORT}/health`);
       console.log(`Students API: http://localhost:${PORT}/api/students`);

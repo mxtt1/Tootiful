@@ -1,225 +1,242 @@
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
-import bcrypt from 'bcrypt';
-import { Op } from 'sequelize';
-import { User, RefreshToken } from '../../models/index.js';
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import bcrypt from "bcrypt";
+import { Op } from "sequelize";
+import { User, RefreshToken } from "../../models/index.js";
 
 export default class AuthService {
-    constructor() {
-        this.accessTokenSecret = process.env.JWT_ACCESS_SECRET || 'access-secret';
+  constructor() {
+    this.accessTokenSecret = process.env.JWT_ACCESS_SECRET || "access-secret";
+  }
+
+  // Get user by ID (for /auth/me)
+  async getUserById(userId) {
+    return await User.findByPk(userId);
+  }
+
+  // Separate login handlers with HTTP cookies
+  async handleLogin(req, res) {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ where: { email } });
+
+    if (!user) {
+      // Email not found
+      throw new Error("Invalid email");
     }
 
-    // Separate login handlers with HTTP cookies
-    async handleLogin(req, res) {
-        const { email, password } = req.body;
-
-        const user = await User.findOne({ where: { email }});
-
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            throw new Error('Invalid email or password');
-        }
-
-        const tokens = await this.generateTokens(user);
-
-        // Set refresh token as HTTP-only cookie
-        this.setRefreshTokenCookie(res, tokens.refreshToken);
-
-        res.status(200).json({
-            accessToken: tokens.accessToken
-        });
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      // Password incorrect
+      throw new Error("Invalid password");
     }
 
-    async handleRefreshToken(req, res) {
-        const refreshToken = req.cookies?.refreshToken;
+    const tokens = await this.generateTokens(user);
 
-        if (!refreshToken) {
-            return res.status(400).json({
-                success: false,
-                message: 'Refresh token is required'
-            });
-        }
+    // Set refresh token as HTTP-only cookie
+    this.setRefreshTokenCookie(res, tokens.refreshToken);
 
-        const token = await this.refreshAccessToken(refreshToken);
+    res.status(200).json({
+      accessToken: tokens.accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+      },
+    });
+  }
 
-        res.status(200).json({
-            accessToken: token
-        });
+  async handleRefreshToken(req, res) {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Refresh token is required",
+      });
     }
 
-    async handleLogout(req, res) {
-        const refreshToken = req.cookies?.refreshToken;
+    const token = await this.refreshAccessToken(refreshToken);
 
-        if (refreshToken) {
-            await this.revokeRefreshToken(refreshToken);
-        }
+    res.status(200).json({
+      accessToken: token,
+    });
+  }
 
-        // Clear refresh token cookie
-        this.clearRefreshTokenCookie(res);
+  async handleLogout(req, res) {
+    const refreshToken = req.cookies?.refreshToken;
 
-        res.status(200).json({
-            success: true,
-            message: 'Logged out successfully'
-        });
+    if (refreshToken) {
+      await this.revokeRefreshToken(refreshToken);
     }
 
-    async handleLogoutAll(req, res) {
-        const { userId } = req.user; // From JWT middleware
+    // Clear refresh token cookie
+    this.clearRefreshTokenCookie(res);
 
-        await this.revokeAllUserTokens(userId);
+    res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  }
 
-        // Clear refresh token cookie
-        this.clearRefreshTokenCookie(res);
+  async handleLogoutAll(req, res) {
+    const { userId } = req.user; // From JWT middleware
 
-        res.status(200).json({
-            success: true,
-            message: 'Logged out from all devices'
-        });
+    await this.revokeAllUserTokens(userId);
+
+    // Clear refresh token cookie
+    this.clearRefreshTokenCookie(res);
+
+    res.status(200).json({
+      success: true,
+      message: "Logged out from all devices",
+    });
+  }
+
+  // Business logic methods
+  async generateTokens(user) {
+    // Generate access token (still JWT)
+    const accessToken = jwt.sign(
+      {
+        userId: user.id,
+        userType: user.role,
+        type: "access",
+      },
+      this.accessTokenSecret,
+      { expiresIn: "15m" }
+    );
+
+    // Generate opaque refresh token
+    const refreshToken = crypto.randomBytes(32).toString("hex");
+
+    // Store refresh token in database
+    await this.storeRefreshToken(refreshToken, user.id);
+
+    return { accessToken, refreshToken };
+  }
+
+  async refreshAccessToken(refreshToken) {
+    // Find and validate refresh token in database
+    const tokenRecord = await this.validateRefreshToken(refreshToken);
+
+    if (!tokenRecord) {
+      throw new Error("Invalid or expired refresh token");
     }
 
-    // Business logic methods
-    async generateTokens(user) {
-        // Generate access token (still JWT)
-        const accessToken = jwt.sign(
-            {
-                userId: user.id,
-                userType: user.role,
-                type: 'access'
-            },
-            this.accessTokenSecret,
-            { expiresIn: '15m' }
-        );
+    const user = await tokenRecord.getUser();
+    // Generate new access token only (no new refresh token)
+    const accessToken = jwt.sign(
+      {
+        userId: tokenRecord.userId,
+        userType: user.role,
+        type: "access",
+      },
+      this.accessTokenSecret,
+      { expiresIn: "15m" }
+    );
 
-        // Generate opaque refresh token
-        const refreshToken = crypto.randomBytes(32).toString('hex');
+    // Update last used timestamp but keep same refresh token
+    await tokenRecord.update({ lastUsedAt: new Date() });
 
-        // Store refresh token in database
-        await this.storeRefreshToken(refreshToken, user.id);
+    return accessToken; // Only return new access token
+  }
 
-        return { accessToken, refreshToken };
-    }
-
-    async refreshAccessToken(refreshToken) {
-        // Find and validate refresh token in database
-        const tokenRecord = await this.validateRefreshToken(refreshToken);
-
-        if (!tokenRecord) {
-            throw new Error('Invalid or expired refresh token');
-        }
-
-        const user = await tokenRecord.getUser();
-        // Generate new access token only (no new refresh token)
-        const accessToken = jwt.sign(
-            {
-                userId: tokenRecord.userId,
-                userType: user.role,
-                type: 'access'
-            },
-            this.accessTokenSecret,
-            { expiresIn: '15m' }
-        );
-
-        // Update last used timestamp but keep same refresh token
-        await tokenRecord.update({ lastUsedAt: new Date() });
-
-        return accessToken; // Only return new access token
-    }
-
-    async revokeRefreshToken(refreshToken) {
-        try {
-            const hashedToken = this.hashToken(refreshToken);
-            await RefreshToken.update(
-                { isRevoked: true },
-                {
-                    where: {
-                        token: hashedToken,
-                        isRevoked: false
-                    }
-                }
-            );
-        } catch (error) {
-            // Token might be invalid, but that's okay for logout
-            console.log('Error revoking token:', error.message);
-        }
-    }
-
-    async revokeAllUserTokens(userId) {
-        await RefreshToken.update(
-            { isRevoked: true },
-            {
-                where: {
-                    userId,
-                    isRevoked: false
-                }
-            }
-        );
-        console.log(`Revoked all tokens for user ${userId}`);
-    }
-
-    // Database operations for refresh tokens
-    async storeRefreshToken(token, userId) {
-        const hashedToken = this.hashToken(token);
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
-
-        await RefreshToken.create({
+  async revokeRefreshToken(refreshToken) {
+    try {
+      const hashedToken = this.hashToken(refreshToken);
+      await RefreshToken.update(
+        { isRevoked: true },
+        {
+          where: {
             token: hashedToken,
-            userId,
-            expiresAt,
-            isRevoked: false
-        });
+            isRevoked: false,
+          },
+        }
+      );
+    } catch (error) {
+      // Token might be invalid, but that's okay for logout
+      console.log("Error revoking token:", error.message);
     }
+  }
 
-    async validateRefreshToken(token) {
-        const hashedToken = this.hashToken(token);
+  async revokeAllUserTokens(userId) {
+    await RefreshToken.update(
+      { isRevoked: true },
+      {
+        where: {
+          userId,
+          isRevoked: false,
+        },
+      }
+    );
+    console.log(`Revoked all tokens for user ${userId}`);
+  }
 
-        const tokenRecord = await RefreshToken.findOne({
-            where: {
-                token: hashedToken,
-                isRevoked: false,
-                expiresAt: {
-                    [Op.gt]: new Date()
-                }
-            }
-        });
+  // Database operations for refresh tokens
+  async storeRefreshToken(token, userId) {
+    const hashedToken = this.hashToken(token);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
 
-        return tokenRecord;
-    }
+    await RefreshToken.create({
+      token: hashedToken,
+      userId,
+      expiresAt,
+      isRevoked: false,
+    });
+  }
 
-    // Cleanup expired tokens (utility method) not called yet
-    async cleanupExpiredTokens() {
-        await RefreshToken.destroy({
-            where: {
-                expiresAt: {
-                    [Op.lt]: new Date()
-                }
-            }
-        });
-    }
+  async validateRefreshToken(token) {
+    const hashedToken = this.hashToken(token);
 
-    // Hash token for secure storage
-    hashToken(token) {
-        return crypto.createHash('sha256').update(token).digest('hex');
-    }
+    const tokenRecord = await RefreshToken.findOne({
+      where: {
+        token: hashedToken,
+        isRevoked: false,
+        expiresAt: {
+          [Op.gt]: new Date(),
+        },
+      },
+    });
 
-    // Cookie management methods
-    setRefreshTokenCookie(res, refreshToken) {
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,           // Can't access via JavaScript
-            secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-            sameSite: 'strict',       // CSRF protection
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-            path: '/api/auth'         // Only send to auth endpoints
-        });
-    }
+    return tokenRecord;
+  }
 
-    clearRefreshTokenCookie(res) {
-        res.clearCookie('refreshToken', {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            path: '/api/auth'
-        });
-    }
+  // Cleanup expired tokens (utility method) not called yet
+  async cleanupExpiredTokens() {
+    await RefreshToken.destroy({
+      where: {
+        expiresAt: {
+          [Op.lt]: new Date(),
+        },
+      },
+    });
+  }
+
+  // Hash token for secure storage
+  hashToken(token) {
+    return crypto.createHash("sha256").update(token).digest("hex");
+  }
+
+  // Cookie management methods
+  setRefreshTokenCookie(res, refreshToken) {
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true, // Can't access via JavaScript
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      sameSite: "strict", // CSRF protection
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+      path: "/api/auth", // Only send to auth endpoints
+    });
+  }
+
+  clearRefreshTokenCookie(res) {
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/api/auth",
+    });
+  }
 }
-
-

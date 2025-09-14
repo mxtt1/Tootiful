@@ -668,3 +668,11 @@ body {
 .shadow-lg {
   box-shadow: var(--shadow-lg);
 }
+
+.auth-image-section.forgot-bg {
+  background-image:
+    linear-gradient(rgba(108, 66, 200, 0.45), rgba(108, 66, 200, 0.45)),
+    url('/images/stock_image.jpg'); /* served from public/images */
+  background-size: cover;
+  background-position: center;
+}

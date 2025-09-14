@@ -6,13 +6,16 @@ import {
   Alert,
   SafeAreaView,
   ActivityIndicator,
+  RefreshControl,
+  Image
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect } from "react";
-import { useRouter } from "expo-router";
+import { useRouter,useFocusEffect } from "expo-router";
 import { myProfileStyles as styles } from "../styles/myProfileStyles";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
+import { jwtDecode } from "jwt-decode";
 
 // Mock user data - this will be replaced with real authentication later
 const MOCK_STUDENT = {
@@ -45,11 +48,21 @@ export default function ProfileScreen() {
   const [userType, setUserType] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  
 
   // Fetch current user data
   useEffect(() => {
     fetchCurrentUser();
   }, []);
+
+  // Refresh data when user returns to this screen
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log("🔄 Student profile screen focused - refreshing data");
+      fetchCurrentUser();
+    }, [])
+  );
 
   const fetchCurrentUser = async () => {
     try {
@@ -77,18 +90,7 @@ export default function ProfileScreen() {
       if (token) {
         // Decode JWT payload (this is safe for client-side as it's not sensitive data)
         try {
-          const base64Url = token.split(".")[1];
-          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-          const jsonPayload = decodeURIComponent(
-            atob(base64)
-              .split("")
-              .map(function (c) {
-                return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-              })
-              .join("")
-          );
-
-          const payload = JSON.parse(jsonPayload);
+          const payload = jwtDecode(token);
           console.log("📋 Token payload:", payload);
 
           // Get user ID and type from token
@@ -138,6 +140,12 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchCurrentUser();
+    setRefreshing(false);
   };
 
   const handleEditProfile = () => {
@@ -217,16 +225,29 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container}>
+      <ScrollView style={styles.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={["#8B5CF6"]}
+            tintColor="#8B5CF6"
+          />
+        }
+      >
         {/* Header Section */}
         <View style={styles.header}>
           <View style={styles.profileImageContainer}>
-            <View style={styles.profileImagePlaceholder}>
-              <Text style={styles.profileImageText}>
-                {currentUser.firstName[0]}
-                {currentUser.lastName[0]}
-              </Text>
-            </View>
+            {currentUser.image ? (
+              <Image source={{ uri: currentUser.image }} style={styles.profileImagePlaceholder} />
+            ) : (
+              <View style={styles.profileImagePlaceholder}>
+                <Text style={styles.profileImageText}>
+                  {currentUser.firstName[0]}
+                  {currentUser.lastName[0]}
+                </Text>
+              </View>
+            )}
             {/* Online indicator */}
             <View style={styles.onlineIndicator} />
           </View>

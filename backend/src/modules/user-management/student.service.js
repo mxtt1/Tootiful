@@ -6,7 +6,7 @@ import gradeLevelEnum from '../../util/enum/gradeLevelEnum.js';
 class StudentService {
     // Route handler methods with complete HTTP response logic
     async handleGetAllStudents(req, res) {
-        const { page = 1, limit = 10, active, gradeLevel } = req.query;
+        const { page, limit, active, gradeLevel } = req.query;
         const gradeLevels = Array.isArray(gradeLevel) ? gradeLevel : (gradeLevel ? [gradeLevel] : []);
         if (gradeLevels.length > 0) {
             const invalidLevels = gradeLevels.filter(level => !gradeLevelEnum.isValidLevel(level));
@@ -23,14 +23,19 @@ class StudentService {
             const { password, role, hourlyRate, aboutMe, education, ...student } = user.toJSON();
             return student;
         });
-        res.status(200).json({
-            data,
-            pagination: {
+        // Only include pagination if page and limit are present
+        let pagination = undefined;
+        if (page && limit) {
+            pagination = {
                 total: result.count,
                 page: parseInt(page),
                 limit: parseInt(limit),
                 totalPages: Math.ceil(result.count / limit)
-            }
+            };
+        }
+        res.status(200).json({
+            data,
+            ...(pagination ? { pagination } : {})
         });
     }
 
@@ -81,7 +86,7 @@ class StudentService {
     // Business logic methods
     async createStudent(studentData) {
         // Check if email already exists
-        const existingUser = await User.findOne({ where: { email: studentData.email} });
+        const existingUser = await User.findOne({ where: { email: studentData.email } });
         if (existingUser) {
             throw new Error('User with this email already exists');
         }
@@ -89,8 +94,7 @@ class StudentService {
     }
 
     async getStudents(options = {}) {
-        const { page = 1, limit = 10, gradeLevels = [], active } = options;
-        const offset = (page - 1) * limit;
+        const { page, limit, gradeLevels = [], active } = options;
         const where = { role: 'student' };
         if (gradeLevels.length > 0) {
             if (gradeLevels.length === 1) {
@@ -104,13 +108,16 @@ class StudentService {
         if (active !== undefined) {
             where.isActive = active === 'true' || active === true;
         }
-        return await User.findAndCountAll({
+        const queryOptions = {
             attributes: { exclude: ['password'] },
             where,
-            limit: parseInt(limit),
-            offset: parseInt(offset),
             order: [['createdAt', 'DESC']]
-        });
+        };
+        if (page && limit) {
+            queryOptions.limit = parseInt(limit);
+            queryOptions.offset = (parseInt(page) - 1) * parseInt(limit);
+        }
+        return await User.findAndCountAll(queryOptions);
     }
 
     async getStudentById(id) {
@@ -123,7 +130,7 @@ class StudentService {
 
     async updateStudent(id, updateData) {
         if (updateData.email) {
-            const existingUser = await User.findOne({ where: { email: updateData.email} });
+            const existingUser = await User.findOne({ where: { email: updateData.email } });
             if (existingUser && existingUser.id !== id) {
                 throw new Error('Email already exists for another user');
             }
