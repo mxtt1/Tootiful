@@ -147,7 +147,7 @@ export default function editStudent() {
           contentType = 'image/png';
         } // add more types as needed
 
-        const fileName = `student_${currentUserId || id}.${imageExt}`;
+        const fileName = `student_${currentUserId || id}`;
         const response = await fetch(imageUrl);
         const arrayBuffer = await response.arrayBuffer();
         const { data, error } = await supabase.storage.from('avatars').upload(fileName, arrayBuffer, {
@@ -163,17 +163,20 @@ export default function editStudent() {
         const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
         imageUrl = urlData.publicUrl;
         console.log("Image public URL:", imageUrl);
-        setFormData(prev => ({ ...prev, image: imageUrl }));
+        // Do NOT rely on setFormData here, just use imageUrl for PATCH
       } catch (err) {
         Alert.alert('Error', 'Image upload failed: ' + err.message);
         return;
       }
     }
-    
+
     try {
       const requestBody = {};
       Object.keys(formData).forEach((key) => {
-        if (formData[key] !== initialData[key]) {
+        // For image, use the latest public URL if it was just uploaded
+        if (key === 'image' && imageUrl !== initialData.image) {
+          requestBody[key] = imageUrl;
+        } else if (formData[key] !== initialData[key] && key !== 'image') {
           requestBody[key] = formData[key];
         }
       });

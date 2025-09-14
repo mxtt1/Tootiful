@@ -223,7 +223,7 @@ export default function TutorProfileScreen() {
         <View style={styles.header}>
           <View style={styles.profileImageContainer}>
             {currentUser.image ? (
-              <Image source={{ uri: currentUser.image }} style={styles.profileImagePlaceholder} />
+              <Image source={{ uri: currentUser.image + '?t=' + Date.now() }} style={styles.profileImagePlaceholder} />
             ) : (
               <View style={styles.profileImagePlaceholder}>
                 <Text style={styles.profileImageText}>

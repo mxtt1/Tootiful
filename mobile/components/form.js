@@ -8,12 +8,12 @@ import {
   Platform,
   Modal,
   TouchableWithoutFeedback,
+  Image,
   Alert,
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { Image } from "react-native";
 
 const Form = ({
   formData,
@@ -87,7 +87,7 @@ const Form = ({
       <View style={styles.imageBg}>
         <TouchableOpacity onPress={pickImage} style={styles.editIconContainer}>
           {image ? (
-            <Image source={{ uri: image }} style={styles.image} />
+            <Image source={{ uri: image + '?t=' + Date.now() }} style={styles.image} />
           ) : (
             <Ionicons name="camera-outline" size={24} color="#6155F5" />
           )}
