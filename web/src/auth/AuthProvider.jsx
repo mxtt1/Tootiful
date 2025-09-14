@@ -107,11 +107,18 @@ const AuthProvider = ({ children }) => {
         setIsAuthenticated(true);
         return { success: true, user: mockUser };
       } else {
-        return {
-          success: false,
-          error:
-            "Invalid credentials. Use team accounts: kyaw@example.com, matthew@example.com, etc.",
-        };
+        // Check if it's a valid team email but wrong password
+        if (Object.keys(ADMIN_ACCOUNTS).includes(email)) {
+          return {
+            success: false,
+            error: "Invalid password. Please try again.",
+          };
+        } else {
+          return {
+            success: false,
+            error: "Invalid email. Please try again.",
+          };
+        }
       }
     }
 

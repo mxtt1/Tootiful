@@ -58,6 +58,7 @@ const Login = () => {
       },
       password: (value) => {
         if (!value) return "Password is required";
+        if (!/\S+@\S+\.\S+/.test(value)) return "Please enter a valid password";
         return null;
       },
     },
