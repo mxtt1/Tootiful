@@ -9,6 +9,7 @@ import ResetSuccess from "./pages/ForgotPassword/ResetSuccess";
 import User from "./pages/userManagement";
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/adminDashboard";
+import ProtectedRoute from './components/protectedRoute';
 
 function AppRoutes() {
   return (
@@ -26,13 +27,15 @@ function AppRoutes() {
       <Route
         path="/admin/*"
         element={
-          <AdminLayout>
-            <Routes>
-              <Route path="dashboard" element={<AdminDashboard />} />
-              <Route path="users" element={<User />} />
-              <Route index element={<Navigate to="users" replace />} />
-            </Routes>
-          </AdminLayout>
+          <ProtectedRoute requiredRole="admin">
+            <AdminLayout>
+              <Routes>
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="users" element={<User />} />
+                <Route index element={<Navigate to="users" replace />} />
+              </Routes>
+            </AdminLayout>
+          </ProtectedRoute>
         }
       />
 
