@@ -1,3 +1,4 @@
+import React from "react";
 import {
   View,
   Text,
@@ -7,11 +8,11 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
-  Image
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect } from "react";
-import { useRouter,useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { myProfileStyles as styles } from "../styles/myProfileStyles";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
@@ -49,7 +50,6 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  
 
   // Fetch current user data
   useEffect(() => {
@@ -225,7 +225,8 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container}
+      <ScrollView
+        style={styles.container}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -239,7 +240,10 @@ export default function ProfileScreen() {
         <View style={styles.header}>
           <View style={styles.profileImageContainer}>
             {currentUser.image ? (
-              <Image source={{ uri: currentUser.image }} style={styles.profileImagePlaceholder} />
+              <Image
+                source={{ uri: currentUser.image }}
+                style={styles.profileImagePlaceholder}
+              />
             ) : (
               <View style={styles.profileImagePlaceholder}>
                 <Text style={styles.profileImageText}>
