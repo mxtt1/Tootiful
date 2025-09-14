@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import ApiClient from '../api/apiClient';
 import UserPieChart from '../components/userChart';
 import GrowthChart from '../components/growthChart';
+import TransactionTable from '../components/transactionTable';
 import { notifications } from "@mantine/notifications";
 import { FaMoneyBillAlt, FaChartLine, FaUsers, FaBook, FaGraduationCap } from 'react-icons/fa';  
 
 const AdminDashboard = () => {
-    const [totalTutors, setTotalTutors] = useState(40);
-    const [totalStudents, setTotalStudents] = useState(20);
+    const [totalTutors, setTotalTutors] = useState(0);
+    const [totalStudents, setTotalStudents] = useState(0);
     const [totalAgencies, setTotalAgencies] = useState(10);
     const [totalSubscriptions, setTotalSubscriptions] = useState(5);
     const [totalRevenue, setTotalRevenue] = useState(116);
@@ -25,7 +26,7 @@ const AdminDashboard = () => {
             const allTutors = await ApiClient.get('/tutors');
             console.log('Tutors received: ', allTutors);
 
-            setTotalTutors(allTutors.data.length || 1);
+            setTotalTutors(allTutors.data.length || 0);
         } catch (error) {
             console.log("Error fetching tutors:", error);
             setError("Failed to load tutors data");
@@ -45,7 +46,7 @@ const AdminDashboard = () => {
             const allStudents = await ApiClient.get('/students');
             console.log('Students receieved', allStudents);
 
-            setTotalStudents(allStudents.data.length || 1);
+            setTotalStudents(allStudents.data.length || 0);
         } catch (error) {
             console.log("Error fetching students:", error);
             setError("Failed to load students data");
@@ -435,6 +436,25 @@ const AdminDashboard = () => {
                             Revenue & Subscription Growth
                         </h3>
                         <GrowthChart />
+                    </div>
+                    {/* Transaction Table */}
+                    <div style={{ 
+                        padding: '1.5rem', 
+                        border: '1px solid #dee2e6', 
+                        borderRadius: '8px', 
+                        backgroundColor: 'white', 
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                        marginBottom: '1.5rem' 
+                    }}>
+                        <h3 style={{ 
+                            margin: '0 0 1rem 0', 
+                            color: '#0A0A0A', 
+                            fontWeight: 'normal', 
+                            textAlign: 'center' 
+                        }}>
+                            Transaction Table
+                        </h3>
+                        <TransactionTable />
                     </div>
                 </div>
             </div>
