@@ -336,10 +336,9 @@ export default function UserManagement() {
               placeholder="All Roles"
               data={[
                 { value: "", label: "All Roles" },
-                { value: "Admin", label: "Admin" },
                 { value: "Student", label: "Student" },
                 { value: "Tutor", label: "Tutor" },
-                { value: "Moderator", label: "Moderator" },
+                { value: "Agency", label: "Agency" },
               ]}
               value={roleFilter}
               onChange={setRoleFilter}
