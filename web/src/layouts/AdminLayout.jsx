@@ -171,10 +171,6 @@ const AdminLayout = ({ children }) => {
               </Menu.Target>
 
               <Menu.Dropdown>
-                <Menu.Item leftSection={<IconUser size={16} />}>
-                  Profile
-                </Menu.Item>
-                <Menu.Divider />
                 <Menu.Item
                   leftSection={<IconLogout size={16} />}
                   onClick={handleLogout}
