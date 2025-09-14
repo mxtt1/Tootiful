@@ -45,6 +45,13 @@ const User = sequelize.define(
         len: [6, 255],
       },
     },
+    dateOfBirth: {
+      type: DataTypes.STRING(10), // DD-MM-YYYY format (10 characters)
+      allowNull: true,
+      validate: {
+        len: [10, 10],
+      },
+    },
     phone: {
       type: DataTypes.STRING(15),
       allowNull: true,
@@ -86,6 +93,7 @@ const User = sequelize.define(
     hourlyRate: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true,
+      defaultValue: 45.00, // default 45
       validate: {
         min: 0,
         max: 9999.99,

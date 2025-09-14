@@ -5,7 +5,7 @@ import Form from "../../components/form";
 import { Link, useLocalSearchParams, router } from "expo-router";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
-import { validateName, validateEmail, validatePhone } from "../utils/validation";
+import { validateName, validateEmail, validatePhone, validateDateOfBirth } from "../utils/validation";
 import { jwtDecode } from "jwt-decode";
 
 export default function PersonalDetails() {
@@ -95,6 +95,9 @@ export default function PersonalDetails() {
     else if (field === 'phone') {
       error = validatePhone(value);
     }
+    else if (field === 'dateOfBirth') {
+      error = validateDateOfBirth(value);
+    }
     setErrors((prev) => ({
       ...prev,
       [field]: error
@@ -109,14 +112,16 @@ export default function PersonalDetails() {
     const phoneError = validatePhone(formData.phone);
     const firstNameError = validateName(formData.firstName);
     const lastNameError = validateName(formData.lastName);
+    const dateOfBirthError = validateDateOfBirth(formData.dateOfBirth);
 
-    if (emailError || phoneError || firstNameError || lastNameError) {
+    if (emailError || phoneError || firstNameError || lastNameError || dateOfBirthError) {
 
       setErrors({
         email: emailError,
         phone: phoneError,
         firstName: firstNameError,
         lastName: lastNameError,
+        dateOfBirth: dateOfBirthError,
       });
       return;
 
@@ -182,15 +187,17 @@ export default function PersonalDetails() {
         </Link>
         <Text style={styles.title}>Personal Details</Text>
       </View>
-      <Form
-        formData={formData}
-        onInputChange={handleInputChange}
-        onSave={handleSave}
-        showGradeLevel={false}
-        showGender={false}
-        saveButtonText="Save"
-        errors={errors}
-      />
+      <ScrollView>
+        <Form
+          formData={formData}
+          onInputChange={handleInputChange}
+          onSave={handleSave}
+          showGradeLevel={false}
+          showGender={false}
+          saveButtonText="Save"
+          errors={errors}
+        />
+      </ScrollView>
     </View>
   );
 }

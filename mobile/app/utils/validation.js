@@ -5,6 +5,31 @@ export const validateName = (name) => {
     return null;
 };
 
+// validate date of birth
+export const validateDateOfBirth = (date) => {
+  if (date) {
+    // DD-MM-YYYY format validation
+    const regex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+    if (!regex.test(date)) return "Please use DD-MM-YYYY format";
+    
+    // Check if date is valid
+    const [day, month, year] = date.split('-');
+    const dateObj = new Date(`${year}-${month}-${day}`);
+    if (isNaN(dateObj.getTime())) return "Invalid date";
+    
+    // Check if date is in the past
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); //ignore time
+    if (dateObj >= today) return "Date must be in the past";
+    
+    // Check if age is reasonable (at least 18 years old)
+    const minAgeDate = new Date();
+    minAgeDate.setFullYear(minAgeDate.getFullYear() - 18);
+    if (dateObj > minAgeDate) return "Must be at least 18 years old";
+  }
+    return null;
+};
+
 // validate email
 export const validateEmail = (email) => {
   const emailRegex = /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/; //need to have @ in the middle of characters/numbers 

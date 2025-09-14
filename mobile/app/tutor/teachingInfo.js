@@ -64,13 +64,13 @@ export default function TeachingInfo() {
       // Update form data with fetched data
 
       setFormData({
-        hourlyRate: tutorData.hourlyRate || "",
+        hourlyRate: tutorData.hourlyRate || 45,
         aboutMe: tutorData.aboutMe || "",
         education: tutorData.education || "",
       });
 
       setInitialData({
-        hourlyRate: tutorData.hourlyRate || "",
+        hourlyRate: tutorData.hourlyRate || 45,
         aboutMe: tutorData.aboutMe || "",
         education: tutorData.education || "",
       });
@@ -100,9 +100,9 @@ export default function TeachingInfo() {
     
       // Convert subjects to dropdown format
       const dropdownItems = subjects.map((subject) => ({
-        label: subject.name, 
+        label: `${subject.name} - ${subject.gradeLevel || 'All levels'}`, 
         value: subject.id,
-        gradeLevel: subject.gradeLevel || "Not specified"
+        gradeLevel: subject.gradeLevel || "All levels"
       }));
       setSubjectItems(dropdownItems);
     } catch (error) {
@@ -204,8 +204,9 @@ export default function TeachingInfo() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <ScrollView> 
+        <View style={styles.header}>
         <Link href="/tutor/editProfile" style={styles.backLink}>
           <Ionicons
             name="arrow-back"
@@ -221,17 +222,16 @@ export default function TeachingInfo() {
         {/* Hourly Rate */}
         <View style={styles.inputContainer}>
           <Ionicons name="cash-outline" size={20} style={styles.styleIcon} />
-          <TextInput
-            style={[styles.input, styles.inputWithIcon, errors.hourlyRate && styles.inputError]}
-            placeholder="Hourly Rate"
-            value={formData.hourlyRate || ""}
-            onChangeText={(text) => handleInputChange("hourlyRate", text)}
-            keyboardType="numeric"
-          />
-          {errors.hourlyRate && (
-                    <Text style={styles.errorText}>{errors.hourlyRate}
-          </Text>
-          )}
+            <TextInput
+              style={[styles.input, styles.inputWithIcon, errors.hourlyRate && styles.inputError]}
+              placeholder="Hourly Rate"
+              value={formData.hourlyRate || 45}
+              onChangeText={(text) => handleInputChange("hourlyRate", text)}
+              keyboardType="numeric"
+            />
+            {errors.hourlyRate && (
+                <Text style={styles.errorText}>{errors.hourlyRate}</Text>
+            )}
         </View>
         {/* About Me */}
         <Text style={styles.subTitle}>About Me</Text>
@@ -283,14 +283,14 @@ export default function TeachingInfo() {
           textStyle={styles.dropdownText}
           selectedItemLabelStyle={styles.selectedItemText}
         />
-
         {/* Save Button */}
         <TouchableOpacity style={styles.button} onPress={handleSave}>
           <Text style={styles.buttonText}>Save</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
-  );
+  </View> 
+);
 }
 
 const styles = StyleSheet.create({

@@ -12,37 +12,39 @@ import { Link } from "expo-router";
 
 export default function EditProfile() {
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Link href="/tutor/myProfile" style={styles.backLink}>
-          <Ionicons
-            name="arrow-back"
-            size={24}
-            color="#6155F5"
-            style={{ marginBottom: 20 }}
-          />
-        </Link>
-        <Text style={styles.title}>Edit Profile</Text>
-      </View>
+    <View style={styles.container}> 
+      <ScrollView> 
+        <View style={styles.header}>
+          <Link href="/tutor/myProfile" style={styles.backLink}>
+            <Ionicons
+              name="arrow-back"
+              size={24}
+              color="#6155F5"
+              style={{ marginBottom: 20 }}
+            />
+          </Link>
+          <Text style={styles.title}>Edit Profile</Text>
+        </View>
 
-      {/* Menu Options */}
-      <View style={styles.menuContainer}>
-        <Link href="/tutor/personalDetails" asChild>
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="people-outline" size={24} color="#374151" />
-            <Text style={styles.menuText}>Personal Details</Text>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-        </Link>
-        <Link href="/tutor/teachingInfo" asChild>
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="book-outline" size={24} color="#374151" />
-            <Text style={styles.menuText}>Teaching Info</Text>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-        </Link>
-      </View>
-    </ScrollView>
+        {/* Menu Options */}
+        <View style={styles.menuContainer}>
+          <Link href="/tutor/personalDetails" asChild>
+            <TouchableOpacity style={styles.menuItem}>
+              <Ionicons name="people-outline" size={24} color="#374151" />
+              <Text style={styles.menuText}>Personal Details</Text>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+          </Link>
+          <Link href="/tutor/teachingInfo" asChild>
+            <TouchableOpacity style={styles.menuItem}>
+              <Ionicons name="book-outline" size={24} color="#374151" />
+              <Text style={styles.menuText}>Teaching Info</Text>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+          </Link>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 

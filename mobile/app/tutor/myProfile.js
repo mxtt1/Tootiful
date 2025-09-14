@@ -253,7 +253,7 @@ export default function TutorProfileScreen() {
           {/* Stats for tutors */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>12</Text>
+              <Text style={styles.statNumber}>0</Text>
               <Text style={styles.statLabel}>Total Sessions</Text>
             </View>
             <View style={styles.statItem}>

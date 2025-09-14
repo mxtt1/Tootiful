@@ -5,7 +5,7 @@ import Form from "../../components/form";
 import { Link, useLocalSearchParams, router } from "expo-router";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
-import { validateName, validateEmail, validatePhone } from "../utils/validation";
+import { validateName, validateEmail, validatePhone, validateDateOfBirth } from "../utils/validation";
 import { jwtDecode } from "jwt-decode"
 
 export default function editStudent() {
@@ -102,6 +102,9 @@ export default function editStudent() {
     else if (field === 'phone') {
       error = validatePhone(value);
     }
+    else if (field === 'dateOfBirth') {
+      error = validateDateOfBirth(value);
+    }
     setErrors((prev) => ({
       ...prev,
       [field]: error
@@ -116,14 +119,16 @@ export default function editStudent() {
     const phoneError = validatePhone(formData.phone);
     const firstNameError = validateName(formData.firstName);
     const lastNameError = validateName(formData.lastName);
+    const dateOfBirthError = validateDateOfBirth(formData.dateOfBirth);
 
-    if (emailError || phoneError || firstNameError || lastNameError) {
+    if (emailError || phoneError || firstNameError || lastNameError || dateOfBirthError) {
 
       setErrors({
         email: emailError,
         phone: phoneError,
         firstName: firstNameError,
         lastName: lastNameError,
+        dateOfBirth: dateOfBirthError,
       });
       return;
     }
