@@ -1,4 +1,5 @@
 import {
+  SafeAreaView,
   View,
   Text,
   StyleSheet,
@@ -76,12 +77,10 @@ export default function TeachingInfo() {
       });
 
       if (tutorData.subjects) {
-          const subjectIds = tutorData.subjects.map((subj) => subj.id);
-          setSubjectValue(subjectIds);
-          setInitialSubjects(subjectIds);
+        const subjectIds = tutorData.subjects.map((subj) => subj.id);
+        setSubjectValue(subjectIds);
+        setInitialSubjects(subjectIds);
       }
-
-
     } catch (error) {
       console.error("Error fetching teaching data:", error);
       Alert.alert("Error", "An error occurred while fetching data");
@@ -97,12 +96,12 @@ export default function TeachingInfo() {
       const subjects = await apiClient.get("/tutors/subjects/all");
 
       console.log("Subjects received:", subjects);
-    
+
       // Convert subjects to dropdown format
       const dropdownItems = subjects.map((subject) => ({
-        label: `${subject.name} - ${subject.gradeLevel || 'All levels'}`, 
+        label: `${subject.name} - ${subject.gradeLevel || "All levels"}`,
         value: subject.id,
-        gradeLevel: subject.gradeLevel || "All levels"
+        gradeLevel: subject.gradeLevel || "All levels",
       }));
       setSubjectItems(dropdownItems);
     } catch (error) {
@@ -124,21 +123,20 @@ export default function TeachingInfo() {
       [field]: value,
     }));
 
-  // real time validation 
-  if (field === 'hourlyRate') {
-    const error = validateHourlyRate(value);
-    setErrors((prev) => ({
-      ...prev,
-      hourlyRate: error
-    }));
-  }
-};
-
+    // real time validation
+    if (field === "hourlyRate") {
+      const error = validateHourlyRate(value);
+      setErrors((prev) => ({
+        ...prev,
+        hourlyRate: error,
+      }));
+    }
+  };
 
   const handleSave = async () => {
     setErrors({}); // clear prev errors
 
-    const newErrors = {}
+    const newErrors = {};
 
     // validate hourlyRate field
     const hourlyRateError = validateHourlyRate(formData.hourlyRate);
@@ -147,17 +145,16 @@ export default function TeachingInfo() {
       setErrors({
         hourlyRate: hourlyRateError,
       });
-      return     
+      return;
     }
 
     try {
-
       // prepare only changed fields
       const changedFields = {};
       let subjectsChanged = false;
 
       Object.keys(formData).forEach((key) => {
-        if(formData[key] !== initialData[key]) {
+        if (formData[key] !== initialData[key]) {
           changedFields[key] = formData[key];
         }
       });
@@ -182,7 +179,8 @@ export default function TeachingInfo() {
       }
 
       // Wrap data in tutorData object as expected by API
-      const requestBody = { tutorData: changedFields,
+      const requestBody = {
+        tutorData: changedFields,
         subjects: subjectValue.map((subjectId) => ({
           subjectId: subjectId,
           experienceLevel: "intermediate", // Default
@@ -204,93 +202,103 @@ export default function TeachingInfo() {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView> 
-        <View style={styles.header}>
-        <Link href="/tutor/editProfile" style={styles.backLink}>
-          <Ionicons
-            name="arrow-back"
-            size={24}
-            color="#6155F5"
-            style={{ marginBottom: 20 }}
-          />
-        </Link>
-        <Text style={styles.title}>Teaching Info</Text>
-      </View>
+    <SafeAreaView style={{ flex: 1 }}>
+      <View style={styles.container}>
+        <ScrollView>
+          <View style={styles.header}>
+            <Link href="/tutor/editProfile" style={styles.backLink}>
+              <Ionicons
+                name="arrow-back"
+                size={24}
+                color="#6155F5"
+                style={{ marginBottom: 20 }}
+              />
+            </Link>
+            <Text style={styles.title}>Teaching Info</Text>
+          </View>
 
-      <View style={styles.formContainer}>
-        {/* Hourly Rate */}
-        <View style={styles.inputContainer}>
-          <Ionicons name="cash-outline" size={20} style={styles.styleIcon} />
-            <TextInput
-              style={[styles.input, styles.inputWithIcon, errors.hourlyRate && styles.inputError]}
-              placeholder="Hourly Rate"
-              value={formData.hourlyRate || 45}
-              onChangeText={(text) => handleInputChange("hourlyRate", text)}
-              keyboardType="numeric"
-            />
-            {errors.hourlyRate && (
+          <View style={styles.formContainer}>
+            {/* Hourly Rate */}
+            <View style={styles.inputContainer}>
+              <Ionicons
+                name="cash-outline"
+                size={20}
+                style={styles.styleIcon}
+              />
+              <TextInput
+                style={[
+                  styles.input,
+                  styles.inputWithIcon,
+                  errors.hourlyRate && styles.inputError,
+                ]}
+                placeholder="Hourly Rate"
+                value={formData.hourlyRate || 45}
+                onChangeText={(text) => handleInputChange("hourlyRate", text)}
+                keyboardType="numeric"
+              />
+              {errors.hourlyRate && (
                 <Text style={styles.errorText}>{errors.hourlyRate}</Text>
-            )}
-        </View>
-        {/* About Me */}
-        <Text style={styles.subTitle}>About Me</Text>
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            multiline
-            numberOfLines={4}
-            placeholder="Hi I'm starvin"
-            value={formData.aboutMe || ""}
-            onChangeText={(text) => handleInputChange("aboutMe", text)}
-          />
-        </View>
+              )}
+            </View>
+            {/* About Me */}
+            <Text style={styles.subTitle}>About Me</Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                multiline
+                numberOfLines={4}
+                placeholder="Hi I'm starvin"
+                value={formData.aboutMe || ""}
+                onChangeText={(text) => handleInputChange("aboutMe", text)}
+              />
+            </View>
 
-        {/* Education */}
-        <Text style={styles.subTitle}>Education</Text>
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            multiline
-            numberOfLines={2}
-            placeholder="NUS"
-            value={formData.education || ""}
-            onChangeText={(text) => handleInputChange("education", text)}
-          />
-        </View>
+            {/* Education */}
+            <Text style={styles.subTitle}>Education</Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                multiline
+                numberOfLines={2}
+                placeholder="NUS"
+                value={formData.education || ""}
+                onChangeText={(text) => handleInputChange("education", text)}
+              />
+            </View>
 
-        {/* Subjects */}
-        <Text style={styles.subTitle}>Subject of Expertise</Text>
-        <DropDownPicker
-          open={subjectOpen}
-          value={subjectValue}
-          items={subjectItems}
-          setOpen={setSubjectOpen}
-          setValue={setSubjectValue}
-          setItems={setSubjectItems}
-          multiple={true}
-          mode="BADGE"
-          badgeDotColors={[
-            "#6155F5",
-            "#e76f51",
-            "#e9c46a",
-            "#2a9d8f",
-            "#264653",
-          ]}
-          placeholder="Select subjects you teach"
-          style={styles.input}
-          dropDownContainerStyle={styles.dropdown}
-          textStyle={styles.dropdownText}
-          selectedItemLabelStyle={styles.selectedItemText}
-        />
-        {/* Save Button */}
-        <TouchableOpacity style={styles.button} onPress={handleSave}>
-          <Text style={styles.buttonText}>Save</Text>
-        </TouchableOpacity>
+            {/* Subjects */}
+            <Text style={styles.subTitle}>Subject of Expertise</Text>
+            <DropDownPicker
+              open={subjectOpen}
+              value={subjectValue}
+              items={subjectItems}
+              setOpen={setSubjectOpen}
+              setValue={setSubjectValue}
+              setItems={setSubjectItems}
+              multiple={true}
+              mode="BADGE"
+              badgeDotColors={[
+                "#6155F5",
+                "#e76f51",
+                "#e9c46a",
+                "#2a9d8f",
+                "#264653",
+              ]}
+              placeholder="Select subjects you teach"
+              style={styles.input}
+              dropDownContainerStyle={styles.dropdown}
+              textStyle={styles.dropdownText}
+              selectedItemLabelStyle={styles.selectedItemText}
+            />
+            {/* Save Button */}
+            <TouchableOpacity style={styles.button} onPress={handleSave}>
+              <Text style={styles.buttonText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </View>
-    </ScrollView>
-  </View> 
-);
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -401,18 +409,18 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   inputError: {
-    borderColor: 'red',
+    borderColor: "red",
     borderWidth: 1,
   },
   errorText: {
-    color: 'red',
+    color: "red",
     fontSize: 12,
     marginTop: 5,
     marginLeft: 10,
   },
   center: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     flex: 1,
   },
 });
