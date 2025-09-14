@@ -16,11 +16,11 @@ function AppRoutes() {
       {/* Auth */}
       <Route path="/login" element={<Login />} />
 
-      {/* Forgot Password */}
+      {/* Forgot Password (public) */}
       <Route path="/forgot-password" element={<ForgotEmail />} />
-      <Route path="/verify" element={<VerifyCode />} />
-      <Route path="/new-password" element={<NewPassword />} />
-      <Route path="/success" element={<ResetSuccess />} />
+      <Route path="/forgot-password/verify" element={<VerifyCode />} />
+      <Route path="/forgot-password/new" element={<NewPassword />} />
+      <Route path="/forgot-password/success" element={<ResetSuccess />} />
 
       {/* Admin */}
       <Route

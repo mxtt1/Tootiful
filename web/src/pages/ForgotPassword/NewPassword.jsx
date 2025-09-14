@@ -1,10 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Title, Text, PasswordInput, Button, Progress, List, Stack, Image } from "@mantine/core";
+import {
+  Title,
+  Text,
+  PasswordInput,
+  Button,
+  Progress,
+  List,
+  Stack,
+  Image,
+  Box,
+} from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import api from "../../api/apiClient";
 import logo from "../../assets/tooty.png";
 
+// simple strength rules
 function passwordIssues(email, pwd) {
   const issues = [];
   if (pwd.length < 12) issues.push("At least 12 characters");
@@ -12,131 +23,194 @@ function passwordIssues(email, pwd) {
   if (!/[A-Z]/.test(pwd)) issues.push("Include an uppercase letter");
   if (!/[0-9]/.test(pwd)) issues.push("Include a number");
   if (!/[^\w\s]/.test(pwd)) issues.push("Include a symbol");
-  if (email && pwd.toLowerCase().includes(email.split("@")[0].toLowerCase()))
-    issues.push("Avoid using parts of your email");
+  if (email && pwd.toLowerCase().includes(email.split("@")[0]?.toLowerCase()))
+    issues.push("Avoid using your email/username");
   return issues;
 }
 
-function strengthScore(pwd) {
-  let s = 0;
-  if (pwd.length >= 12) s += 25;
-  if (/[a-z]/.test(pwd)) s += 15;
-  if (/[A-Z]/.test(pwd)) s += 20;
-  if (/[0-9]/.test(pwd)) s += 20;
-  if (/[^\w\s]/.test(pwd)) s += 20;
-  return Math.min(100, s);
+function passwordScore(issues) {
+  const total = 5; // the first five checks map to the bar visually
+  const good = Math.max(0, total - issues.filter((i) => i !== "Avoid using your email/username").length);
+  return Math.round((good / total) * 100);
 }
 
 export default function NewPassword() {
   const navigate = useNavigate();
   const location = useLocation();
-  const email = location?.state?.email;
-  const resetToken = location?.state?.resetToken;
+
+  const emailFromState = location?.state?.email;
+  const tokenFromState = location?.state?.resetToken;
+
+  const [email, setEmail] = useState(
+    emailFromState || sessionStorage.getItem("fp_email") || ""
+  );
+  const [resetToken, setResetToken] = useState(
+    tokenFromState || sessionStorage.getItem("fp_reset_token") || ""
+  );
 
   const [pwd, setPwd] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [pwd2, setPwd2] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!email || !resetToken) navigate("/forgot-password", { replace: true });
+    if (!email || !resetToken) {
+      notifications.show({
+        color: "yellow",
+        title: "Session expired",
+        message: "Please verify your email again.",
+      });
+      navigate("/forgot-password", { replace: true });
+      return;
+    }
+    sessionStorage.setItem("fp_email", email);
+    sessionStorage.setItem("fp_reset_token", resetToken);
   }, [email, resetToken, navigate]);
 
   const issues = useMemo(() => passwordIssues(email, pwd), [email, pwd]);
-  const score = useMemo(() => strengthScore(pwd), [pwd]);
-  const canSubmit = pwd && pwd === confirm && issues.length === 0;
+  const score = useMemo(() => passwordScore(issues), [issues]);
 
-  const onSubmit = async (e) => {
+  async function onSubmit(e) {
     e.preventDefault();
-    if (!canSubmit) return;
+    if (!email || !resetToken) {
+      notifications.show({
+        color: "red",
+        title: "Missing token",
+        message: "Please restart the reset process.",
+      });
+      navigate("/forgot-password", { replace: true });
+      return;
+    }
+    if (pwd !== pwd2) {
+      notifications.show({
+        color: "red",
+        title: "Passwords do not match",
+        message: "Please retype the same password in both fields.",
+      });
+      return;
+    }
+    if (issues.length > 0) {
+      notifications.show({
+        color: "yellow",
+        title: "Please strengthen your password",
+        message: issues.join(" • "),
+      });
+      return;
+    }
+
     try {
       setSubmitting(true);
-      await api.resetPassword(email, resetToken, pwd);
-      notifications.show({ color: "green", title: "Password updated", message: "Your password has been reset." });
-      navigate("/success", { state: { fromReset: true } });
-    } catch (err) {
-      const status = err?.response?.status;
-      const backendMsg = err?.response?.data?.message;
-      let msg;
-      if (backendMsg) {
-        msg = backendMsg;
-      } else if (status === 400) {
-        msg = "Password reset failed. Please check your link or code.";
-      } else {
-        msg = "Something went wrong. Please try again.";
+      const res = await api.resetPassword(
+        email.toLowerCase().trim(),
+        resetToken,
+        pwd
+      );
+
+      // treat any 2xx as success, backend returns {message: "Password updated."}
+      if (!(res?.status ? res.status >= 200 && res.status < 300 : true)) {
+        throw new Error("Failed to update password.");
       }
-      notifications.show({ color: "red", title: "Reset failed", message: msg });
+
+      // cleanup
+      sessionStorage.removeItem("fp_reset_token");
+      // keep the email around only if you want prefill on login:
+      // sessionStorage.removeItem("fp_email");
+
+      notifications.show({
+        color: "green",
+        title: "Password updated",
+        message: "You can now log in with your new password.",
+      });
+
+      navigate("/forgot-password/success", { replace: true });
+    } catch (err) {
+      notifications.show({
+        color: "red",
+        title: "Unable to update password",
+        message:
+          err?.message ||
+          "The link/token may be invalid or expired. Please try again.",
+      });
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
   return (
-    <div className="auth-grid">
-      <div className="auth-left">
-        <div className="auth-left-inner">
-          <Image src={logo} alt="Tutiful" width={140} className="auth-logo" />
+    <div className="auth-container">
+      {/* Left (Form) */}
+      <div className="auth-form-section">
+        <div className="auth-form" style={{ maxWidth: 480, padding: "2rem" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 32 }}>
+            <Image src={logo} alt="Logo" w={240} fit="contain" />
+          </div>
 
-          <Stack gap={6} mt={10}>
-            <Title order={2} fw={700}>Create a new password</Title>
-            <Text c="dimmed" size="sm">
-              Use at least 12 characters with a mix of letters, numbers, and symbols.
-            </Text>
-          </Stack>
+          <Title order={2} size="2rem" mb="sm">
+            Set a new password
+          </Title>
+          <Text c="dimmed" size="md" mb="lg">
+            Email: <b>{email}</b>
+          </Text>
 
-          <form onSubmit={onSubmit} style={{ marginTop: 22 }}>
+          <form onSubmit={onSubmit}>
             <Stack gap="md">
               <PasswordInput
                 label="New password"
                 value={pwd}
                 onChange={(e) => setPwd(e.currentTarget.value)}
-                size="md"
                 withAsterisk
-                placeholder="Enter a strong password"
               />
-              <Progress value={score} aria-label="Password strength" />
-              {issues.length > 0 && (
-                <List size="sm" c="dimmed" mt={-6}>
-                  {issues.map((i) => <List.Item key={i}>{i}</List.Item>)}
-                </List>
-              )}
               <PasswordInput
                 label="Confirm new password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.currentTarget.value)}
-                size="md"
+                value={pwd2}
+                onChange={(e) => setPwd2(e.currentTarget.value)}
                 withAsterisk
-                error={confirm && confirm !== pwd ? "Passwords do not match" : null}
               />
-              <Button type="submit" size="md" radius="md" loading={submitting} disabled={!canSubmit} fullWidth styles={{ root: { height: 44 } }}>
-                Update Password
+
+              <Progress value={score} aria-label="Password strength" />
+              {issues.length > 0 && (
+                <List size="sm" c="red">
+                  {issues.map((it) => (
+                    <List.Item key={it}>{it}</List.Item>
+                  ))}
+                </List>
+              )}
+
+              <Button type="submit" loading={submitting}>
+                Update password
               </Button>
             </Stack>
           </form>
         </div>
       </div>
 
-      <div className="hero-pane" />
-
-      <style>{`
-        .auth-grid { min-height: 100vh; display: grid; grid-template-columns: 1fr; }
-        @media (min-width: 960px) { .auth-grid { grid-template-columns: 480px 1fr; } }
-        .auth-left { display: flex; align-items: center; padding: 64px 56px; }
-        .auth-left-inner { width: 100%; max-width: 420px; margin: 0 auto; padding: 0 8px; }
-        .auth-logo { display: block; }
-        .hero-pane { display: none; }
-        @media (min-width: 960px) {
-          .hero-pane {
-            display: block; position: relative;
-            background-image: url('/images/stock_image.jpeg');
-            background-size: cover; background-position: center; min-height: 100vh;
-          }
-          .hero-pane::after { content: ""; position: absolute; inset: 0; background: rgba(122,73,255,0.55); }
-          .hero-pane::before {
-            position: absolute; right: 8%; top: 45%; transform: translateY(-50%);
-            color: #fff; font-weight: 800; font-size: 38px; text-align: center;
-          }
-        }
-      `}</style>
+      {/* Right (Image area) */}
+      <div className="auth-image-section forgot-bg">
+        <Box
+          ta="center"
+          c="white"
+          p="xl"
+          style={{
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+          }}
+        >
+          <Title
+            order={2}
+            mb="md"
+            style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.3)" }}
+          >
+            Welcome Back!
+          </Title>
+          <Text
+            size="lg"
+            style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.3)" }}
+          >
+            Continue managing your tutoring platform
+          </Text>
+        </Box>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Title, Text, Button, Stack, Image } from "@mantine/core";
+import { Title, Text, Button, Stack, Image, Box } from "@mantine/core";
 import logo from "../../assets/tooty.png";
 
 export default function ResetSuccess() {
@@ -7,17 +7,19 @@ export default function ResetSuccess() {
   const location = useLocation();
   const fromReset = location?.state?.fromReset;
 
-  // Decide text depending on how the user arrived
   const title = fromReset ? "Password reset successful" : "Action completed";
   const description = fromReset
     ? "You can now log in with your new password."
     : "Operation completed successfully.";
 
   return (
-    <div className="auth-grid">
-      <div className="auth-left">
-        <div className="auth-left-inner">
-          <Image src={logo} alt="Tutiful" width={140} className="auth-logo" />
+    <div className="auth-container">
+      {/* Left (Message) */}
+      <div className="auth-form-section">
+        <div className="auth-form-container">
+          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+            <Image src={logo} alt="Tutiful" width={140} className="auth-logo" />
+          </div>
 
           <Stack gap={6} mt={10}>
             <Title order={2} fw={700}>{title}</Title>
@@ -32,33 +34,22 @@ export default function ResetSuccess() {
             styles={{ root: { height: 44 } }}
             onClick={() => navigate("/login")}
           >
-            Back to Login
+            Go to Login
           </Button>
         </div>
       </div>
 
-      <div className="hero-pane" />
-
-      <style>{`
-        .auth-grid { min-height: 100vh; display: grid; grid-template-columns: 1fr; }
-        @media (min-width: 960px) { .auth-grid { grid-template-columns: 480px 1fr; } }
-        .auth-left { display: flex; align-items: center; padding: 64px 56px; }
-        .auth-left-inner { width: 100%; max-width: 420px; margin: 0 auto; padding: 0 8px; }
-        .auth-logo { display: block; }
-        .hero-pane { display: none; }
-        @media (min-width: 960px) {
-          .hero-pane {
-            display: block; position: relative;
-            background-image: url('/images/stock_image.jpeg');
-            background-size: cover; background-position: center; min-height: 100vh;
-          }
-          .hero-pane::after { content: ""; position: absolute; inset: 0; background: rgba(122,73,255,0.55); }
-          .hero-pane::before {
-            position: absolute; right: 8%; top: 45%; transform: translateY(-50%);
-            color: #fff; font-weight: 800; font-size: 38px; text-align: center;
-          }
-        }
-      `}</style>
+      {/* Right (Image) */}
+      <div className="auth-image-section forgot-bg">
+        <Box ta="center" c="white" p="xl" style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <Title order={2} mb="md" style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.3)" }}>
+            Welcome Back!
+          </Title>
+          <Text size="lg" style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.3)" }}>
+            Continue managing your tutoring platform
+          </Text>
+        </Box>
+      </div>
     </div>
   );
 }
