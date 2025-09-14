@@ -6,6 +6,7 @@ import {
   Alert,
   SafeAreaView,
   ActivityIndicator,
+  Image
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect } from "react";
@@ -221,12 +222,16 @@ export default function ProfileScreen() {
         {/* Header Section */}
         <View style={styles.header}>
           <View style={styles.profileImageContainer}>
-            <View style={styles.profileImagePlaceholder}>
-              <Text style={styles.profileImageText}>
-                {currentUser.firstName[0]}
-                {currentUser.lastName[0]}
-              </Text>
-            </View>
+            {currentUser.image ? (
+              <Image source={{ uri: currentUser.image }} style={styles.profileImagePlaceholder} />
+            ) : (
+              <View style={styles.profileImagePlaceholder}>
+                <Text style={styles.profileImageText}>
+                  {currentUser.firstName[0]}
+                  {currentUser.lastName[0]}
+                </Text>
+              </View>
+            )}
             {/* Online indicator */}
             <View style={styles.onlineIndicator} />
           </View>
