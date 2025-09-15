@@ -10,7 +10,7 @@ import {
   Image
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { tutorsStyles as styles } from "../styles/tutorsStyles";
 import tutorService from "../../services/tutorService";
