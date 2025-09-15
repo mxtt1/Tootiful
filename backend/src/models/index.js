@@ -47,6 +47,16 @@ const TutorSubject = sequelize.define(
       },
       comment: "Tutor experience level for this subject",
     },
+    hourlyRate: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 45,
+      validate: {
+        min: 0, 
+        max: 1000 
+      },
+      comment: "Hourly rate for this subject",
+    },
   },
   {
     tableName: "tutor_subjects",
