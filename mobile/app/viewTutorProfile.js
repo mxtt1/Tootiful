@@ -139,6 +139,7 @@ export default function ViewTutorProfileScreen() {
         firstName: response.firstName,
         lastName: response.lastName,
         phone: response.phone,
+        image: response.image || null,
         hourlyRate: response.hourlyRate,
         subjects: response.subjects || [],
       };
