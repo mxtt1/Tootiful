@@ -35,32 +35,31 @@ export default function UserManagement() {
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
-
   // Add delete confirmation modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  //Edit user function
+  //Edit user function - UPDATED to include isSuspended
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({
     firstName: "",
     lastName: "",
     email: "",
-    isActive: true,
+    isActive: false,
+    isSuspended: false, // ADDED
   });
   const [saving, setSaving] = useState(false);
   const [emailError, setEmailError] = useState("");
 
   // Add debounced search
-  const [searchQuery, setSearchQuery] = useState(""); // What user is typing
-  const [debouncedSearch, setDebouncedSearch] = useState(""); // What we actually search with
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-    }, 500); // Wait 500ms after user stops typing
-
+    }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -73,7 +72,6 @@ export default function UserManagement() {
         const params = {
           limit: limit.toString(),
           offset: offset.toString(),
-          // REMOVE the search parameter - don't send it to backend
           ...(statusFilter && {
             active: statusFilter === "Active" ? "true" : "false",
           }),
@@ -114,11 +112,14 @@ export default function UserManagement() {
           allUsers = allUsers.filter(user => user.role === roleFilter);
         }
 
+        // UPDATED: Handle isSuspended in mapping
         const mappedUsers = allUsers.map((user) => ({
           id: user.id,
           fullName: [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username,
           email: user.email,
-          status: user.isActive ? "Active" : "Inactive",
+          isActive: !!user.isActive,
+          isSuspended: !!user.isSuspended,
+          status: user.isSuspended ? "Suspended" : (user.isActive ? "Active" : "Inactive"),
           role: user.role || "Student",
           joinedDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "",
         }));
@@ -129,6 +130,20 @@ export default function UserManagement() {
           filteredUsers = mappedUsers.filter(user =>
             user.fullName.toLowerCase().includes(debouncedSearch.toLowerCase())
           );
+        }
+        if (statusFilter) {
+          filteredUsers = filteredUsers.filter(user => {
+            switch (statusFilter) {
+              case "Active":
+                return user.status === "Active";
+              case "Inactive":
+                return user.status === "Inactive";
+              case "Suspended":
+                return user.status === "Suspended";
+              default:
+                return true;
+            }
+          });
         }
 
         setRows(filteredUsers);
@@ -159,22 +174,23 @@ export default function UserManagement() {
     }
   };
 
+  // UPDATED: Handle isSuspended in edit form
   const handleEditUser = (userId) => {
     const user = rows.find(u => u.id === userId);
     if (user) {
       setEditingUser(user);
-      // Split fullName back into firstName and lastName
       const nameParts = user.fullName.split(' ');
       setEditForm({
         firstName: nameParts[0] || '',
         lastName: nameParts.slice(1).join(' ') || '',
         email: user.email,
-        isActive: user.status === 'Active',
+        isActive: !!user.isActive,
+        isSuspended: !!user.isSuspended,
       });
       setEditModalOpen(true);
     }
   };
-  // Add email validation function
+
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email) {
@@ -186,8 +202,8 @@ export default function UserManagement() {
     return "";
   };
 
+  // UPDATED: Handle isSuspended in save
   const handleSaveUser = async () => {
-    // Validate email before saving
     const emailValidationError = validateEmail(editForm.email);
     if (emailValidationError) {
       setEmailError(emailValidationError);
@@ -197,23 +213,19 @@ export default function UserManagement() {
     setSaving(true);
     try {
       const updateData = {
-        tutorData: {  // Wrap in tutorData for tutor endpoints
-          firstName: editForm.firstName,
-          lastName: editForm.lastName,
-          email: editForm.email,
-          isActive: editForm.isActive,
-        }
+        firstName: editForm.firstName,
+        lastName: editForm.lastName,
+        email: editForm.email,
+        isActive: editForm.isActive,
+        isSuspended: editForm.isSuspended,
       };
 
+      console.log("Sending update data:", updateData); // Debug log
+
       if (editingUser.role === "Student") {
-        await apiClient.patch(`/students/${editingUser.id}`, {
-          firstName: editForm.firstName,
-          lastName: editForm.lastName,
-          email: editForm.email,
-          isActive: editForm.isActive,
-        });
+        await apiClient.patch(`/students/${editingUser.id}`, updateData);
       } else if (editingUser.role === "Tutor") {
-        await apiClient.patch(`/tutors/${editingUser.id}`, updateData);
+        await apiClient.patch(`/tutors/${editingUser.id}`, { tutorData: updateData });
       } else {
         throw new Error("Unsupported role for update");
       }
@@ -226,14 +238,16 @@ export default function UserManagement() {
               ...user,
               fullName: `${editForm.firstName} ${editForm.lastName}`.trim(),
               email: editForm.email,
-              status: editForm.isActive ? 'Active' : 'Inactive',
+              isActive: editForm.isActive,
+              isSuspended: editForm.isSuspended,
+              status: editForm.isSuspended ? 'Suspended' : (editForm.isActive ? 'Active' : 'Inactive'),
             }
             : user
         )
       );
 
       setEditModalOpen(false);
-      setEmailError(""); // Clear error on success
+      setEmailError("");
       notifications.show({
         title: "Success",
         message: "User updated successfully",
@@ -250,6 +264,7 @@ export default function UserManagement() {
       setSaving(false);
     }
   };
+
   const handleDeleteUser = async (userId) => {
     const user = rows.find(u => u.id === userId);
     if (user) {
@@ -263,7 +278,6 @@ export default function UserManagement() {
 
     setDeleting(true);
     try {
-      // Check the user's role and use the correct endpoint
       if (userToDelete.role === "Student") {
         await apiClient.delete(`/students/${userToDelete.id}`);
       } else if (userToDelete.role === "Tutor") {
@@ -272,9 +286,7 @@ export default function UserManagement() {
         throw new Error("Unsupported role for delete");
       }
 
-      // Remove from local state
       setRows(prevRows => prevRows.filter(user => user.id !== userToDelete.id));
-
       setDeleteModalOpen(false);
       setUserToDelete(null);
 
@@ -294,9 +306,10 @@ export default function UserManagement() {
       setDeleting(false);
     }
   };
+
   const applyFilters = () => {
-    setPage(1); // Reset to first page when applying filters
-    setDebouncedSearch(searchQuery); // Force immediate search with current query
+    setPage(1);
+    setDebouncedSearch(searchQuery);
   };
 
   if (loading && rows.length === 0) {
@@ -321,7 +334,6 @@ export default function UserManagement() {
       <Stack spacing="lg">
         <Title order={2}>User Management</Title>
 
-        {/* Filters */}
         <Card shadow="sm" padding="lg" radius="md" withBorder>
           <Group spacing="md" mb="md">
             <TextInput
@@ -353,8 +365,6 @@ export default function UserManagement() {
                 { value: "Active", label: "Active" },
                 { value: "Inactive", label: "Inactive" },
                 { value: "Suspended", label: "Suspended" },
-                { value: "Pending", label: "Pending" },
-                { value: "Banned", label: "Banned" },
               ]}
               value={statusFilter}
               onChange={setStatusFilter}
@@ -366,14 +376,12 @@ export default function UserManagement() {
           </Group>
         </Card>
 
-        {/* Error Display */}
         {error && (
           <Alert color="red" title="Error">
             {error}
           </Alert>
         )}
 
-        {/* Table */}
         <Card shadow="sm" padding="lg" radius="md" withBorder>
           {loading ? (
             <div
@@ -430,7 +438,6 @@ export default function UserManagement() {
           )}
         </Card>
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <Group justify="center">
             <Pagination
@@ -443,12 +450,12 @@ export default function UserManagement() {
         )}
       </Stack>
 
-      {/* Edit User Modal */}
+      {/* UPDATED Modal with Suspended option */}
       <Modal
         opened={editModalOpen}
         onClose={() => {
           setEditModalOpen(false);
-          setEmailError(""); // Clear error when closing modal
+          setEmailError("");
         }}
         title="Edit User"
         size="md"
@@ -486,13 +493,10 @@ export default function UserManagement() {
             onChange={(e) => {
               const newEmail = e.target.value;
               setEditForm({ ...editForm, email: newEmail });
-
-              // Real-time validation
               const error = validateEmail(newEmail);
               setEmailError(error);
             }}
             onBlur={() => {
-              // Validate on blur as well
               const error = validateEmail(editForm.email);
               setEmailError(error);
             }}
@@ -501,17 +505,27 @@ export default function UserManagement() {
             type="email"
           />
 
+          {/* UPDATED Select with 3 options */}
           <Select
             label="Status"
             placeholder="Select status"
             data={[
-              { value: "true", label: "Active" },
-              { value: "false", label: "Inactive" },
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+              { value: "suspended", label: "Suspended" },
             ]}
-            value={editForm.isActive ? "true" : "false"}
-            onChange={(value) =>
-              setEditForm({ ...editForm, isActive: value === "true" })
+            value={
+              editForm.isSuspended ? "suspended" :
+                editForm.isActive ? "active" : "inactive"
             }
+            onChange={(value) => {
+              console.log("Status changed to:", value); // Debug log
+              setEditForm({
+                ...editForm,
+                isActive: value === "active",
+                isSuspended: value === "suspended",
+              });
+            }}
             required
           />
 
@@ -520,7 +534,7 @@ export default function UserManagement() {
               variant="subtle"
               onClick={() => {
                 setEditModalOpen(false);
-                setEmailError(""); // Clear error when canceling
+                setEmailError("");
               }}
               disabled={saving}
             >
@@ -533,7 +547,7 @@ export default function UserManagement() {
                 !editForm.firstName ||
                 !editForm.lastName ||
                 !editForm.email ||
-                emailError !== "" // Disable if there's an email error
+                emailError !== ""
               }
             >
               Save Changes
@@ -541,7 +555,7 @@ export default function UserManagement() {
           </Group>
         </Stack>
       </Modal>
-      {/* Delete Confirmation Modal */}
+
       <Modal
         opened={deleteModalOpen}
         onClose={() => {
