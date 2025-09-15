@@ -152,7 +152,6 @@ const Form = ({
           <DateTimePicker
             value={dateValue}
             mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={pickDate}
             maximumDate={new Date()}
           />
