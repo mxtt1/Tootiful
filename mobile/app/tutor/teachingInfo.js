@@ -277,6 +277,7 @@ export default function TeachingInfo() {
               setItems={setSubjectItems}
               multiple={true}
               mode="BADGE"
+              listMode="SCROLLVIEW"
               badgeDotColors={[
                 "#6155F5",
                 "#e76f51",
@@ -285,7 +286,7 @@ export default function TeachingInfo() {
                 "#264653",
               ]}
               placeholder="Select subjects you teach"
-              style={styles.input}
+              style={[styles.input, styles.dropdownStyle]}
               dropDownContainerStyle={styles.dropdown}
               textStyle={styles.dropdownText}
               selectedItemLabelStyle={styles.selectedItemText}
@@ -397,9 +398,15 @@ const styles = StyleSheet.create({
     borderColor: "#6155F5",
   },
   dropdown: {
-    borderColor: "#ccc",
+    borderWidth: 0,
+    backgroundColor: "#fff",
     borderRadius: 12,
     marginTop: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
   },
   dropdownText: {
     fontSize: 14,
@@ -407,6 +414,13 @@ const styles = StyleSheet.create({
   selectedItemText: {
     color: "#6155F5",
     fontWeight: "bold",
+  },
+  dropdownStyle: {
+    borderWidth: 0, 
+    shadowColor: "#000", 
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, 
+    shadowRadius: 4,     
+    elevation: 5,
   },
   inputError: {
     borderColor: "red",

@@ -7,10 +7,11 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
+  Image
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect } from "react";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { tutorsStyles as styles } from "../styles/tutorsStyles";
 import tutorService from "../../services/tutorService";
 
@@ -72,6 +73,14 @@ export default function TutorsScreen() {
     fetchTutors();
   }, []);
 
+  // Refresh data when user returns to this screen
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log("🔄 All tutors screen focused - refreshing data");
+      fetchTutors();
+    }, [])
+  );
+
   const fetchTutors = async () => {
     try {
       setLoading(true);
@@ -93,6 +102,7 @@ export default function TutorsScreen() {
         lastName: tutor.lastName,
         email: tutor.email,
         phone: tutor.phone,
+        image: tutor.image,
         subjects: tutor.subjects.map((subject) => ({
           name: subject.name,
           experienceLevel: subject.TutorSubject.experienceLevel,
@@ -101,6 +111,12 @@ export default function TutorsScreen() {
         totalReviews: Math.floor(Math.random() * 50) + 10, // Mock reviews
         isOnline: Math.random() > 0.3, // Mock online status
       }));
+
+      console.log("Tutor images:", apiTutors.map(t => ({
+        name: `${t.firstName} ${t.lastName}`,
+        hasImage: !!t.image,
+        imageUrl: t.image
+      })));
 
       setTutors(apiTutors);
       setFilteredTutors(apiTutors);
@@ -221,13 +237,21 @@ export default function TutorsScreen() {
                 onPress={() => handleTutorPress(tutor)}
               >
                 <View style={styles.tutorHeader}>
-                  <View style={styles.tutorImageContainer}>
+                  <View style={styles.tutorImageContainer}>       
+                    {tutor.image ? (
+                      <Image
+                        source={{ uri: tutor.image + '?t=' + Date.now() }}
+                        style={styles.tutorImagePlaceholder}
+                        onError={(e) => console.log('Image failed to load:', tutor.image)}
+                      />
+                    ) : (
                     <View style={styles.tutorImagePlaceholder}>
                       <Text style={styles.tutorImageText}>
                         {tutor.firstName[0]}
                         {tutor.lastName[0]}
                       </Text>
                     </View>
+                    )}
                     {/* Online indicator */}
                     {tutor.isOnline && <View style={styles.onlineIndicator} />}
                   </View>

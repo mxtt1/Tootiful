@@ -168,7 +168,7 @@ const Form = ({
 
       {/* Gender - Conditionally rendered */}
       {showGender && (
-        <View style={[styles.pickerContainer, { zIndex: genderOpen ? 1000 : 1 }]}>
+        <View style={[styles.pickerContainer, { zIndex: genderOpen ? 1000 : 1, marginBottom: 10 }]}>
           <DropDownPicker
             open={genderOpen}
             value={genderValue}
@@ -290,7 +290,14 @@ const styles = StyleSheet.create({
     height: 50,
     width: "100%",
     color: "#374151",
-    backgroundColor: "transparent",
+    backgroundColor: "#fff", // Ensure background color matches
+    borderWidth: 0, // No border
+    borderRadius: 12, // Rounded corners
+    shadowColor: "#000", // Add shadow
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 5,
   },
   button: {
     backgroundColor: "#6155F5",
