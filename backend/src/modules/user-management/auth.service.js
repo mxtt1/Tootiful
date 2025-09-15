@@ -25,6 +25,10 @@ export default class AuthService {
       throw new Error("Invalid email");
     }
 
+    if (!user.isActive) {
+      throw new Error("Account is deactivated. Please contact support.");
+    }
+
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
       // Password incorrect
