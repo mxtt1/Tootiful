@@ -8,13 +8,12 @@ export const validateName = (name) => {
 // validate date of birth
 export const validateDateOfBirth = (date) => {
   if (date) {
-    // DD-MM-YYYY format validation
+    /* DD-MM-YYYY format validation
     const regex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
-    if (!regex.test(date)) return "Please use DD-MM-YYYY format";
+    if (!regex.test(date)) return "Please use DD-MM-YYYY format"; */
     
     // Check if date is valid
-    const [day, month, year] = date.split('-');
-    const dateObj = new Date(`${year}-${month}-${day}`);
+    const dateObj = new Date(date);
     if (isNaN(dateObj.getTime())) return "Invalid date";
     
     // Check if date is in the past
