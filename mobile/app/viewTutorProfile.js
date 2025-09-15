@@ -4,6 +4,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Image
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
@@ -247,12 +248,22 @@ export default function ViewTutorProfileScreen() {
         <View style={styles.profileCard}>
           <View style={styles.profileHeader}>
             <View style={styles.profileImageContainer}>
+              {tutor.image ? (
+                <Image
+                  source={{ 
+                    uri: tutor.image + `?timestamp=${Date.now()}`  
+                  }}
+                  style={styles.profileImagePlaceholder}
+                  onError={(e) => console.log('Image failed to load:', tutor.image)}
+                />
+              ) : (
               <View style={styles.profileImagePlaceholder}>
                 <Text style={styles.profileImageText}>
                   {tutor.firstName[0]}
                   {tutor.lastName[0]}
                 </Text>
               </View>
+              )}
               {/* Online indicator */}
               {tutor.isOnline && <View style={styles.onlineIndicator} />}
             </View>
