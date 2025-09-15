@@ -153,9 +153,7 @@ export default function PersonalDetails() {
           contentType = "image/png";
         } // add more types as needed
 
-        const fileName = `tutor_${
-          currentUserId || id
-        }_${Date.now()}.${imageExt}`;
+        const fileName = `tutor_${currentUserId || id}`;
         const response = await fetch(imageUrl);
         const arrayBuffer = await response.arrayBuffer();
         const { data, error } = await supabase.storage
@@ -175,7 +173,7 @@ export default function PersonalDetails() {
           .getPublicUrl(fileName);
         imageUrl = urlData.publicUrl;
         console.log("Image public URL:", imageUrl);
-        setFormData((prev) => ({ ...prev, image: imageUrl }));
+        // Do NOT rely on setFormData here, just use imageUrl for PATCH
       } catch (err) {
         Alert.alert("Error", "Image upload failed: " + err.message);
         return;
@@ -186,7 +184,10 @@ export default function PersonalDetails() {
       // Prepare only changed fields
       const changedFields = {};
       Object.keys(formData).forEach((key) => {
-        if (formData[key] !== initialData[key]) {
+        // If a new image was uploaded, always set image field
+        if (key === 'image' && imageUrl && imageUrl.startsWith('http')) {
+          changedFields[key] = imageUrl;
+        } else if (formData[key] !== initialData[key] && key !== 'image') {
           changedFields[key] = formData[key];
         }
       });

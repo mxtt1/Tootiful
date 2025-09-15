@@ -136,6 +136,7 @@ export default function editStudent() {
 
     // Upload image to Supabase Storage if it's a local file
     let imageUrl = formData.image;
+    let imageUploaded = false;
     if (imageUrl && imageUrl.startsWith('file://')) {
       try {
         const imageExt = imageUrl.split('.').pop();
@@ -147,7 +148,7 @@ export default function editStudent() {
           contentType = 'image/png';
         } // add more types as needed
 
-        const fileName = `student_${currentUserId || id}.${imageExt}`;
+        const fileName = `student_${currentUserId || id}`;
         const response = await fetch(imageUrl);
         const arrayBuffer = await response.arrayBuffer();
         const { data, error } = await supabase.storage.from('avatars').upload(fileName, arrayBuffer, {
@@ -162,18 +163,22 @@ export default function editStudent() {
         // Get public URL
         const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
         imageUrl = urlData.publicUrl;
+        imageUploaded = true;
         console.log("Image public URL:", imageUrl);
-        setFormData(prev => ({ ...prev, image: imageUrl }));
+        // Do NOT rely on setFormData here, just use imageUrl for PATCH
       } catch (err) {
         Alert.alert('Error', 'Image upload failed: ' + err.message);
         return;
       }
     }
-    
+
     try {
       const requestBody = {};
       Object.keys(formData).forEach((key) => {
-        if (formData[key] !== initialData[key]) {
+        // If a new image was uploaded, always set image field
+        if (key === 'image' && imageUploaded) {
+          requestBody[key] = imageUrl;
+        } else if (formData[key] !== initialData[key] && key !== 'image') {
           requestBody[key] = formData[key];
         }
       });

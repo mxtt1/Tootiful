@@ -9,7 +9,7 @@ import {
     StyleSheet,
     Image,
 } from "react-native";
-import { Picker } from "@react-native-picker/picker";
+import DropDownPicker from "react-native-dropdown-picker";
 import { useRouter } from "expo-router";
 
 export default function RegisterScreen() {
@@ -18,9 +18,16 @@ export default function RegisterScreen() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [role, setRole] = useState("Student");
     const [errors, setErrors] = useState({});
     const router = useRouter();
+
+    // Dropdown picker state
+    const [roleOpen, setRoleOpen] = useState(false);
+    const [roleValue, setRoleValue] = useState("Student");
+    const [roleItems, setRoleItems] = useState([
+        { label: "Student", value: "Student" },
+        { label: "Tutor", value: "Tutor" },
+    ]);
 
     const validateFields = () => {
         const newErrors = {};
@@ -56,7 +63,7 @@ export default function RegisterScreen() {
         try {
             const payload = { firstName, lastName, email, password };
             let data;
-            if (role === "Student") {
+            if (roleValue === "Student") {
                 data = await studentService.createStudent(payload);
             } else {
                 data = await tutorService.createTutor(payload);
@@ -137,15 +144,18 @@ export default function RegisterScreen() {
             )}
 
             {/* Role Dropdown */}
-            <View style={styles.pickerWrapper}>
-                <Picker
-                    selectedValue={role}
+            <View style={[styles.pickerContainer, { zIndex: roleOpen ? 1000 : 1, marginBottom: 20 }]}>
+                <DropDownPicker
+                    open={roleOpen}
+                    value={roleValue}
+                    items={roleItems}
+                    setOpen={setRoleOpen}
+                    setValue={setRoleValue}
+                    setItems={setRoleItems}
+                    placeholder="Select Role"
                     style={styles.picker}
-                    onValueChange={(itemValue) => setRole(itemValue)}
-                >
-                    <Picker.Item label="Student" value="Student" />
-                    <Picker.Item label="Tutor" value="Tutor" />
-                </Picker>
+                    dropDownContainerStyle={styles.dropdown}
+                />
             </View>
 
             {/* Backend errors */}
@@ -169,39 +179,95 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 24, justifyContent: "center", backgroundColor: "#fff" },
-    logo: { width: 120, height: 120, alignSelf: "center", marginBottom: 20 },
-    title: { fontSize: 22, fontWeight: "bold", color: "#6a5acd", marginBottom: 20 },
-    input: {
-        borderWidth: 1,
-        borderColor: "#ccc",
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        height: 48,
-        fontSize: 16,
-        marginBottom: 6,
+    container: { 
+        flex: 1, 
+        padding: 24, 
+        justifyContent: "center", 
+        backgroundColor: "#fff" 
     },
-    pickerWrapper: {
-        borderWidth: 1,
-        borderColor: "#ccc",
-        borderRadius: 8,
+    logo: { 
+        width: 120, 
+        height: 120, 
+        alignSelf: "center", 
+        marginBottom: 20 
+    },
+    title: { 
+        fontSize: 22, 
+        fontWeight: "bold", 
+        color: "#6a5acd", 
         marginBottom: 20,
+        textAlign: "center"
     },
-    picker: { height: 48, width: "100%" },
+    input: {
+        borderWidth: 0,
+        borderRadius: 12,
+        paddingHorizontal: 20,
+        height: 50,
+        fontSize: 14,
+        marginBottom: 6,
+        backgroundColor: "#fff",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    inputError: {
+        borderWidth: 1,
+        borderColor: "red",
+    },
+    pickerContainer: {
+        justifyContent: "center",
+        position: "relative",
+    },
+    picker: {
+        height: 50,
+        width: "100%",
+        color: "#374151",
+        backgroundColor: "#fff",
+        borderWidth: 0,
+        borderRadius: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    dropdown: {
+        borderWidth: 0,
+        borderRadius: 12,
+        marginTop: 5,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 8,
+        backgroundColor: "#fff",
+    },
     button: {
-        backgroundColor: "#00c4cc",
-        borderRadius: 8,
+        backgroundColor: "#6155F5",
+        borderRadius: 15,
         height: 50,
         justifyContent: "center",
         alignItems: "center",
         marginBottom: 20,
+        marginTop: 10,
     },
-    buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+    buttonText: { 
+        color: "#fff", 
+        fontSize: 16, 
+        fontWeight: "700" 
+    },
     back: {
         textAlign: "center",
         fontSize: 14,
         color: "#000",
         textDecorationLine: "underline",
     },
-    error: { color: "red", fontSize: 13, marginBottom: 8 },
+    error: { 
+        color: "red", 
+        fontSize: 13, 
+        marginBottom: 8,
+        marginLeft: 5
+    },
 });

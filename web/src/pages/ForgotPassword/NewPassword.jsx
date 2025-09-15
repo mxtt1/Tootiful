@@ -196,19 +196,6 @@ export default function NewPassword() {
             justifyContent: "center",
           }}
         >
-          <Title
-            order={2}
-            mb="md"
-            style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.3)" }}
-          >
-            Welcome Back!
-          </Title>
-          <Text
-            size="lg"
-            style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.3)" }}
-          >
-            Continue managing your tutoring platform
-          </Text>
         </Box>
       </div>
     </div>

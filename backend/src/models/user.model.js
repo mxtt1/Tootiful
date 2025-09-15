@@ -46,10 +46,10 @@ const User = sequelize.define(
       },
     },
     dateOfBirth: {
-      type: DataTypes.STRING(10), // DD-MM-YYYY format (10 characters)
+      type: DataTypes.DATEONLY, // DD-MM-YYYY format (10 characters)
       allowNull: true,
       validate: {
-        len: [10, 10],
+        isDate: true,
       },
     },
     phone: {

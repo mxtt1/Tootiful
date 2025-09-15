@@ -241,7 +241,7 @@ export default function ProfileScreen() {
           <View style={styles.profileImageContainer}>
             {currentUser.image ? (
               <Image
-                source={{ uri: currentUser.image }}
+                source={{ uri: currentUser.image + '?t=' + Date.now() }}
                 style={styles.profileImagePlaceholder}
               />
             ) : (

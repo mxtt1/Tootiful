@@ -8,12 +8,13 @@ import {
   Platform,
   Modal,
   TouchableWithoutFeedback,
+  Image,
   Alert,
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { Image } from "react-native";
 
 const Form = ({
   formData,
@@ -23,9 +24,8 @@ const Form = ({
   showGradeLevel = true,
   showGender = true,
 }) => {
-  {
-    /* State for gender picker modal */
-  }
+
+  /* State for gender picker modal */
   const [genderOpen, setGenderOpen] = useState(false);
   const [genderValue, setGenderValue] = useState(formData.gender || null);
   const [genderItems, setGenderItems] = useState([
@@ -33,9 +33,8 @@ const Form = ({
     { label: "Female", value: "female" },
   ]);
 
-  {
-    /* State for grade level picker modal */
-  }
+
+  /* State for grade level picker modal */
   const [gradeOpen, setGradeOpen] = useState(false);
   const [gradeValue, setGradeValue] = useState(formData.gradeLevel || null);
   const [gradeItems, setGradeItems] = useState([
@@ -53,10 +52,26 @@ const Form = ({
     { label: "JC 2", value: "JC 2" },
   ]);
 
-  const [image, setImage] = useState(formData.image || null);
-  {
-    /* Function to handle image selection */
+  /* State for date picker */
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateValue, setDateValue] = useState(formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date());
+
+  /* Format date of birth as DD-MM-YYYY string before passing to onInputChange*/
+  const pickDate = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setDateValue(selectedDate);
+      // Format date as DD-MM-YYYY string
+      const iso = selectedDate.toISOString().split('T')[0];
+      onInputChange('dateOfBirth', iso);
+    }
   }
+
+  /* State for profile image */
+  const [image, setImage] = useState(formData.image || null);
+
+  /* Function to handle image selection */
+
   const pickImage = async () => {
     // Ask for permission first
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -87,7 +102,7 @@ const Form = ({
       <View style={styles.imageBg}>
         <TouchableOpacity onPress={pickImage} style={styles.editIconContainer}>
           {image ? (
-            <Image source={{ uri: image }} style={styles.image} />
+            <Image source={{ uri: image + '?t=' + Date.now() }} style={styles.image} />
           ) : (
             <Ionicons name="camera-outline" size={24} color="#6155F5" />
           )}
@@ -122,15 +137,25 @@ const Form = ({
 
       {/* Date of Birth */}
       <View style={styles.inputContainer}>
-
         <Ionicons name="calendar-outline" size={20} style={styles.styleIcon} />
-        <TextInput
-          style={[styles.input, styles.inputWithIcon, errors.dateOfBirth && styles.inputError]}
-          placeholder="DD-MM-YYYY"
-          value={formData.dateOfBirth}
-          onChangeText={(text) => onInputChange("dateOfBirth", text)}
-          keyboardType="numbers-and-punctuation"
-        />
+        <TouchableOpacity
+          onPress={() => setShowDatePicker(true)}
+          style={[styles.input, styles.inputWithIcon, errors.dateOfBirth && styles.inputError,
+          { justifyContent: 'center', alignItems: 'flex-start' }
+          ]}
+          activeOpacity={0.7}>
+          <Text style={{ color: '#374151', fontSize: 14 }}>
+            {formData.dateOfBirth ? formData.dateOfBirth : 'Select Date of Birth'}
+          </Text>
+        </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker
+            value={dateValue}
+            mode="date"
+            onChange={pickDate}
+            maximumDate={new Date()}
+          />
+        )}
         {errors.dateOfBirth && (
           <Text style={styles.errorText}>{errors.dateOfBirth}</Text>
         )}
@@ -168,7 +193,7 @@ const Form = ({
 
       {/* Gender - Conditionally rendered */}
       {showGender && (
-        <View style={[styles.pickerContainer, { zIndex: genderOpen ? 1000 : 1 }]}>
+        <View style={[styles.pickerContainer, { zIndex: genderOpen ? 1000 : 1, marginBottom: 10 }]}>
           <DropDownPicker
             open={genderOpen}
             value={genderValue}
@@ -187,7 +212,7 @@ const Form = ({
 
       {/* Grade Level - Conditionally rendered */}
       {showGradeLevel && (
-          <View style={[styles.pickerContainer, { zIndex: gradeOpen ? 2000 : 1 }]}>
+        <View style={[styles.pickerContainer, { zIndex: gradeOpen ? 2000 : 1 }]}>
           <DropDownPicker
             open={gradeOpen}
             value={gradeValue}
@@ -290,7 +315,14 @@ const styles = StyleSheet.create({
     height: 50,
     width: "100%",
     color: "#374151",
-    backgroundColor: "transparent",
+    backgroundColor: "#fff", // Ensure background color matches
+    borderWidth: 0, // No border
+    borderRadius: 12, // Rounded corners
+    shadowColor: "#000", // Add shadow
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 5,
   },
   button: {
     backgroundColor: "#6155F5",
