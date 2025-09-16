@@ -50,7 +50,7 @@ const AuthProvider = ({ children }) => {
 
   const login = async (email, password, rememberMe = false) => {
     try {
-      const response = await apiClient.post("/auth/login", {
+      const response = await apiClient.post("/auth/login?admin=true", {
         email,
         password,
       });

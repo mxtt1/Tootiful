@@ -16,6 +16,7 @@ export default class AuthService {
 
   // Separate login handlers with HTTP cookies
   async handleLogin(req, res) {
+    const { admin } = req.query;
     const { email, password } = req.body;
 
     const user = await User.findOne({ where: { email } });
@@ -25,7 +26,15 @@ export default class AuthService {
       throw new Error("Invalid email");
     }
 
-    if (!user.isActive) {
+    if (admin && user.role !== 'admin') {
+      throw new Error("Admin access only");
+    }
+
+    if (!admin && user.role === 'admin') {
+      throw new Error("Admin accounts cannot log in here");
+    }
+
+    if (!user.isActive || user.isSuspended) {
       throw new Error("Account is deactivated. Please contact support.");
     }
 
