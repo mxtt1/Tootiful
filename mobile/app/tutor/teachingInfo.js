@@ -93,7 +93,7 @@ export default function TeachingInfo() {
       if (tutorData.subjects) {
         tutorData.subjects.forEach((subj) => {
           subjectIds.push(subj.id);
-          rates[subj.id] = subj.hourlyRate || 45;
+          rates[subj.id] = subj.TutorSubject.hourlyRate || 45;
         });
       }
       
