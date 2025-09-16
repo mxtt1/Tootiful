@@ -23,49 +23,46 @@ The API uses **JWT-based authentication** with **HTTP-only cookies** for refresh
 
 ## Authentication Endpoints
 
-### 1. Student Login
-**POST** `/auth/student/login`
+
+### 1. Unified Login
+**POST** `/auth/login`
 
 #### Request Body:
 ```json
 {
-  "email": "john.doe@example.com",
+  "email": "user@example.com",
   "password": "securePassword123"
 }
 ```
 
+#### Query Parameters (optional):
+- `admin=true` — If present, login is restricted to admin users only.
+
+**Examples:**
+- Regular user login:
+  `POST /auth/login`
+- Admin login:
+  `POST /auth/login?admin=true`
+
 #### Response (200 OK):
 ```json
 {
-  "accessToken": "<JWT access token>"
+  "accessToken": "<JWT access token>",
+  "user": {
+    "id": 1,
+    "email": "user@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "role": "student" // or "admin" or "tutor"
+  }
 }
 ```
 
 #### Notes:
 - Refresh token is automatically set as HTTP-only cookie
 - Cookie settings: `httpOnly: true, secure: true (production), sameSite: 'strict'`
-
----
-
-### 2. Tutor Login
-**POST** `/auth/tutor/login`
-
-#### Request Body:
-```json
-{
-  "email": "alice.smith@example.com",
-  "password": "securePassword123"
-}
-```
-
-#### Response (200 OK):
-```json
-{
-  "accessToken": "<JWT access token>"
-}
-```
-
----
+- If `admin=true` is set, only users with role `admin` can log in; other roles will be rejected.
+- If `admin` is not set, only non-admin users can log in; admin accounts will be rejected.
 
 ### 3. Refresh Access Token
 **POST** `/auth/refresh`
@@ -282,8 +279,8 @@ Authorization: Bearer <access_token>
 **GET** `/students`
 
 #### Query Parameters:
-- `page` (optional): Page number (default: 1)
-- `limit` (optional): Items per page (default: 10)
+- `page` (optional): Page number (no default)
+- `limit` (optional): Items per page (no default)
 - `active` (optional): Filter by active status ("true" for active only)
 - `gradeLevel` (optional): Multiple values supported
 
@@ -343,17 +340,24 @@ GET /students?gradeLevel=secondary-1&gradeLevel=secondary-2
 
 ---
 
+
+
 ### 4. Update Student (Partial)
 **PATCH** `/students/:id`
 
-#### Request Body (partial update):
+#### Request Body (JSON):
+- Send all changed fields as JSON.
+- If updating the profile image, include the public image URL as a string in the `image` field.
+
+**Example:**
 ```json
 {
   "firstName": "Jane",
   "lastName": "Doe",
   "gradeLevel": "secondary-2",
   "phone": "98765432",
-  "dateOfBirth": "2002-12-12"
+  "dateOfBirth": "2002-12-12",
+  "image": "https://your-supabase-url/storage/v1/object/public/avatars/student_1.jpg" // optional, only if updating image
 }
 ```
 
@@ -364,9 +368,10 @@ GET /students?gradeLevel=secondary-1&gradeLevel=secondary-2
   "firstName": "Jane",
   "lastName": "Doe",
   "email": "john.doe@example.com",
-  "phone": "12345678",
+  "phone": "98765432",
   "gradeLevel": "secondary-2",
   "dateOfBirth": "2002-12-12",
+  "image": "https://your-supabase-url/storage/v1/object/public/avatars/student_1.jpg",
   "isActive": true,
   "createdAt": "2025-01-20T10:30:00.000Z",
   "updatedAt": "2025-01-20T11:15:00.000Z"
@@ -376,6 +381,7 @@ GET /students?gradeLevel=secondary-1&gradeLevel=secondary-2
 #### Notes:
 - Password updates are not allowed through this endpoint
 - Email uniqueness is validated if email is being updated
+- If no image field is sent, the existing image remains unchanged
 
 ---
 
@@ -407,15 +413,26 @@ Status: 200 (no body)
 
 ---
 
-### 7. Deactivate Student
-**PATCH** `/students/:id/deactivate`
+
+### 7. Update Student Active/Suspended Status
+**PATCH** `/students/:id`
+
+#### Request (partial update):
+Send fields such as `isActive` or `isSuspended` in the PATCH request body or form data to update status.
+
+**Example:**
+```json
+{
+  "isActive": false,
+  "isSuspended": true
+}
+```
 
 #### Response (200 OK):
-```
-Status: 200 (no body)
-```
+Returns the updated student object.
 
----
+#### Notes:
+- There is no separate /deactivate endpoint; use PATCH to update status fields.
 
 ## Tutor Endpoints
 
@@ -493,8 +510,8 @@ Status: 200 (no body)
 **GET** `/tutors`
 
 #### Query Parameters:
-- `page` (optional): Page number (default: 1)
-- `limit` (optional): Items per page (default: 10)
+- `page` (optional): Page number (no default)
+- `limit` (optional): Items per page (no default)
 - `active` (optional): Filter by active status ("true" for active only)
 - `minRate` (optional): Minimum hourly rate
 - `maxRate` (optional): Maximum hourly rate
@@ -578,28 +595,28 @@ GET /tutors?subject=Science&minRate=40&maxRate=80
 
 ---
 
+
+
 ### 4. Update Tutor (Partial)
 **PATCH** `/tutors/:id`
 
-#### Request Body:
+#### Request Body (JSON):
+- Send all changed fields as JSON.
+- If updating the profile image, include the public image URL as a string in the `image` field.
+- For subjects, send as a JSON array in the `subjects` field.
+
+**Example:**
 ```json
 {
   "tutorData": {
-    "firstName": "Alice", 
+    "firstName": "Alice",
     "lastName": "Smith",
-    "email": "alice.smith@example.com"
+    "email": "alice.smith@example.com",
+    "image": "https://your-supabase-url/storage/v1/object/public/avatars/tutor_1.jpg" // optional, only if updating image
   },
   "subjects": [
-    {
-      "subjectId": 1,
-      "experienceLevel": "expert",
-      "hourlyRate": 45
-    },
-    {
-      "subjectId": 3,
-      "experienceLevel": "advanced",
-      "hourlyRate": 45
-    }
+    {"subjectId":1,"experienceLevel":"expert","hourlyRate":45},
+    {"subjectId":3,"experienceLevel":"advanced","hourlyRate":45}
   ]
 }
 ```
@@ -615,6 +632,7 @@ GET /tutors?subject=Science&minRate=40&maxRate=80
   "isActive": true,
   "createdAt": "2025-01-20T10:30:00.000Z",
   "updatedAt": "2025-01-20T11:45:00.000Z",
+  "image": "https://your-supabase-url/storage/v1/object/public/avatars/tutor_1.jpg",
   "subjects": [
     {
       "id": 1,
@@ -628,6 +646,11 @@ GET /tutors?subject=Science&minRate=40&maxRate=80
   ]
 }
 ```
+
+#### Notes:
+- Password updates are not allowed through this endpoint
+- Email uniqueness is validated if email is being updated
+- If no image field is sent, the existing image remains unchanged
 
 ---
 
@@ -659,15 +682,26 @@ Status: 200 (no body)
 
 ---
 
-### 7. Deactivate Tutor
-**PATCH** `/tutors/:id/deactivate`
+
+### 7. Update Tutor Active/Suspended Status
+**PATCH** `/tutors/:id`
+
+#### Request (partial update):
+Send fields such as `isActive` or `isSuspended` in the PATCH request body or form data to update status.
+
+**Example:**
+```json
+{
+  "isActive": false,
+  "isSuspended": true
+}
+```
 
 #### Response (200 OK):
-```
-Status: 200 (no body)
-```
+Returns the updated tutor object.
 
----
+#### Notes:
+- There is no separate /deactivate endpoint; use PATCH to update status fields.
 
 ### 8. Get All Subjects
 **GET** `/tutors/subjects/all`
@@ -679,6 +713,7 @@ Status: 200 (no body)
   "name": "Mathematics",
   "description": "Algebra, Geometry, Calculus",
   "category": "STEM",
+  "gradeLevel": "Secondary 4",
   "isActive": true,
   "createdAt": "2025-01-20T09:00:00.000Z",
   "updatedAt": "2025-01-20T09:00:00.000Z"
@@ -695,7 +730,8 @@ Status: 200 (no body)
 {
   "name": "Chemistry",
   "description": "Organic, Inorganic, Physical Chemistry",
-  "category": "STEM"
+  "category": "STEM",
+  "gradeLevel": "Secondary 4"
 }
 ```
 
@@ -706,6 +742,7 @@ Status: 200 (no body)
   "name": "Chemistry",
   "description": "Organic, Inorganic, Physical Chemistry",
   "category": "STEM",
+  "gradeLevel": "Secondary 4",
   "isActive": true,
   "createdAt": "2025-01-20T12:00:00.000Z",
   "updatedAt": "2025-01-20T12:00:00.000Z"
