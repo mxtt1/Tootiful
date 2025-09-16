@@ -4,7 +4,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Image
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
@@ -17,95 +17,6 @@ export default function ViewTutorProfileScreen() {
   const [tutor, setTutor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Fallback to mock data if API fails - mapped by ID
-  const MOCK_TUTORS_DATA = {
-    1: {
-      id: 1,
-      firstName: "Alice",
-      lastName: "Smith",
-      email: "alice.smith@example.com",
-      phone: "87654321",
-      hourlyRate: "45.50",
-      age: 28,
-      subjects: [
-        {
-          name: "Mathematics",
-          experienceLevel: "advanced",
-          gradeLevel: "Upper Primary",
-        },
-        {
-          name: "Physics",
-          experienceLevel: "intermediate",
-          gradeLevel: "Secondary",
-        },
-      ],
-      rating: 4.8,
-      totalReviews: 24,
-      isOnline: true,
-      education:
-        "National University of Singapore, Bachelor's degree in Mathematics",
-      aboutMe:
-        "I am a passionate mathematics tutor with over 5 years of experience helping students excel in their studies. I believe in making learning fun and engaging while building strong foundational skills.",
-    },
-    2: {
-      id: 2,
-      firstName: "Bob",
-      lastName: "Johnson",
-      email: "bob.johnson@example.com",
-      phone: "87654322",
-      hourlyRate: "35.00",
-      age: 42,
-      subjects: [
-        {
-          name: "English",
-          experienceLevel: "expert",
-          gradeLevel: "Secondary",
-        },
-        {
-          name: "Literature",
-          experienceLevel: "advanced",
-          gradeLevel: "Upper Secondary",
-        },
-      ],
-      rating: 4.6,
-      totalReviews: 18,
-      isOnline: false,
-      education: "Cambridge University, Master's degree in English Literature",
-      aboutMe:
-        "With over 15 years of teaching experience, I specialize in helping students improve their English language skills and appreciate literature. My approach focuses on critical thinking and effective communication.",
-    },
-    3: {
-      id: 3,
-      firstName: "Carol",
-      lastName: "Wilson",
-      email: "carol.wilson@example.com",
-      phone: "87654323",
-      hourlyRate: "50.00",
-      age: 35,
-      subjects: [
-        {
-          name: "Chemistry",
-          experienceLevel: "expert",
-          gradeLevel: "Upper Secondary",
-        },
-        {
-          name: "Biology",
-          experienceLevel: "advanced",
-          gradeLevel: "Secondary",
-        },
-      ],
-      rating: 4.9,
-      totalReviews: 31,
-      isOnline: true,
-      education: "MIT, PhD in Chemistry",
-      aboutMe:
-        "I am a research scientist and passionate educator with a PhD in Chemistry. I love helping students understand complex scientific concepts through hands-on experiments and real-world applications.",
-    },
-  };
-
-  const MOCK_TUTOR_DETAILS =
-    MOCK_TUTORS_DATA[parseInt(id)] || MOCK_TUTORS_DATA[1];
 
   useEffect(() => {
     fetchTutorData();
@@ -140,16 +51,15 @@ export default function ViewTutorProfileScreen() {
         lastName: response.lastName,
         phone: response.phone,
         image: response.image || null,
-        hourlyRate: response.hourlyRate,
         subjects: response.subjects || [],
       };
 
       setTutor(tutorData);
       console.log("✅ Fetched fresh tutor data:", tutorData);
     } catch (error) {
-      console.warn("⚠️ API failed, using mock data:", error.message);
-      setError("Using demo data - API not available");
-      setTutor(MOCK_TUTOR_DETAILS);
+      console.warn("⚠️ API failed:", error.message);
+      setError("Failed to load tutor profile. Please try again.");
+      // Don't fallback to mock data - show error state instead
     } finally {
       setLoading(false);
     }
@@ -251,19 +161,21 @@ export default function ViewTutorProfileScreen() {
             <View style={styles.profileImageContainer}>
               {tutor.image ? (
                 <Image
-                  source={{ 
-                    uri: tutor.image + `?timestamp=${Date.now()}`  
+                  source={{
+                    uri: tutor.image + `?timestamp=${Date.now()}`,
                   }}
                   style={styles.profileImagePlaceholder}
-                  onError={(e) => console.log('Image failed to load:', tutor.image)}
+                  onError={(e) =>
+                    console.log("Image failed to load:", tutor.image)
+                  }
                 />
               ) : (
-              <View style={styles.profileImagePlaceholder}>
-                <Text style={styles.profileImageText}>
-                  {tutor.firstName[0]}
-                  {tutor.lastName[0]}
-                </Text>
-              </View>
+                <View style={styles.profileImagePlaceholder}>
+                  <Text style={styles.profileImageText}>
+                    {tutor.firstName[0]}
+                    {tutor.lastName[0]}
+                  </Text>
+                </View>
               )}
               {/* Online indicator */}
               {tutor.isOnline && <View style={styles.onlineIndicator} />}
@@ -312,12 +224,25 @@ export default function ViewTutorProfileScreen() {
                     {subject.gradeLevel || "All Levels"}
                   </Text>
                 </View>
-                <Text style={styles.subjectLevel}>
-                  {subject.experienceLevel
-                    ? subject.experienceLevel.charAt(0).toUpperCase() +
-                      subject.experienceLevel.slice(1)
-                    : "Intermediate"}
-                </Text>
+                <View style={styles.subjectDetails}>
+                  <Text style={styles.subjectLevel}>
+                    {(
+                      subject.experienceLevel ||
+                      subject.TutorSubject?.experienceLevel ||
+                      "intermediate"
+                    )
+                      .charAt(0)
+                      .toUpperCase() +
+                      (
+                        subject.experienceLevel ||
+                        subject.TutorSubject?.experienceLevel ||
+                        "intermediate"
+                      ).slice(1)}
+                  </Text>
+                  <Text style={styles.subjectRate}>
+                    ${subject.TutorSubject?.hourlyRate || 45}/hr
+                  </Text>
+                </View>
               </View>
             ))
           ) : (
@@ -337,7 +262,6 @@ export default function ViewTutorProfileScreen() {
                 {tutor.rating} stars ({tutor.totalReviews} reviews)
               </Text>
             </View>
-            <Text style={styles.hourlyRate}>${tutor.hourlyRate}/hour</Text>
           </View>
         </View>
 
