@@ -260,6 +260,7 @@ Authorization: Bearer <access_token>
   "email": "john.doe@example.com",
   "phone": "12345678",
   "gradeLevel": "secondary-1",
+  "dateOfBirth": "2002-12-12",
   "isActive": true,
   "createdAt": "2025-01-20T10:30:00.000Z",
   "updatedAt": "2025-01-20T10:30:00.000Z"
@@ -273,6 +274,7 @@ Authorization: Bearer <access_token>
 - `password`: Required, 6-255 characters
 - `phone`: Optional, 8 characters
 - `gradeLevel`: Optional, must be valid enum value
+- `dateOfBirth`: Optional, must be in YYYY-MM-DD format, must be in the past, above 18 years
 
 ---
 
@@ -303,6 +305,7 @@ GET /students?gradeLevel=secondary-1&gradeLevel=secondary-2
       "email": "john.doe@example.com",
       "phone": "12345678",
       "gradeLevel": "secondary-1",
+      "dateOfBirth": "2002-12-12", 
       "isActive": true,
       "createdAt": "2025-01-20T10:30:00.000Z",
       "updatedAt": "2025-01-20T10:30:00.000Z"
@@ -331,6 +334,7 @@ GET /students?gradeLevel=secondary-1&gradeLevel=secondary-2
   "email": "john.doe@example.com",
   "phone": "12345678",
   "gradeLevel": "secondary-1",
+  "dateOfBirth": "2002-12-12",
   "isActive": true,
   "createdAt": "2025-01-20T10:30:00.000Z",
   "updatedAt": "2025-01-20T10:30:00.000Z"
@@ -346,7 +350,10 @@ GET /students?gradeLevel=secondary-1&gradeLevel=secondary-2
 ```json
 {
   "firstName": "Jane",
-  "gradeLevel": "secondary-2"
+  "lastName": "Doe",
+  "gradeLevel": "secondary-2",
+  "phone": "98765432",
+  "dateOfBirth": "2002-12-12"
 }
 ```
 
@@ -359,6 +366,7 @@ GET /students?gradeLevel=secondary-1&gradeLevel=secondary-2
   "email": "john.doe@example.com",
   "phone": "12345678",
   "gradeLevel": "secondary-2",
+  "dateOfBirth": "2002-12-12",
   "isActive": true,
   "createdAt": "2025-01-20T10:30:00.000Z",
   "updatedAt": "2025-01-20T11:15:00.000Z"
@@ -423,16 +431,19 @@ Status: 200 (no body)
     "email": "alice.smith@example.com",
     "password": "securePassword123",
     "phone": "87654321",
-    "hourlyRate": 45.50
+    "dateOfBirth": "2002-12-12"
+    
   },
   "subjects": [
     {
       "subjectId": 1,
-      "experienceLevel": "advanced"
+      "experienceLevel": "advanced",
+      "hourlyRate": 45
     },
     {
       "subjectId": 2,
-      "experienceLevel": "intermediate"
+      "experienceLevel": "intermediate",
+      "hourlyRate": 45
     }
   ]
 }
@@ -457,7 +468,8 @@ Status: 200 (no body)
       "description": "Algebra, Geometry, Calculus",
       "category": "STEM",
       "TutorSubject": {
-        "experienceLevel": "advanced"
+        "experienceLevel": "advanced",
+        "hourlyRate": 45
       }
     }
   ]
@@ -470,8 +482,10 @@ Status: 200 (no body)
 - `email`: Required, valid email format, unique
 - `password`: Required, 6-255 characters
 - `phone`: Optional, 8 characters
-- `hourlyRate`: Required, decimal (0-9999.99)
-- `experienceLevel`: Must be one of: "beginner", "intermediate", "advanced", "expert"
+- `dateOfBirth`: Optional, must be in YYYY-MM-DD format, must be in the past, above 18 years
+- `subjects`: An array of subject objects with:
+    - `experienceLevel`: Must be one of: "beginner", "intermediate", "advanced", "expert",
+    - `hourlyRate`: Optional, integer (1-1000)
 
 ---
 
@@ -507,7 +521,6 @@ GET /tutors?subject=Science&minRate=40&maxRate=80
       "lastName": "Smith",
       "email": "alice.smith@example.com",
       "phone": "87654321",
-      "hourlyRate": "45.50",
       "isActive": true,
       "createdAt": "2025-01-20T10:30:00.000Z",
       "updatedAt": "2025-01-20T10:30:00.000Z",
@@ -517,7 +530,8 @@ GET /tutors?subject=Science&minRate=40&maxRate=80
           "name": "Mathematics",
           "category": "STEM",
           "TutorSubject": {
-            "experienceLevel": "advanced"
+            "experienceLevel": "advanced",
+            "hourlyRate": 45
           }
         }
       ]
@@ -545,7 +559,6 @@ GET /tutors?subject=Science&minRate=40&maxRate=80
   "lastName": "Smith",
   "email": "alice.smith@example.com",
   "phone": "87654321",
-  "hourlyRate": "45.50",
   "isActive": true,
   "createdAt": "2025-01-20T10:30:00.000Z",
   "updatedAt": "2025-01-20T10:30:00.000Z",
@@ -555,7 +568,8 @@ GET /tutors?subject=Science&minRate=40&maxRate=80
       "name": "Mathematics",
       "category": "STEM",
       "TutorSubject": {
-        "experienceLevel": "advanced"
+        "experienceLevel": "advanced",
+        "hourlyRate": 45
       }
     }
   ]
@@ -571,16 +585,20 @@ GET /tutors?subject=Science&minRate=40&maxRate=80
 ```json
 {
   "tutorData": {
-    "hourlyRate": 55.00
+    "firstName": "Alice", 
+    "lastName": "Smith",
+    "email": "alice.smith@example.com"
   },
   "subjects": [
     {
       "subjectId": 1,
-      "experienceLevel": "expert"
+      "experienceLevel": "expert",
+      "hourlyRate": 45
     },
     {
       "subjectId": 3,
-      "experienceLevel": "advanced"
+      "experienceLevel": "advanced",
+      "hourlyRate": 45
     }
   ]
 }
@@ -594,7 +612,6 @@ GET /tutors?subject=Science&minRate=40&maxRate=80
   "lastName": "Smith",
   "email": "alice.smith@example.com",
   "phone": "87654321",
-  "hourlyRate": "55.00",
   "isActive": true,
   "createdAt": "2025-01-20T10:30:00.000Z",
   "updatedAt": "2025-01-20T11:45:00.000Z",
@@ -602,8 +619,10 @@ GET /tutors?subject=Science&minRate=40&maxRate=80
     {
       "id": 1,
       "name": "Mathematics",
+      "category": "STEM",
       "TutorSubject": {
-        "experienceLevel": "expert"
+        "experienceLevel": "expert",
+        "hourlyRate": 45
       }
     }
   ]
