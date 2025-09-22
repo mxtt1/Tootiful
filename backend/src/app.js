@@ -6,7 +6,6 @@ import sequelize from "./config/database.js";
 import studentRoutes from "./modules/user-management/student.routes.js";
 import tutorRoutes from "./modules/user-management/tutor.routes.js";
 import authRoutes from "./modules/user-management/auth.routes.js";
-import { seedSubjects } from "./util/seed-subjects.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 // Load environment variables

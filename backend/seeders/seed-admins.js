@@ -1,5 +1,5 @@
 // Seed admin users for initial login (replace emails with real ones as needed)
-import User from "../models/user.model.js";
+import User from "../src/models/index.js";
 
 const adminUsers = [
   {
@@ -57,7 +57,7 @@ console.log("Admin seeder finished.");
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   try {
-    await import("../config/database.js");
+    await import("../src/config/database.js");
     await seedAdminUsers();
     console.log("Seeder script completed successfully.");
     process.exit(0);

@@ -89,6 +89,8 @@ const User = sequelize.define(
       comment:
         "Student grade level - Primary, Secondary, JC, International, etc.",
     },
+
+    // Tutor-specific
     aboutMe: {
       type: DataTypes.STRING(255),
       allowNull: true,
@@ -96,6 +98,16 @@ const User = sequelize.define(
     education: {
       type: DataTypes.STRING(255),
       allowNull: true,
+    },
+    agencyId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: 'agencies',
+        key: 'id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL'
     },
     // Role
     role: {
