@@ -7,6 +7,7 @@ import studentRoutes from "./modules/user-management/student.routes.js";
 import tutorRoutes from "./modules/user-management/tutor.routes.js";
 import authRoutes from "./modules/user-management/auth.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import agencyRoutes from "./modules/user-management/agency.route.js";
 
 // Load environment variables
 dotenv.config();
@@ -38,6 +39,7 @@ app.use(
 // Routes
 app.use("/api/students", studentRoutes);
 app.use("/api/tutors", tutorRoutes);
+app.use("/api/agencies", agencyRoutes);
 app.use("/api/auth", authRoutes);
 
 // Global Error Handler Middleware
