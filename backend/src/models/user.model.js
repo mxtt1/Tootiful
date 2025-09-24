@@ -89,17 +89,8 @@ const User = sequelize.define(
       comment:
         "Student grade level - Primary, Secondary, JC, International, etc.",
     },
+
     // Tutor-specific
-    hourlyRate: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: true,
-      defaultValue: 45.00, // default 45
-      validate: {
-        min: 0,
-        max: 9999.99,
-      },
-      comment: "Hourly rate in local currency",
-    },
     aboutMe: {
       type: DataTypes.STRING(255),
       allowNull: true,
@@ -107,6 +98,16 @@ const User = sequelize.define(
     education: {
       type: DataTypes.STRING(255),
       allowNull: true,
+    },
+    agencyId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: 'agencies',
+        key: 'id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL'
     },
     // Role
     role: {

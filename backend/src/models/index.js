@@ -1,4 +1,4 @@
-import { DataTypes } from 'sequelize';
+import Sequelize, { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
 
 // Model imports
@@ -6,6 +6,7 @@ import User from './user.model.js';
 import Subject from './subject.model.js';
 import PasswordResetToken from './passwordReset.model.js';
 import RefreshToken from './refreshToken.model.js';
+import Agency from './agency.model.js';
 
 // Util imports
 import experienceLevelEnum from "../util/enum/experienceLevelEnum.js";
@@ -47,6 +48,16 @@ const TutorSubject = sequelize.define(
       },
       comment: "Tutor experience level for this subject",
     },
+    hourlyRate: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 45,
+      validate: {
+        min: 0, 
+        max: 1000 
+      },
+      comment: "Hourly rate for this subject",
+    },
   },
   {
     tableName: "tutor_subjects",
@@ -75,4 +86,7 @@ User.hasMany(PasswordResetToken, { foreignKey: "userId", as: "passwordResetToken
 RefreshToken.belongsTo(User, { foreignKey: 'userId', as: 'user', allowNull: false });
 User.hasMany(RefreshToken, { foreignKey: 'userId', as: 'refreshTokens' });
 
-export { User, Subject, TutorSubject, PasswordResetToken, RefreshToken };
+Agency.hasMany(User, { foreignKey: 'agencyId', as: 'tutors' });
+User.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
+
+export { User, Subject, TutorSubject, PasswordResetToken, RefreshToken, Sequelize, sequelize };

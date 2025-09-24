@@ -18,31 +18,6 @@ import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
 import { jwtDecode } from "jwt-decode";
 
-// Mock user data - this will be replaced with real authentication later
-const MOCK_STUDENT = {
-  id: 1,
-  firstName: "John",
-  lastName: "Doe",
-  email: "john.doe@example.com",
-  phone: "12345678",
-  gradeLevel: "Secondary 3",
-  userType: "student",
-};
-
-const MOCK_TUTOR = {
-  id: 1,
-  firstName: "Alice",
-  lastName: "Smith",
-  email: "alice.smith@example.com",
-  phone: "87654321",
-  hourlyRate: "45.50",
-  userType: "tutor",
-  subjects: [
-    { name: "Mathematics", experienceLevel: "advanced" },
-    { name: "Physics", experienceLevel: "intermediate" },
-  ],
-};
-
 export default function ProfileScreen() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
@@ -73,12 +48,8 @@ export default function ProfileScreen() {
 
       // Check if user is authenticated
       if (!authService.isAuthenticated()) {
-        console.log("❌ User not authenticated, showing demo data");
-        // If not authenticated, show demo data
-        setCurrentUser(MOCK_STUDENT);
-        setUserType("student");
-        setLoading(false);
-        return;
+        console.log("❌ User not authenticated");
+        throw new Error("Please log in to view your profile");
       }
 
       console.log("✅ User is authenticated!");
@@ -132,11 +103,8 @@ export default function ProfileScreen() {
       }
     } catch (error) {
       console.error("❌ Error fetching user data:", error);
-      setError(error.message);
-      // Fallback to demo data on error
-      console.log("🔄 Falling back to demo data");
-      setCurrentUser(MOCK_STUDENT);
-      setUserType("student");
+      setError(error.message || "Failed to load profile data");
+      // Don't fallback to mock data - let user know they need to authenticate
     } finally {
       setLoading(false);
     }
@@ -169,9 +137,9 @@ export default function ProfileScreen() {
     try {
       await authService.logout();
       console.log("✅ Auth service logout complete");
-      // Reset to demo data after logout
-      setCurrentUser(MOCK_STUDENT);
-      setUserType("student");
+      // Clear user data and redirect to login
+      setCurrentUser(null);
+      setUserType(null);
       // Navigate back to login page
       console.log("🔄 Navigating to login page");
       router.replace("/login");
@@ -241,7 +209,7 @@ export default function ProfileScreen() {
           <View style={styles.profileImageContainer}>
             {currentUser.image ? (
               <Image
-                source={{ uri: currentUser.image + '?t=' + Date.now() }}
+                source={{ uri: currentUser.image + "?t=" + Date.now() }}
                 style={styles.profileImagePlaceholder}
               />
             ) : (

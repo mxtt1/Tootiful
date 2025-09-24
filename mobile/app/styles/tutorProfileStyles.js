@@ -175,6 +175,9 @@ export const tutorProfileStyles = StyleSheet.create({
     color: "#6B7280",
     marginTop: 2,
   },
+  subjectDetails: {
+    alignItems: "flex-end",
+  },
   subjectLevel: {
     fontSize: 14,
     color: "#8B5CF6",
@@ -183,6 +186,12 @@ export const tutorProfileStyles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
+    marginBottom: 4,
+  },
+  subjectRate: {
+    fontSize: 16,
+    color: "#10B981",
+    fontWeight: "600",
   },
   noSubjects: {
     fontSize: 16,

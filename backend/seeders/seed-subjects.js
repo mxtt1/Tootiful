@@ -1,4 +1,4 @@
-import { Subject } from '../models/index.js';
+import { Subject } from '../src/models/index.js';
 
 export async function seedSubjects() {
   try {

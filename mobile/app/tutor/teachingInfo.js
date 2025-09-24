@@ -22,7 +22,8 @@ export default function TeachingInfo() {
 
   const [formData, setFormData] = useState(null);
   const [initialData, setInitialData] = useState(null); // track original data if changed
-  const [initialSubjects, setInitialSubjects] = useState([]); // track original subjects if changed
+  const [subjectRates, setSubjectRates] = useState({}); // track original (subjects + rates) if changed
+  const [initialSubjectRates, setInitialSubjectRates] = useState({});
 
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -32,6 +33,18 @@ export default function TeachingInfo() {
   const [subjectOpen, setSubjectOpen] = useState(false);
   const [subjectValue, setSubjectValue] = useState([]); //selected subjects
   const [subjectItems, setSubjectItems] = useState([]); //available subjects
+
+    useEffect(() => {
+      console.log("subjectValue updated:", subjectValue);
+      console.log("Type of subjectValue:", typeof subjectValue);
+      console.log("Is array?", Array.isArray(subjectValue));
+    
+      if (Array.isArray(subjectValue)) {
+        subjectValue.forEach((item, index) => {
+          console.log(`subjectValue[${index}]:`, item, "type:", typeof item);
+        });
+      }
+    }, [subjectValue]);
 
   useEffect(() => {
     fetchTutorData();
@@ -65,22 +78,28 @@ export default function TeachingInfo() {
       // Update form data with fetched data
 
       setFormData({
-        hourlyRate: tutorData.hourlyRate || 45,
         aboutMe: tutorData.aboutMe || "",
         education: tutorData.education || "",
       });
 
       setInitialData({
-        hourlyRate: tutorData.hourlyRate || 45,
         aboutMe: tutorData.aboutMe || "",
         education: tutorData.education || "",
       });
 
+      const rates = {};
+      const subjectIds = [];
+
       if (tutorData.subjects) {
-        const subjectIds = tutorData.subjects.map((subj) => subj.id);
-        setSubjectValue(subjectIds);
-        setInitialSubjects(subjectIds);
+        tutorData.subjects.forEach((subj) => {
+          subjectIds.push(subj.id);
+          rates[subj.id] = subj.TutorSubject.hourlyRate || 45;
+        });
       }
+      
+      setSubjectValue(subjectIds);
+      setSubjectRates(rates);
+      setInitialSubjectRates({...rates});
     } catch (error) {
       console.error("Error fetching teaching data:", error);
       Alert.alert("Error", "An error occurred while fetching data");
@@ -118,54 +137,119 @@ export default function TeachingInfo() {
   }
 
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    // if subject rate field
+    if (field.startsWith('rate-')) {
+      const subjectId = field.replace('rate-', '');
 
-    // real time validation
-    if (field === "hourlyRate") {
+      // Validate the rate
       const error = validateHourlyRate(value);
-      setErrors((prev) => ({
-        ...prev,
-        hourlyRate: error,
-      }));
+      if (error) {
+        setErrors((prev) => ({
+          ...prev,
+          [subjectId]: error,
+        }));
+      } else {
+        setErrors((prev) => {
+          const newErrors = {...prev};
+          delete newErrors[subjectId];
+          return newErrors;
+        });
+      }
+
+      setSubjectRates((prev) => ({ 
+        ...prev, 
+        [subjectId]: value }));
+    } else {
+      // Handle regular form fields
+      setFormData((prev) => ({ 
+        ...prev, 
+        [field]: value }));
     }
   };
+
+
+  const handleSubjectSelection = (selectedSubjects) => {
+    console.log("Selected subjects from dropdown:", selectedSubjects);
+
+    if (!selectedSubjects) return;
+      
+      const subjectsArray = Array.isArray(selectedSubjects) 
+        ? selectedSubjects 
+        : [selectedSubjects];
+      
+      console.log("Processed subject IDs:", subjectsArray);
+
+      // Add default rate for newly selected subjects
+      const newRates = {...subjectRates};
+      subjectsArray.forEach(subjectId => {
+        if (!newRates[subjectId]) {
+          newRates[subjectId] = 45; 
+        }
+      });
+
+      // Remove rates for deselected subjects
+      Object.keys(newRates).forEach(subjectId => {
+        if (!subjectsArray.includes(subjectId)) {
+          delete newRates[subjectId];
+        }
+      });
+      
+      setSubjectRates(newRates);
+    };
 
   const handleSave = async () => {
     setErrors({}); // clear prev errors
 
-    const newErrors = {};
+    const rateErrors = {};
+    let hasErrors = false;
 
     // validate hourlyRate field
-    const hourlyRateError = validateHourlyRate(formData.hourlyRate);
+    Object.entries(subjectRates).forEach(([subjectId, rate]) => {
+      const error = validateHourlyRate(rate);
+      if (error) {
+        rateErrors[subjectId] = error;
+        hasErrors = true;
+      }
+    });
 
-    if (hourlyRateError) {
-      setErrors({
-        hourlyRate: hourlyRateError,
-      });
+    if (hasErrors) {
+      setErrors(rateErrors);
+      Alert.alert("Error", "Please fix rate errors before saving.");
       return;
     }
 
     try {
       // prepare only changed fields
       const changedFields = {};
-      let subjectsChanged = false;
-
       Object.keys(formData).forEach((key) => {
         if (formData[key] !== initialData[key]) {
           changedFields[key] = formData[key];
         }
       });
+      let subjectsChanged = false;
 
-      //check if tutor changed subjects
-      if (subjectValue.length !== initialSubjects.length) {
+      // Create normalized maps for comparison
+      const initialMap = new Map();
+      Object.entries(initialSubjectRates).forEach(([id, rate]) => {
+        if (id) {
+        initialMap.set(id, Number(rate)); // Convert to number
+        }
+      });
+
+      const currentMap = new Map();
+      subjectValue.forEach(id => {
+        if (id) {
+        currentMap.set(id, Number(subjectRates[id])); // Convert to number
+        }
+      });
+
+      // Check if maps are different
+      if (initialMap.size !== currentMap.size) {
         subjectsChanged = true;
       } else {
-        // same num of subjects, now check if subjects are diff
-        for (let i = 0; i < subjectValue.length; i++) {
-          if (!initialSubjects.includes(subjectValue[i])) {
+        // Check each entry
+        for (const [id, rate] of initialMap) {
+          if (!currentMap.has(id) || currentMap.get(id) !== rate) {
             subjectsChanged = true;
             break;
           }
@@ -178,14 +262,19 @@ export default function TeachingInfo() {
         return;
       }
 
+      // update tutor_subjects table
+      const subjectsToUpdate = subjectValue
+      .filter(subjectId => subjectId) // Filter out undefined/null values
+      .map((subjectId) => ({
+        subjectId: subjectId,
+        hourlyRate: parseInt(subjectRates[subjectId]) || 45,
+        experienceLevel: "intermediate",
+      }));
       // Wrap data in tutorData object as expected by API
       const requestBody = {
         tutorData: changedFields,
-        subjects: subjectValue.map((subjectId) => ({
-          subjectId: subjectId,
-          experienceLevel: "intermediate", // Default
-        })),
-      };
+        subjects: subjectsToUpdate, 
+        };
 
       const tutorId = currentUserId || id;
       console.log("Saving tutor data for ID:", tutorId);
@@ -199,6 +288,11 @@ export default function TeachingInfo() {
       console.error("Error updating teaching info:", error);
       Alert.alert("Error", "An error occurred while updating Teaching Info");
     }
+  };
+
+  const getSubjectName = (subjectId) => {
+    const subject = subjectItems.find(item => item.value === subjectId);
+    return subject ? subject.label : `Subject ${subjectId}`;
   };
 
   return (
@@ -218,28 +312,6 @@ export default function TeachingInfo() {
           </View>
 
           <View style={styles.formContainer}>
-            {/* Hourly Rate */}
-            <View style={styles.inputContainer}>
-              <Ionicons
-                name="cash-outline"
-                size={20}
-                style={styles.styleIcon}
-              />
-              <TextInput
-                style={[
-                  styles.input,
-                  styles.inputWithIcon,
-                  errors.hourlyRate && styles.inputError,
-                ]}
-                placeholder="Hourly Rate"
-                value={formData.hourlyRate || 45}
-                onChangeText={(text) => handleInputChange("hourlyRate", text)}
-                keyboardType="numeric"
-              />
-              {errors.hourlyRate && (
-                <Text style={styles.errorText}>{errors.hourlyRate}</Text>
-              )}
-            </View>
             {/* About Me */}
             <Text style={styles.subTitle}>About Me</Text>
             <View style={styles.inputContainer}>
@@ -274,6 +346,7 @@ export default function TeachingInfo() {
               items={subjectItems}
               setOpen={setSubjectOpen}
               setValue={setSubjectValue}
+              onChangeValue={handleSubjectSelection}
               setItems={setSubjectItems}
               multiple={true}
               mode="BADGE"
@@ -291,6 +364,36 @@ export default function TeachingInfo() {
               textStyle={styles.dropdownText}
               selectedItemLabelStyle={styles.selectedItemText}
             />
+            {/*Hourly Rate */}
+            {subjectValue.length > 0 && (
+              <View style={styles.ratesContainer}>
+                <Text style={styles.subTitle}>Hourly Rates per Subject</Text>
+                {subjectValue.map((subjectId) => (
+                  <View key={subjectId} style={styles.rateInputContainer}>
+                    <Text style={styles.subjectName}>
+                      {getSubjectName(subjectId)}
+                    </Text>
+                    <View style={styles.rateInputRow}>
+                      <Ionicons name="cash-outline" size={20} style={styles.rateIcon} />
+                      <TextInput
+                        style={[
+                          styles.rateInput,
+                          errors[subjectId] && styles.inputError,
+                        ]}
+                        placeholder="Hourly Rate"
+                        value={String(subjectRates[subjectId] || "")}
+                        onChangeText={(text) => handleInputChange(`rate-${subjectId}`, text)}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    {errors[subjectId] && (
+                      <Text style={styles.errorText}>{errors[subjectId]}</Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+            
             {/* Save Button */}
             <TouchableOpacity style={styles.button} onPress={handleSave}>
               <Text style={styles.buttonText}>Save</Text>
@@ -435,6 +538,43 @@ const styles = StyleSheet.create({
   center: {
     justifyContent: "center",
     alignItems: "center",
+    flex: 1,
+  },
+    ratesContainer: {
+    marginTop: 20,
+  },
+  rateInputContainer: {
+    marginBottom: 15,
+  },
+  subjectName: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 5,
+    color: "#374151",
+  },
+  rateInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    position: "relative",
+  },
+  rateIcon: {
+    position: "absolute",
+    left: 10,
+    zIndex: 1,
+    color: "#6B7280",
+  },
+  rateInput: {
+    height: 50,
+    paddingLeft: 40,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    fontSize: 14,
+    color: "#374151",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 5,
     flex: 1,
   },
 });

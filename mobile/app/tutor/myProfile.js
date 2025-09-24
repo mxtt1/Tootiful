@@ -7,7 +7,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
-  Image
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect } from "react";
@@ -17,21 +17,6 @@ import { myProfileStyles as styles } from "../styles/myProfileStyles";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
 import { jwtDecode } from "jwt-decode";
-
-// Mock tutor data for fallback
-const MOCK_TUTOR = {
-  id: 1,
-  firstName: "Alice",
-  lastName: "Smith",
-  email: "alice.smith@example.com",
-  phone: "87654321",
-  hourlyRate: "45.50",
-  userType: "tutor",
-  subjects: [
-    { name: "Mathematics", experienceLevel: "advanced" },
-    { name: "Physics", experienceLevel: "intermediate" },
-  ],
-};
 
 export default function TutorProfileScreen() {
   const router = useRouter();
@@ -62,11 +47,8 @@ export default function TutorProfileScreen() {
 
       // Check if user is authenticated
       if (!authService.isAuthenticated()) {
-        console.log("❌ Tutor not authenticated, showing demo data");
-        // If not authenticated, show demo data
-        setCurrentUser(MOCK_TUTOR);
-        setLoading(false);
-        return;
+        console.log("❌ Tutor not authenticated");
+        throw new Error("Please log in to view your profile");
       }
 
       console.log("✅ Tutor is authenticated!");
@@ -117,10 +99,8 @@ export default function TutorProfileScreen() {
       }
     } catch (error) {
       console.error("❌ Error fetching tutor data:", error);
-      setError(error.message);
-      // Fallback to demo data on error
-      console.log("🔄 Falling back to demo data");
-      setCurrentUser(MOCK_TUTOR);
+      setError(error.message || "Failed to load profile data");
+      // Don't fallback to mock data - let user know they need to authenticate
     } finally {
       setLoading(false);
     }
@@ -153,9 +133,8 @@ export default function TutorProfileScreen() {
     try {
       await authService.logout();
       console.log("✅ Tutor auth service logout complete");
-      // Reset to demo data after logout
-      setCurrentUser(MOCK_TUTOR);
-      // Navigate back to login page
+      // Clear user data and redirect to login
+      setCurrentUser(null);
       console.log("🔄 Tutor navigating to login page");
       router.replace("/login");
     } catch (error) {
@@ -223,7 +202,10 @@ export default function TutorProfileScreen() {
         <View style={styles.header}>
           <View style={styles.profileImageContainer}>
             {currentUser.image ? (
-              <Image source={{ uri: currentUser.image + '?t=' + Date.now() }} style={styles.profileImagePlaceholder} />
+              <Image
+                source={{ uri: currentUser.image + "?t=" + Date.now() }}
+                style={styles.profileImagePlaceholder}
+              />
             ) : (
               <View style={styles.profileImagePlaceholder}>
                 <Text style={styles.profileImageText}>
@@ -253,7 +235,17 @@ export default function TutorProfileScreen() {
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>
-                ${currentUser.hourlyRate || "45"}
+                {currentUser.subjects && currentUser.subjects.length > 0
+                  ? `$${Math.min(
+                      ...currentUser.subjects.map(
+                        (s) => s.TutorSubject?.hourlyRate || 45
+                      )
+                    )}-$${Math.max(
+                      ...currentUser.subjects.map(
+                        (s) => s.TutorSubject?.hourlyRate || 45
+                      )
+                    )}`
+                  : "$45"}
               </Text>
               <Text style={styles.statLabel}>Hourly Rate</Text>
             </View>
@@ -279,11 +271,16 @@ export default function TutorProfileScreen() {
           {currentUser.subjects && currentUser.subjects.length > 0 ? (
             currentUser.subjects.map((subject, index) => (
               <View key={index} style={styles.subjectItem}>
-                <Text style={styles.subjectName}>{subject.name}</Text>
-                <Text style={styles.subjectLevel}>
-                  {subject.experienceLevel ||
-                    subject.TutorSubject?.experienceLevel ||
-                    "intermediate"}
+                <View style={styles.subjectInfo}>
+                  <Text style={styles.subjectName}>{subject.name}</Text>
+                  <Text style={styles.subjectLevel}>
+                    {subject.experienceLevel ||
+                      subject.TutorSubject?.experienceLevel ||
+                      "intermediate"}
+                  </Text>
+                </View>
+                <Text style={styles.subjectRate}>
+                  ${subject.TutorSubject?.hourlyRate || 45}/hr
                 </Text>
               </View>
             ))

@@ -62,12 +62,11 @@ export const validatePassword = (password) => {
 // validate hourlyRate
 export const validateHourlyRate = (hourlyRate) => {
   if (hourlyRate) {
-    const rate = parseFloat(hourlyRate); // convert string to num, since decimal is string
-    if (isNaN(rate)) return "Hourly rate must be a valid number."
-    if (rate < 0) return "Hourly rate cannot be negative";
-    if (rate > 9999.99) return "Hourly rate cannot exceed $9999.99";
+    const rate = Number(hourlyRate);
+    if (isNaN(rate)) return "Must be a valid number";
+    if (rate < 0) return "Cannot be negative";
+    if (rate > 1000) return "Cannot exceed $1000";
+    if (!Number.isInteger(rate)) return "Must be a whole number";
   }
-
     return null;
-
 };

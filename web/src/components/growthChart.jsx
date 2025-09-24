@@ -19,7 +19,6 @@ const GrowthChart = () => {
             
             return {
                 label,
-                revenue: baseRevenue + Math.floor(Math.random() * 30),
                 subscription: baseSubscriptions + Math.floor(Math.random() * 3)
             };
         });
@@ -30,28 +29,9 @@ const GrowthChart = () => {
             if (index === 0) {
                 return { 
                     ...entry, 
-                    revenueGrowth: 0, 
-                    revenueGrowthLabel: "→ 0%",
                     subscriptionGrowth: 0,
                     subscriptionGrowthLabel: "→ 0%"
                 };
-            }
-
-            // calculate revenue growth
-            const prevRevenue = data[index - 1].revenue;
-            const currRevenue = entry.revenue;
-            let revenueGrowth, revenueGrowthLabel;
-
-            if (prevRevenue === 0 && currRevenue > 0) {
-                revenueGrowth = 100;
-                revenueGrowthLabel = "↑ 100%+";
-            } else if (prevRevenue === 0 && currRevenue === 0) {
-                revenueGrowth = 0;
-                revenueGrowthLabel = "→ 0%";
-            } else {
-                const rawRevenueGrowth = ((currRevenue - prevRevenue) / prevRevenue) * 100;
-                revenueGrowth = Math.round(rawRevenueGrowth);
-                revenueGrowthLabel = revenueGrowth > 0 ? `↑ ${revenueGrowth}%` : revenueGrowth < 0 ? `↓ ${Math.abs(revenueGrowth)}%` : "→ 0%";
             }
 
             // calculate subscription growth
@@ -73,8 +53,6 @@ const GrowthChart = () => {
 
             return { 
                 ...entry, 
-                revenueGrowth, 
-                revenueGrowthLabel,
                 subscriptionGrowth,
                 subscriptionGrowthLabel
             };
@@ -100,23 +78,13 @@ const GrowthChart = () => {
                         <YAxis />
                         <Tooltip
                             formatter={(value, name, props) => {
-                                if (name === "Revenue Growth") {
-                                    return [props.payload.revenueGrowthLabel, "Revenue Growth"];
-                                } else if (name === "Subscription Growth") {
+                                if (name === "Subscription Growth") {
                                     return [props.payload.subscriptionGrowthLabel, "Subscription Growth"];
                                 }
                                 return [value, name];
                             }}
                         />
                         <Legend />
-                        <Area 
-                            type="monotone"
-                            dataKey="revenueGrowth" 
-                            stroke="#0d6efd" 
-                            fill="rgba(13, 110, 253, 0.2)" 
-                            strokeWidth={2} 
-                            name="Revenue Growth"
-                        />
                         <Area 
                             type="monotone"
                             dataKey="subscriptionGrowth" 

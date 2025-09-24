@@ -130,30 +130,47 @@ export default class TutorService {
             maxRate,
             subjects = []
         } = options;
-        const where = { role: 'tutor' };
+        const where = { role: 'tutor' }; //get users with role 'tutor'
+
         const include = [
             {
-                model: Subject,
+                model: Subject, // JOIN with subject model through tutors_subject table
                 as: 'subjects',
-                through: { attributes: ['experienceLevel'] }
+                through: { attributes: ['experienceLevel', 'hourlyRate'] } // include these cols from join table
             }
         ];
+
+        // filter by active status
         if (active !== undefined) {
             where.isActive = active === 'true' || active === true;
         }
-        if (minRate !== undefined && maxRate !== undefined) {
-            where.hourlyRate = {
-                [Op.between]: [parseFloat(minRate), parseFloat(maxRate)]
+
+        // filter by tutors_subject.hourlyRate
+        if (minRate !== undefined || maxRate !== undefined) {
+            include[0].through = {
+                where: {}
             };
-        } else if (minRate !== undefined) {
-            where.hourlyRate = {
-                [Op.gte]: parseFloat(minRate)
-            };
-        } else if (maxRate !== undefined) {
-            where.hourlyRate = {
-                [Op.lte]: parseFloat(maxRate)
-            };
+
+            // both min and max rate provided
+            if (minRate !== undefined && maxRate !== undefined) {     
+                include[0].through.where.hourlyRate = {
+                    [Op.between]: [parseFloat(minRate), parseFloat(maxRate)]
+                };
+            // only min rate provided
+            } else if (minRate !== undefined) {
+                include[0].through.where.hourlyRate = {
+                    [Op.gte]: parseFloat(minRate)
+                };
+            // only max rate provided
+            } else if (maxRate !== undefined) {
+                include[0].through.where.hourlyRate = {
+                    [Op.lte]: parseFloat(maxRate)
+                };
+            }
+            
+            include[0].required = true; 
         }
+        // filter by subjects
         if (subjects.length > 0) {
             const subjectWhere = {};
             if (subjects.length === 1) {
@@ -189,7 +206,7 @@ export default class TutorService {
                 {
                     model: Subject,
                     as: 'subjects',
-                    through: { attributes: ['experienceLevel'] }
+                    through: { attributes: ['experienceLevel', 'hourlyRate'] }
                 }
             ]
         });
@@ -203,24 +220,80 @@ export default class TutorService {
         const transaction = await sequelize.transaction();
         try {
             if (updateData.email) {
-                const existingTutor = await User.findOne({ where: { email: updateData.email} });
+                const existingTutor = await User.findOne({ 
+                    where: { email: updateData.email },
+                    transaction 
+                });
                 if (existingTutor && existingTutor.id !== id) {
                     throw new Error('Email already exists for another user');
                 }
             }
             const tutor = await this.getTutorById(id);
             await tutor.update(updateData, { transaction });
+
+            // when subjects are updated
             if (subjects !== null) {
-                await TutorSubject.destroy({ where: { tutorId: id }, transaction });
-                if (subjects.length > 0) {
-                    const tutorSubjects = subjects.map(subject => ({
-                        tutorId: id,
-                        subjectId: subject.subjectId,
-                        experienceLevel: subject.experienceLevel || 'intermediate'
-                    }));
-                    await TutorSubject.bulkCreate(tutorSubjects, { transaction });
+                // fetch tutor's current subjects
+                const currentSubjects = await tutor.getSubjects({ transaction });
+                const currentSubjectIds = currentSubjects.map(subject => subject.id);
+
+                // subjects to remove
+                const subjectsToRemove = currentSubjectIds.filter(id => 
+                    !subjects.some(subject => subject.subjectId === id)
+                );
+                
+                // subjects to add
+                const subjectsToAdd = subjects.filter(subject => 
+                    !currentSubjectIds.includes(subject.subjectId)
+                );
+                
+                // subjects to update (existing subjects)
+                const subjectsToUpdate = subjects.filter(subject => 
+                    currentSubjectIds.includes(subject.subjectId)
+                );
+
+                // remove subjects
+                for (const subjectId of subjectsToRemove) {
+                    await this.removeSubjectFromTutor(id, subjectId, transaction);
+                }
+
+                // add subjects
+                for (const subject of subjectsToAdd) {
+                    await this.addSubjectToTutor(
+                        id, 
+                        subject.subjectId, 
+                        subject.experienceLevel, 
+                        subject.hourlyRate, 
+                        transaction
+                    );
+                }
+
+                // update existing subjects (rates and experience levels)
+                for (const subject of subjectsToUpdate) {
+                    // Check if there are actual changes to update
+                    const currentSubject = currentSubjects.find(s => s.id === subject.subjectId);
+                    const tutorSubject = currentSubject.TutorSubject;
+                    
+                    if (subject.hourlyRate !== undefined && subject.hourlyRate !== tutorSubject.hourlyRate) {
+                        await this.updateTutorSubjectRate(
+                            id, 
+                            subject.subjectId, 
+                            subject.hourlyRate, 
+                            transaction
+                        );
+                    }
+                    
+                    if (subject.experienceLevel !== undefined && subject.experienceLevel !== tutorSubject.experienceLevel) {
+                        await this.updateTutorSubjectExperience(
+                            id, 
+                            subject.subjectId, 
+                            subject.experienceLevel, 
+                            transaction
+                        );
+                    }
                 }
             }
+
             await transaction.commit();
             return await this.getTutorById(id);
         } catch (error) {
@@ -228,43 +301,68 @@ export default class TutorService {
             throw error;
         }
     }
-
     async deleteTutor(id) {
         const tutor = await this.getTutorById(id);
         await tutor.destroy();
     }
 
-    async addSubjectToTutor(tutorId, subjectId, experienceLevel = 'intermediate') {
-        const tutor = await this.getTutorById(tutorId);
-        const existingRelation = await TutorSubject.findOne({
-            where: { tutorId, subjectId }
-        });
+    async addSubjectToTutor(tutorId, subjectId, experienceLevel = 'intermediate', hourlyRate = 45, transaction = null) {
+        const options = { where: { tutorId, subjectId } };
+        if (transaction) options.transaction = transaction;
+        const existingRelation = await TutorSubject.findOne(options);
         if (existingRelation) {
             throw new Error('Tutor already teaches this subject');
         }
-        await TutorSubject.create({
+    
+        const createOptions = {
             tutorId,
             subjectId,
-            experienceLevel
-        });
+            experienceLevel, 
+            hourlyRate
+        };
+        if (transaction) createOptions.transaction = transaction;
+        
+        await TutorSubject.create(createOptions);
         return await this.getTutorById(tutorId);
     }
 
-    async updateTutorSubjectExperience(tutorId, subjectId, experienceLevel) {
-        const relation = await TutorSubject.findOne({
-            where: { tutorId, subjectId }
-        });
+    async updateTutorSubjectExperience(tutorId, subjectId, experienceLevel, transaction = null) {
+        const options = { where: { tutorId, subjectId } };
+        if (transaction) options.transaction = transaction;
+        
+        const relation = await TutorSubject.findOne(options);
         if (!relation) {
             throw new Error('Tutor does not teach this subject');
         }
-        await relation.update({ experienceLevel });
+        
+        const updateOptions = { experienceLevel };
+        if (transaction) updateOptions.transaction = transaction;
+        
+        await relation.update(updateOptions);
         return await this.getTutorById(tutorId);
     }
 
-    async removeSubjectFromTutor(tutorId, subjectId) {
-        const deleted = await TutorSubject.destroy({
-            where: { tutorId, subjectId }
-        });
+    async updateTutorSubjectRate(tutorId, subjectId, hourlyRate, transaction = null) {
+        const options = { where: { tutorId, subjectId } };
+        if (transaction) options.transaction = transaction;
+        
+        const relation = await TutorSubject.findOne(options);
+        if (!relation) {
+            throw new Error('Tutor does not teach this subject');
+        }
+        
+        const updateOptions = { hourlyRate };
+        if (transaction) updateOptions.transaction = transaction;
+        
+        await relation.update(updateOptions);
+        return await this.getTutorById(tutorId);
+    }
+
+    async removeSubjectFromTutor(tutorId, subjectId, transaction = null) {
+        const options = { where: { tutorId, subjectId } };
+        if (transaction) options.transaction = transaction;
+        
+        const deleted = await TutorSubject.destroy(options);
         if (deleted === 0) {
             throw new Error('Tutor does not teach this subject');
         }

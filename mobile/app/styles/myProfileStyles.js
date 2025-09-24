@@ -138,6 +138,9 @@ export const myProfileStyles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
+  subjectInfo: {
+    flex: 1,
+  },
   subjectName: {
     fontSize: 16,
     color: "#374151",
@@ -147,6 +150,11 @@ export const myProfileStyles = StyleSheet.create({
     color: "#8B5CF6",
     fontWeight: "500",
     textTransform: "capitalize",
+  },
+  subjectRate: {
+    fontSize: 16,
+    color: "#10B981",
+    fontWeight: "600",
   },
   menuContainer: {
     backgroundColor: "#FFFFFF",
