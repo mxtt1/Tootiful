@@ -8,7 +8,7 @@ import tutorRoutes from "./modules/user-management/tutor.routes.js";
 import authRoutes from "./modules/user-management/auth.routes.js";
 import agencyRoutes from "./modules/user-management/agency.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
-import agencyRoutes from "./modules/user-management/agency.route.js";
+
 
 // Load environment variables
 dotenv.config();
