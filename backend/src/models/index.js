@@ -89,4 +89,4 @@ User.hasMany(RefreshToken, { foreignKey: 'userId', as: 'refreshTokens' });
 Agency.hasMany(User, { foreignKey: 'agencyId', as: 'tutors' });
 User.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 
-export { User, Subject, TutorSubject, PasswordResetToken, RefreshToken, Sequelize, sequelize };
+export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Sequelize, sequelize };
