@@ -6,7 +6,7 @@ import sequelize from "./config/database.js";
 import studentRoutes from "./modules/user-management/student.routes.js";
 import tutorRoutes from "./modules/user-management/tutor.routes.js";
 import authRoutes from "./modules/user-management/auth.routes.js";
-import agencyRoutes from "./modules/user-management/agency.routes.js";
+import agencyRoutes from "./modules/user-management/agency.route.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 
