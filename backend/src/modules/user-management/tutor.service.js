@@ -134,7 +134,7 @@ export default class TutorService {
 
         const include = [
             {
-                model: Subject, // JOIN with subject model through tutors_subject table
+                model: Subject, // JOIN with subject model through tutor_subjects table
                 as: 'subjects',
                 through: { attributes: ['experienceLevel', 'hourlyRate'] } // include these cols from join table
             }
@@ -145,7 +145,7 @@ export default class TutorService {
             where.isActive = active === 'true' || active === true;
         }
 
-        // filter by tutors_subject.hourlyRate
+        // filter by tutor_subjects.hourlyRate
         if (minRate !== undefined || maxRate !== undefined) {
             include[0].through = {
                 where: {}
