@@ -6,6 +6,7 @@ import sequelize from "./config/database.js";
 import studentRoutes from "./modules/user-management/student.routes.js";
 import tutorRoutes from "./modules/user-management/tutor.routes.js";
 import authRoutes from "./modules/user-management/auth.routes.js";
+import agencyRoutes from "./modules/user-management/agency.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 // Load environment variables
@@ -39,6 +40,7 @@ app.use(
 app.use("/api/students", studentRoutes);
 app.use("/api/tutors", tutorRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/agencyAdmins", agencyRoutes);
 
 // Global Error Handler Middleware
 app.use(errorHandler);
@@ -70,6 +72,7 @@ const startServer = async () => {
       console.log(`Health check: http://localhost:${PORT}/health`);
       console.log(`Students API: http://localhost:${PORT}/api/students`);
       console.log(`Tutors API: http://localhost:${PORT}/api/tutors`);
+      console.log(`AgencyAdmins API: http://localhost:${PORT}/api/agencyAdmins`);
     });
   } catch (error) {
     console.error("Unable to start server:", error);
