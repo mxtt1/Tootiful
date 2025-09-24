@@ -72,9 +72,7 @@ export default function UserManagement() {
         const params = {
           limit: limit.toString(),
           offset: offset.toString(),
-          ...(statusFilter && {
-            active: statusFilter === "Active" ? "true" : "false",
-          }),
+
         };
 
         let allUsers = [];
