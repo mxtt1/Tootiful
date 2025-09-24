@@ -7,6 +7,7 @@ import studentRoutes from "./modules/user-management/student.routes.js";
 import tutorRoutes from "./modules/user-management/tutor.routes.js";
 import authRoutes from "./modules/user-management/auth.routes.js";
 import agencyRoutes from "./modules/user-management/agency.route.js";
+import agencyAdminRoutes from "./modules/user-management/agencyAdmin.route.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 
@@ -42,7 +43,7 @@ app.use("/api/students", studentRoutes);
 app.use("/api/tutors", tutorRoutes);
 app.use("/api/agencies", agencyRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/agencyAdmins", agencyRoutes);
+app.use("/api/agency-admins", agencyAdminRoutes);
 
 // Global Error Handler Middleware
 app.use(errorHandler);
@@ -74,7 +75,7 @@ const startServer = async () => {
       console.log(`Health check: http://localhost:${PORT}/health`);
       console.log(`Students API: http://localhost:${PORT}/api/students`);
       console.log(`Tutors API: http://localhost:${PORT}/api/tutors`);
-      console.log(`AgencyAdmins API: http://localhost:${PORT}/api/agencyAdmins`);
+      console.log(`Agency-admins API: http://localhost:${PORT}/api/agency-admins`);
     });
   } catch (error) {
     console.error("Unable to start server:", error);

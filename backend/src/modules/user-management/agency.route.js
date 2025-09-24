@@ -12,7 +12,6 @@ router.get('/', authenticateToken, asyncHandler(async (req, res) => {
     await agencyService.handleGetAllAgencies(req, res);
 }));
 
-
 // GET /api/agencies/:id - Get agency by ID (protected)
 router.get('/:id', authenticateToken, asyncHandler(async (req, res) => {
     await agencyService.handleGetAgencyById(req, res);
