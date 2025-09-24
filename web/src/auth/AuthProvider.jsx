@@ -50,18 +50,40 @@ const AuthProvider = ({ children }) => {
 
   const login = async (email, password, rememberMe = false) => {
     try {
-      const response = await apiClient.post("/auth/login?admin=true", {
-        email,
-        password,
-      });
+      let response;
+
+      // Try agency login first
+      try {
+        response = await apiClient.post("/auth/agency-login", {
+          email,
+          password,
+        });
+      } catch (agencyError) {
+        // If agency login fails, try admin/user login
+        try {
+          response = await apiClient.post("/auth/login?admin=true", {
+            email,
+            password,
+          });
+        } catch (userError) {
+          // If both fail, throw the original agency error
+          throw agencyError;
+        }
+      }
 
       const { accessToken, refreshToken, user: userData } = response;
 
+      // userData already has the correct userType from backend
+      // No need to add it again
+
       // Store tokens
       localStorage.setItem("accessToken", accessToken);
-      if (rememberMe) {
+      if (rememberMe && refreshToken) {
         localStorage.setItem("refreshToken", refreshToken);
       }
+
+      // Store user data
+      localStorage.setItem("user", JSON.stringify(userData));
 
       // Update state
       setUser(userData);
@@ -70,17 +92,14 @@ const AuthProvider = ({ children }) => {
       return { success: true, user: userData };
     } catch (error) {
       console.error("Login failed:", error);
-      // Only pass backend error message, let Login.jsx handle user-facing text
       let message =
         error.response?.data?.message || error.message || "Unknown error";
-      // If error is a network error or has no message, provide a generic fallback
       if (message === "Failed to fetch" || !message) {
         message = "Network error. Please try again.";
       }
       return { success: false, error: message };
     }
   };
-
   // Note: Admin accounts are pre-created, no public signup functionality needed
 
   const logout = async () => {
@@ -143,6 +162,9 @@ const AuthProvider = ({ children }) => {
     forgotPassword,
     resetPassword,
     checkAuthStatus,
+    isAgency: user?.userType === 'agency',
+    isUser: user?.userType === 'user',
+    isAdmin: user?.role === 'admin'
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

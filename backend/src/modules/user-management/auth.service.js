@@ -3,6 +3,7 @@ import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { Op } from "sequelize";
 import { User, RefreshToken } from "../../models/index.js";
+import Agency from "../../models/agency.model.js";
 
 export default class AuthService {
   constructor() {
@@ -12,6 +13,10 @@ export default class AuthService {
   // Get user by ID (for /auth/me)
   async getUserById(userId) {
     return await User.findByPk(userId);
+  }
+
+  async getAgencyById(agencyId) {
+    return await Agency.findByPk(agencyId);
   }
 
   // Separate login handlers with HTTP cookies
@@ -57,6 +62,49 @@ export default class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+      },
+    });
+  }
+
+  // NEW: Agency login method
+  async handleAgencyLogin(req, res) {
+    const { email, password } = req.body;
+
+    const agency = await Agency.findOne({ where: { email } });
+
+    if (!agency) {
+      throw new Error("Invalid email");
+    }
+
+    if (!agency.isActive) {
+      throw new Error("Account is deactivated. Please contact support.");
+    }
+
+    const passwordMatch = await bcrypt.compare(password, agency.password);
+    if (!passwordMatch) {
+      throw new Error("Invalid password");
+    }
+
+    // Generate only access token for agencies (no refresh token)
+    const accessToken = jwt.sign(
+      {
+        userId: agency.id,
+        userType: 'agency',
+        type: "access",
+        name: agency.name
+      },
+      this.accessTokenSecret,
+      { expiresIn: "7d" } // 7 days since no refresh mechanism
+    );
+
+    res.status(200).json({
+      accessToken,
+      user: {
+        id: agency.id,
+        email: agency.email,
+        name: agency.name,
+        phone: agency.phone,
+        userType: 'agency'
       },
     });
   }

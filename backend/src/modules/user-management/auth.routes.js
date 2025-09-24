@@ -12,6 +12,10 @@ const router = express.Router();
 const authService = new AuthService();
 
 router.post("/login", asyncHandler(authService.handleLogin.bind(authService)));
+// Add this new route
+router.post('/agency-login', asyncHandler(async (req, res) => {
+  await authService.handleAgencyLogin(req, res);
+}));
 
 // Refresh access token endpoint (gets token from cookie)
 router.post(
