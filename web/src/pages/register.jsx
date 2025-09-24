@@ -14,21 +14,36 @@ export default function Register() {
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
+        setFieldErrors({});
 
-        // Validation
+        // Frontend validation
+        const frontendErrors = {};
+
+        // Phone number validation (now required)
+        if (!formData.phone || formData.phone.trim() === '') {
+            frontendErrors.phone = 'Phone number is required';
+        } else if (formData.phone.length !== 8) {
+            frontendErrors.phone = 'Phone number must be exactly 8 characters';
+        } else if (!/^\d{8}$/.test(formData.phone)) {
+            frontendErrors.phone = 'Phone number must contain only digits';
+        }
+
         if (formData.password !== formData.confirmPassword) {
-            setError('Passwords do not match');
-            setLoading(false);
-            return;
+            frontendErrors.confirmPassword = 'Passwords do not match';
         }
 
         if (formData.password.length < 6) {
-            setError('Password must be at least 6 characters long');
+            frontendErrors.password = 'Password must be at least 6 characters long';
+        }
+
+        if (Object.keys(frontendErrors).length > 0) {
+            setFieldErrors(frontendErrors);
             setLoading(false);
             return;
         }
@@ -38,7 +53,7 @@ export default function Register() {
                 name: formData.name,
                 email: formData.email,
                 password: formData.password,
-                phone: formData.phone || undefined // Only include if provided
+                phone: formData.phone // No longer optional
             };
 
             await apiClient.post('/agencies', payload);
@@ -50,7 +65,61 @@ export default function Register() {
                 }
             });
         } catch (err) {
-            setError(err.message || 'Registration failed');
+            console.error('Registration error:', err);
+
+            // Handle different types of errors from backend
+            if (err.response && err.response.data) {
+                const backendError = err.response.data;
+
+                // Check if it's a validation error with specific field errors
+                if (backendError.errors && Array.isArray(backendError.errors)) {
+                    const newFieldErrors = {};
+                    backendError.errors.forEach(error => {
+                        if (error.path) {
+                            newFieldErrors[error.path] = error.message;
+                        }
+                    });
+                    setFieldErrors(newFieldErrors);
+                } else if (backendError.error) {
+                    // Handle specific backend error messages
+                    const errorMessage = backendError.error.toLowerCase();
+
+                    if (errorMessage.includes('email already exists') || (errorMessage.includes('email') && errorMessage.includes('exists'))) {
+                        setFieldErrors({ email: 'This email is already registered' });
+                    } else if (errorMessage.includes('name already exists') || errorMessage.includes('agency with this name')) {
+                        setFieldErrors({ name: 'This agency name is already taken' });
+                    } else if (errorMessage.includes('phone already exists') || (errorMessage.includes('phone') && errorMessage.includes('exists')) || errorMessage.includes('phone number already')) {
+                        setFieldErrors({ phone: 'This phone number is already registered' });
+                    } else if (errorMessage.includes('password') && errorMessage.includes('6')) {
+                        setFieldErrors({ password: 'Password must be at least 6 characters long' });
+                    } else if (errorMessage.includes('phone') && errorMessage.includes('8')) {
+                        setFieldErrors({ phone: 'Phone number must be exactly 8 characters' });
+                    } else {
+                        setError(backendError.error);
+                    }
+                } else {
+                    setError(backendError.message || 'Registration failed');
+                }
+            } else if (err.message) {
+                // Handle network errors or other issues
+                const errorMessage = err.message.toLowerCase();
+
+                if (errorMessage.includes('email already exists')) {
+                    setFieldErrors({ email: 'This email is already registered' });
+                } else if (errorMessage.includes('name already exists') || errorMessage.includes('agency with this name')) {
+                    setFieldErrors({ name: 'This agency name is already taken' });
+                } else if (errorMessage.includes('phone already exists') || errorMessage.includes('phone number already')) {
+                    setFieldErrors({ phone: 'This phone number is already registered' });
+                } else if (errorMessage.includes('password') && errorMessage.includes('6')) {
+                    setFieldErrors({ password: 'Password must be at least 6 characters long' });
+                } else if (errorMessage.includes('phone') && errorMessage.includes('8')) {
+                    setFieldErrors({ phone: 'Phone number must be exactly 8 characters' });
+                } else {
+                    setError(err.message);
+                }
+            } else {
+                setError('Registration failed. Please try again.');
+            }
         } finally {
             setLoading(false);
         }
@@ -61,6 +130,14 @@ export default function Register() {
             ...prev,
             [field]: value
         }));
+
+        // Clear field error when user starts typing
+        if (fieldErrors[field]) {
+            setFieldErrors(prev => ({
+                ...prev,
+                [field]: undefined
+            }));
+        }
     };
 
     return (
@@ -84,6 +161,7 @@ export default function Register() {
                         placeholder="Enter your agency name"
                         value={formData.name}
                         onChange={(e) => handleInputChange('name', e.target.value)}
+                        error={fieldErrors.name}
                         required
                         mb="md"
                     />
@@ -94,6 +172,7 @@ export default function Register() {
                         type="email"
                         value={formData.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
+                        error={fieldErrors.email}
                         required
                         mb="md"
                     />
@@ -104,6 +183,7 @@ export default function Register() {
                         type="password"
                         value={formData.password}
                         onChange={(e) => handleInputChange('password', e.target.value)}
+                        error={fieldErrors.password}
                         required
                         mb="md"
                     />
@@ -114,23 +194,27 @@ export default function Register() {
                         type="password"
                         value={formData.confirmPassword}
                         onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                        error={fieldErrors.confirmPassword}
                         required
                         mb="md"
                     />
 
                     <TextInput
-                        label="Phone Number (Optional)"
-                        placeholder="Enter contact phone number"
+                        label="Phone Number"
+                        placeholder="Enter 8-digit phone number"
                         value={formData.phone}
                         onChange={(e) => handleInputChange('phone', e.target.value)}
+                        error={fieldErrors.phone}
+                        required // Now required
                         mb="xl"
+                        maxLength={8}
                     />
 
                     <Button
                         type="submit"
                         fullWidth
                         loading={loading}
-                        disabled={!formData.name || !formData.email || !formData.password || !formData.confirmPassword}
+                        disabled={!formData.name || !formData.email || !formData.password || !formData.confirmPassword || !formData.phone}
                     >
                         Register Agency
                     </Button>

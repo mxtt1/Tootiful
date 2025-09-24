@@ -107,6 +107,15 @@ class AgencyService {
             throw new Error('Agency with this name already exists');
         }
 
+        // Check phone uniqueness (ADD THIS)
+        if (agencyData.phone) {
+            const existingPhone = await Agency.findOne({ where: { phone: agencyData.phone } });
+            if (existingPhone) {
+                throw new Error('Phone number already exists');
+            }
+        }
+
+
         return await Agency.create({
             ...agencyData,
             isActive: false // Default to inactive for new agencies
