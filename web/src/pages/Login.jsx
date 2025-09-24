@@ -127,6 +127,7 @@ const Login = () => {
     const isChecked = event.currentTarget.checked;
     form.setFieldValue("rememberMe", isChecked);
 
+
     // If unchecking remember me, optionally clear saved credentials immediately
     if (!isChecked) {
       localStorage.removeItem("rememberedEmail");
@@ -181,7 +182,16 @@ const Login = () => {
                   size="md"
                   {...form.getInputProps("password")}
                 />
-                <Group justify="flex-end" mt={8}>
+                <Group justify="space-between" mt={8}>
+                  <Anchor
+                    component="button"
+                    type="button"
+                    size="sm"
+                    onClick={() => navigate("/")}
+                  >
+                    ← Back to Home
+                  </Anchor>
+
                   <Anchor
                     component="button"
                     type="button"
@@ -191,6 +201,7 @@ const Login = () => {
                     Forgot password?
                   </Anchor>
                 </Group>
+
               </div>
 
               <Checkbox

@@ -10,12 +10,18 @@ import User from "./pages/userManagement";
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/adminDashboard";
 import ProtectedRoute from './components/protectedRoute';
+import LandingPage from "./pages/landingPage";
+import AboutUs from './pages/aboutUs'; // ✅ import it
+import Register from "./pages/register";
 
 function AppRoutes() {
   return (
     <Routes>
       {/* Auth */}
+      <Route path="/landing" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/aboutUs" element={<AboutUs />} /> {/* ✅ add route */}
+      <Route path="/register" element={<Register />} />
 
       {/* Forgot Password (public) */}
       <Route path="/forgot-password" element={<ForgotEmail />} />
@@ -40,8 +46,8 @@ function AppRoutes() {
       />
 
       {/* Default + 404 */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<Navigate to="/landing" replace />} />
+      <Route path="*" element={<Navigate to="/landing" replace />} />
     </Routes>
   );
 }
