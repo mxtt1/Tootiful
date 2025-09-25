@@ -7,6 +7,7 @@ import Subject from './subject.model.js';
 import PasswordResetToken from './passwordReset.model.js';
 import RefreshToken from './refreshToken.model.js';
 import Agency from './agency.model.js';
+import Location from './location.model.js';
 
 // Util imports
 import experienceLevelEnum from "../util/enum/experienceLevelEnum.js";
@@ -89,4 +90,7 @@ User.hasMany(RefreshToken, { foreignKey: 'userId', as: 'refreshTokens' });
 Agency.hasMany(User, { foreignKey: 'agencyId', as: 'tutors' });
 User.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 
-export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Sequelize, sequelize };
+Agency.hasMany(Location, { foreignKey: 'agencyId', as: 'locations' });
+Location.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
+
+export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Location, Sequelize, sequelize };

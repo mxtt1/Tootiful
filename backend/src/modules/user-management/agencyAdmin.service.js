@@ -1,4 +1,4 @@
-import { Agency, User } from '../../models/index.js';
+import { Agency, User, Location } from '../../models/index.js';
 import { Op } from 'sequelize';
 import bcrypt from 'bcrypt';
 
