@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthProvider';
-import { LoadingOverlay } from '@mantine/core';
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthProvider";
+import { LoadingOverlay } from "@mantine/core";
 
 const ProtectedRoute = ({ children, requiredRole = null }) => {
   const navigate = useNavigate();
@@ -9,18 +9,25 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
-      navigate('/login', { replace: true });
+      navigate("/login", { replace: true });
       return;
     }
 
-    if (!loading && isAuthenticated && requiredRole && user?.role !== requiredRole) {
+    if (
+      !loading &&
+      isAuthenticated &&
+      requiredRole &&
+      user?.role !== requiredRole
+    ) {
       // Redirect based on user role or to home
-      if (user?.role === 'student') {
-        navigate('/dashboard', { replace: true });
-      } else if (user?.role === 'tutor') {
-        navigate('/tutor/dashboard', { replace: true });
+      if (user?.role === "student") {
+        navigate("/dashboard", { replace: true });
+      } else if (user?.role === "tutor") {
+        navigate("/tutor/dashboard", { replace: true });
+      } else if (user?.role === "agency") {
+        navigate("/agency/dashboard", { replace: true });
       } else {
-        navigate('/', { replace: true });
+        navigate("/", { replace: true });
       }
     }
   }, [isAuthenticated, loading, user, requiredRole, navigate]);

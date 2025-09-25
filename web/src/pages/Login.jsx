@@ -94,7 +94,12 @@ const Login = () => {
           message: "You have successfully logged in.",
           color: "green",
         });
-        navigate("/admin/dashboard");
+        // Redirect based on user type/role
+        if (result.user?.userType === "agency") {
+          navigate("/agency/dashboard");
+        } else {
+          navigate("/admin/dashboard");
+        }
       } else {
         // Show specific error for invalid email or password
         if (result.error) {
@@ -126,7 +131,6 @@ const Login = () => {
   const handleRememberMeChange = (event) => {
     const isChecked = event.currentTarget.checked;
     form.setFieldValue("rememberMe", isChecked);
-
 
     // If unchecking remember me, optionally clear saved credentials immediately
     if (!isChecked) {
@@ -201,7 +205,6 @@ const Login = () => {
                     Forgot password?
                   </Anchor>
                 </Group>
-
               </div>
 
               <Checkbox
