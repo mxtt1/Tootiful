@@ -110,21 +110,36 @@ router.get(
   authenticateToken,
   asyncHandler(async (req, res) => {
     // req.user is set by authenticateToken middleware
-    // Fetch user from DB to get latest info
-    const user = await authService.getUserById(req.user.userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    // Check userType to support both user and agency
+    if (req.user.userType === 'agency') {
+      const agency = await authService.getAgencyById(req.user.userId);
+      if (!agency) {
+        return res.status(404).json({ message: "Agency not found" });
+      }
+      return res.json({
+        user: {
+          id: agency.id,
+          email: agency.email,
+          name: agency.name,
+          phone: agency.phone,
+          userType: 'agency',
+        },
+      });
+    } else {
+      const user = await authService.getUserById(req.user.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+        },
+      });
     }
-    // Return user info (omit sensitive fields)
-    res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-      },
-    });
   })
 );
 

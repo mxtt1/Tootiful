@@ -62,6 +62,7 @@ export default class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        agencyId: user.agencyId
       },
     });
   }
