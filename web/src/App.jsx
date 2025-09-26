@@ -6,15 +6,20 @@ import ForgotEmail from "./pages/ForgotPassword/ForgotEmail";
 import VerifyCode from "./pages/ForgotPassword/VerifyCode";
 import NewPassword from "./pages/ForgotPassword/NewPassword";
 import ResetSuccess from "./pages/ForgotPassword/ResetSuccess";
-import User from "./pages/userManagement";
 import AdminLayout from "./layouts/AdminLayout";
-import AdminDashboard from "./pages/adminDashboard";
-import AgencyDashboard from "./pages/AgencyDashboard";
 import ProtectedRoute from "./components/protectedRoute";
 import LandingPage from "./pages/landingPage";
-import AboutUs from "./pages/aboutUs"; // ✅ import it
+import AboutUs from "./pages/aboutUs";
 import Register from "./pages/register";
-import TutorManagement from "./pages/TutorManagement";
+// admin
+import AdminDashboard from "./pages/admin/adminDashboard";
+import User from "./pages/admin/userManagement";
+//agency
+import AgencyDashboard from "./pages/agency/AgencyDashboard";
+import TutorManagement from "./pages/agency/TutorManagement";
+import AgencyProfile from "./pages/agency/agencyProfile";
+import AgencyManagement from "./pages/agency/agencyManagement";
+
 
 function AppRoutes() {
   return (
@@ -52,6 +57,8 @@ function AppRoutes() {
             <Routes>
               <Route path="dashboard" element={<AgencyDashboard />} />
               <Route path="tutors" element={<TutorManagement />} />
+              <Route path="management" element={<AgencyManagement />} />
+              <Route path="profile" element={<AgencyProfile />} />
               <Route index element={<Navigate to="dashboard" replace />} />
             </Routes>
           </AdminLayout>

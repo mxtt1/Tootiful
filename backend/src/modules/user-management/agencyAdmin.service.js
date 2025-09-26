@@ -1,4 +1,4 @@
-import { Agency, User, Location } from '../../models/index.js';
+import { Agency, User } from '../../models/index.js';
 import { Op } from 'sequelize';
 import bcrypt from 'bcrypt';
 
@@ -145,12 +145,6 @@ class AgencyAdminService {
         return await agencyAdmin.update(updateData);
     }
 
-/*
-    async updateAgencyLocation(id, locations = []) {
-        const agency = await this.getAgencyById(id);
-        return await agency.update({ locations });
-    }
-        */
 
     async deleteAgencyAdmin(id) {
         const agencyAdmin = await this.getAgencyAdminById(id);

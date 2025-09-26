@@ -1,4 +1,4 @@
-import Agency from '../../models/agency.model.js';
+import { Agency, Location, User } from '../../models/agency.model.js';
 import { Op } from 'sequelize';
 import bcrypt from 'bcrypt';
 
@@ -91,6 +91,72 @@ class AgencyService {
         const { id } = req.params;
         await this.deleteAgency(id);
         res.sendStatus(200);
+    }
+
+    async handleGetAgencyLocations(req, res) {
+        try {
+            const { id } = req.params;
+            const user = req.user;
+
+            // Authorization: users can only access their own agency's locations
+            if (user.agencyId !== id && !['admin', 'superAgencyAdmin'].includes(user.role)) {
+                return res.status(403).json({ message: 'Access denied to agency locations' });
+            }
+
+            const locations = await this.getAgencyLocations(id);
+            res.status(200).json(locations);
+        } catch (error) {
+            console.error('Get agency locations error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    async handleCreateLocation(req, res) {
+        try {
+            const { id } = req.params;
+            const locationData = req.body;
+            const user = req.user;
+
+            // Authorization: users can only add locations to their own agency
+            if (user.agencyId !== id && !['admin', 'superAgencyAdmin'].includes(user.role)) {
+                return res.status(403).json({ message: 'Access denied to add locations' });
+            }
+
+            const newLocation = await this.createLocation(id, locationData);
+            res.status(201).json(newLocation);
+        } catch (error) {
+            console.error('Create location error:', error);
+            res.status(400).json({ error: error.message });
+        }
+    }
+
+    async handleDeleteLocation(req, res) {
+        try {
+            const { agencyId, locationId } = req.params;
+            const user = req.user;
+
+            // Authorization: users can only delete locations from their own agency
+            if (user.agencyId !== agencyId && !['admin', 'superAgencyAdmin'].includes(user.role)) {
+                return res.status(403).json({ message: 'Access denied to delete location' });
+            }
+
+            const location = await Location.findOne({
+                where: { 
+                    id: locationId, 
+                    agencyId: agencyId 
+                }
+            });
+
+            if (!location) {
+                return res.status(404).json({ message: 'Location not found' });
+            }
+
+            await location.destroy();
+            res.status(200).json({ message: 'Location deleted successfully' });
+        } catch (error) {
+            console.error('Delete location error:', error);
+            res.status(500).json({ error: error.message });
+        }
     }
 
     // Business logic methods
@@ -186,6 +252,21 @@ class AgencyService {
 
         return await agency.update({ password: newPassword });
     }
+
+    async getAgencyLocations(agencyId) {
+        return await Location.findAll({
+            where: { agencyId },
+            order: [['createdAt', 'DESC']]
+        });
+    }
+
+    async createLocation(agencyId, locationData) {
+        return await Location.create({
+            ...locationData,
+            agencyId
+        });
+    }
+
 }
 
 export default AgencyService;

@@ -37,4 +37,19 @@ router.delete('/:id', authenticateToken, asyncHandler(async (req, res) => {
     await agencyService.handleDeleteAgency(req, res);
 }));
 
+// GET /api/agencies/:id/locations - Get all locations for an agency
+router.get('/:id/locations', authenticateToken, asyncHandler(async (req, res) => {
+    await agencyService.handleGetAgencyLocations(req, res);
+}));
+
+// POST /api/agencies/:id/locations - Create new location for an agency
+router.post('/:id/locations', authenticateToken, asyncHandler(async (req, res) => {
+    await agencyService.handleCreateLocation(req, res);
+}));
+
+// DELETE /api/agencies/:agencyId/locations/:locationId - Delete a location
+router.delete('/:agencyId/locations/:locationId', authenticateToken, asyncHandler(async (req, res) => {
+    await agencyService.handleDeleteLocation(req, res);
+}));
+
 export default router;

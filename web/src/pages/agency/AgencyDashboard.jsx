@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import ApiClient from "../api/apiClient";
-import UserPieChart from "../components/userChart";
-import GrowthChart from "../components/growthChart";
-import TransactionTable from "../components/transactionTable";
+import ApiClient from "../../api/apiClient";
+import UserPieChart from "../../components/userChart";
+import GrowthChart from "../../components/growthChart";
+import TransactionTable from "../../components/transactionTable";
 import { notifications } from "@mantine/notifications";
 import {
   FaMoneyBillAlt,
@@ -11,7 +11,7 @@ import {
   FaBook,
   FaGraduationCap,
 } from "react-icons/fa";
-import { useAuth } from "../auth/AuthProvider";
+import { useAuth } from "../../auth/AuthProvider";
 
 const AgencyDashboard = () => {
   const { user } = useAuth();

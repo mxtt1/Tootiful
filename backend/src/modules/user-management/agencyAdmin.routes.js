@@ -27,12 +27,13 @@ router.patch('/:id/password', authenticateToken, asyncHandler(agencyAdminService
 router.delete('/:id', authenticateToken, asyncHandler(agencyAdminService.handleDeleteAgencyAdmin.bind(agencyAdminService)));
 */
 
-/*
+
 // Location management routes
 // GET /api/agency-admins/locations - Get all locations
-router.get('/locations/all', asyncHandler(agencyAdminService.handleGetAllLocations.bind(agencyAdminService)));
+router.get('/:id/locations', asyncHandler(agencyAdminService.handleGetAgencyLocations.bind(agencyAdminService)));
 
 // POST /api/agency-admins/locations - Create new location
-router.post('/locations', asyncHandler(agencyAdminService.handleCreateLocation.bind(agencyAdminService)));
-*/
+router.post('/:id/locations', asyncHandler(agencyAdminService.handleCreateLocation.bind(agencyAdminService)));
+
+
 export default router;
