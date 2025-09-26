@@ -47,19 +47,19 @@ const AdminLayout = ({ children }) => {
     },
   ];
 
-  if(user?.role === "agencyAdmin" || user?.userType === "agency") {
+  if (user?.role === "agencyAdmin" || user?.userType === "agency") {
     menuItems.push({
       label: "Tutor Management",
       icon: IconUser,
       path: "/agency/tutors",
     })
+    menuItems[0].path = "/agency/dashboard"; // Change dashboard path for agency users
   };
 
   const getUserInitials = () => {
     if (user?.firstName || user?.lastName) {
-      const initials = `${user.firstName?.[0] || ""}${
-        user.lastName?.[0] || ""
-      }`;
+      const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""
+        }`;
       return initials.toUpperCase() || "A";
     }
     return "A";
@@ -148,8 +148,17 @@ const AdminLayout = ({ children }) => {
               >
                 <IconMenu2 size={18} />
               </ActionIcon>
+              {/* Render Panel Title Based on User Role */}
               <Text size="lg" fw={600}>
-                Admin Panel
+                {(() => {
+                  if (user?.role === "admin") {
+                    return "Admin Panel";
+                  } else if (user?.role === "agencyAdmin") {
+                    return "Agency Admin Panel";
+                  } else {
+                    return "Agency Panel";
+                  }
+                })()}
               </Text>
             </Group>
 
@@ -164,8 +173,7 @@ const AdminLayout = ({ children }) => {
                     <Box style={{ flex: 1 }}>
                       <Text size="sm" fw={500}>
                         {user && (user.firstName || user.lastName)
-                          ? `${user.firstName || ""} ${
-                              user.lastName || ""
+                          ? `${user.firstName || ""} ${user.lastName || ""
                             }`.trim()
                           : "Admin"}
                       </Text>
