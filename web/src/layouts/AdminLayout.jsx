@@ -47,6 +47,14 @@ const AdminLayout = ({ children }) => {
     },
   ];
 
+  if(user?.role === "agencyAdmin" || user?.userType === "agency") {
+    menuItems.push({
+      label: "Tutor Management",
+      icon: IconUser,
+      path: "/agency/tutors",
+    })
+  };
+
   const getUserInitials = () => {
     if (user?.firstName || user?.lastName) {
       const initials = `${user.firstName?.[0] || ""}${

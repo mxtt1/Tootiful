@@ -14,6 +14,7 @@ import ProtectedRoute from "./components/protectedRoute";
 import LandingPage from "./pages/landingPage";
 import AboutUs from "./pages/aboutUs"; // ✅ import it
 import Register from "./pages/register";
+import TutorManagement from "./pages/TutorManagement";
 
 function AppRoutes() {
   return (
@@ -50,6 +51,7 @@ function AppRoutes() {
           <AdminLayout>
             <Routes>
               <Route path="dashboard" element={<AgencyDashboard />} />
+              <Route path="tutors" element={<TutorManagement />} />
               <Route index element={<Navigate to="dashboard" replace />} />
             </Routes>
           </AdminLayout>

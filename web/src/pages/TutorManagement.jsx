@@ -171,7 +171,7 @@ export default function TutorManagement() {
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         leftSection={<IconSearch size={16} />}
-                        style={{ maxWidth: 300 }}
+                        w={700}
                     />
                 </Group>
                 {loading ? (
