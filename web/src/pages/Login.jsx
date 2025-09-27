@@ -95,7 +95,7 @@ const Login = () => {
           color: "green",
         });
         // Redirect based on user type/role
-        if (result.user?.userType === "agency" || result.user?.userType === "agencyAdmin") {
+        if (result.user?.userType === "agency" || result.user?.role === "agencyAdmin") {
           navigate("/agency/dashboard");
         } else {
           navigate("/admin/dashboard");

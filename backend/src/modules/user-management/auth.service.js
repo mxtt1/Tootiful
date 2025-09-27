@@ -18,7 +18,7 @@ export default class AuthService {
   async getAgencyById(agencyId) {
     return await Agency.findByPk(agencyId);
   }
-  
+
 
   // Separate login handlers with HTTP cookies
   async handleLogin(req, res) {
@@ -32,7 +32,7 @@ export default class AuthService {
       throw new Error("Invalid email");
     }
 
-    if (admin && user.role !== 'admin' && user.role !== 'agencyAdmin') {
+    if (admin && !(user.role === 'admin')) {
       throw new Error("Admin access only");
     }
 
@@ -113,54 +113,54 @@ export default class AuthService {
 
   // agency admin login
   async handleAgencyAdminLogin(req, res) {
-  const { email, password } = req.body;
+    const { email, password } = req.body;
 
-  // Find user with agencyAdmin role only
-  const user = await User.findOne({ 
-    where: { 
-      email,
-      role: 'agencyAdmin' 
-    } 
-  });
+    // Find user with agencyAdmin role only
+    const user = await User.findOne({
+      where: {
+        email,
+       // role: 'agencyAdmin'
+      }
+    });
 
-  if (!user) {
-    throw new Error("Invalid email or not an agency admin account");
+    if (!user) {
+      throw new Error("Invalid email or not an agency admin account");
+    }
+
+    if (!user.isActive || user.isSuspended) {
+      throw new Error("Account is deactivated. Please contact support.");
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      throw new Error("Invalid password");
+    }
+
+    // Generate access token for agency admin
+    const accessToken = jwt.sign(
+      {
+        userId: user.id,
+        userType: 'agencyAdmin', // diff from 'agency' entity
+        role: user.role,
+        type: "access",
+      },
+      this.accessTokenSecret,
+      { expiresIn: "7d" }
+    );
+
+    res.status(200).json({
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        agencyId: user.agencyId,
+        userType: 'agencyAdmin'
+      },
+    });
   }
-
-  if (!user.isActive || user.isSuspended) {
-    throw new Error("Account is deactivated. Please contact support.");
-  }
-
-  const passwordMatch = await bcrypt.compare(password, user.password);
-  if (!passwordMatch) {
-    throw new Error("Invalid password");
-  }
-
-  // Generate access token for agency admin
-  const accessToken = jwt.sign(
-    {
-      userId: user.id,
-      userType: 'agencyAdmin', // diff from 'agency' entity
-      role: user.role,
-      type: "access",
-    },
-    this.accessTokenSecret,
-    { expiresIn: "7d" }
-  );
-
-  res.status(200).json({
-    accessToken,
-    user: {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      agencyId: user.agencyId,
-      userType: 'agencyAdmin' 
-    },
-  });
-}
 
   async handleRefreshToken(req, res) {
     const refreshToken = req.cookies?.refreshToken;

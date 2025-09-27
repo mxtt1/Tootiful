@@ -54,54 +54,60 @@ const AuthProvider = ({ children }) => {
 
       // Try agency login first
       try {
+        console.log('Trying agency login...');
         response = await apiClient.post("/auth/agency-login", {
           email,
           password,
         });
+        console.log('Agency login successful');
       } catch (agencyError) {
-          // If agency login fails, try agency admin login
+        console.log('Agency login failed, trying agency admin...');
+
+        // Try agency admin login SECOND
         try {
-        response = await apiClient.post("/auth/agency-admin-login", { 
-          email,
-          password,
-        });
-      } catch (agencyAdminError) {
-        // If agency admin login fails, try admin/user login
-        try {
-          response = await apiClient.post("/auth/login?admin=true", {
+          response = await apiClient.post("/auth/agency-admin-login", {
             email,
             password,
           });
-        } catch (userError) {
-          // If both fail, throw the original agency error
-          throw agencyError;
+          console.log('Agency admin login successful');
+        } catch (agencyAdminError) {
+          // lastError = agencyAdminError;
+
+          // If this is a password error, don't try other endpoints
+          if (agencyAdminError.message?.toLowerCase().includes('password')) {
+            throw agencyAdminError; // Stop here - user found but wrong password
+          }
+
+          // Try regular admin/user login LAST
+          try {
+            response = await apiClient.post("/auth/login?admin=true", {
+              email,
+              password,
+            });
+            console.log('Regular admin login successful');
+          } catch (userError) {
+            console.log('All login attempts failed');
+            throw agencyError; // or throw the most relevant error
+          }
         }
       }
-    }
 
+      // Rest of your existing code...
       const { accessToken, refreshToken, user: userData } = response;
 
-      // userData already has the correct userType from backend
-      // No need to add it again
-
-      // Store tokens
       localStorage.setItem("accessToken", accessToken);
       if (rememberMe && refreshToken) {
         localStorage.setItem("refreshToken", refreshToken);
       }
-
-      // Store user data
       localStorage.setItem("user", JSON.stringify(userData));
 
-      // Update state
       setUser(userData);
       setIsAuthenticated(true);
 
       return { success: true, user: userData };
     } catch (error) {
       console.error("Login failed:", error);
-      let message =
-        error.response?.data?.message || error.message || "Unknown error";
+      let message = error.response?.data?.message || error.message || "Unknown error";
       if (message === "Failed to fetch" || !message) {
         message = "Network error. Please try again.";
       }
@@ -172,8 +178,7 @@ const AuthProvider = ({ children }) => {
     checkAuthStatus,
     isAgency: user?.userType === 'agency',
     isUser: user?.userType === 'user',
-    isAdmin: user?.role === 'admin',
-    isAgencyAdmin: user?.userType === 'agencyAdmin'
+    isAdmin: user?.role === 'admin'
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
