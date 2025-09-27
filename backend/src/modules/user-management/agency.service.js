@@ -57,10 +57,9 @@ class AgencyService {
             const user = req.user;
 
             // authorization
-            const isAgencyEntity = user.userType === 'agency' && user.id === parseInt(id);
-            const isAuthorized = isAgencyEntity || ['admin', 'agencyAdmin'].includes(user.role);
+            const isAgencyEntity = user.userType === 'agency';
 
-            if (!isAuthorized) {
+            if (!isAgencyEntity) {
                 return res.status(403).json({ message: 'Access denied to agency admins' });
             }
 
@@ -73,7 +72,7 @@ class AgencyService {
 
             // Only return agencyAdmin-relevant fields
             const data = result.rows.map(user => {
-                const { password, role, hourlyRate, aboutMe, education, dateOfBirth, gender, gradeLevel, image, phone, ...agencyAdmin } = user.toJSON();
+                const { password, hourlyRate, aboutMe, education, dateOfBirth, gender, gradeLevel, image, phone, ...agencyAdmin } = user.toJSON();
                 return agencyAdmin;
             });
             // Only include pagination if page and limit are present
@@ -103,10 +102,9 @@ class AgencyService {
             const user = req.user;
 
             // authorization
-            const isAgencyEntity = user.userType === 'agency' && user.id === parseInt(id);
-            const isAuthorized = isAgencyEntity || ['admin', 'agencyAdmin'].includes(user.role);
+            const isAgencyEntity = user.userType === 'agency';
 
-            if (!isAuthorized) {
+            if (!isAgencyEntity) {
                 return res.status(403).json({ message: 'Access denied to create agency admin' });
             }
 
@@ -121,15 +119,28 @@ class AgencyService {
         }
     }
 
-    /*
     async handleDeleteAgencyAdmin(req, res) {
-        const { id } = req.params;
-        await this.deleteAgencyAdmin(id);
+        try {
+            const { id, adminId } = req.params; 
+            console.log(`DELETE request - agencyId: ${id}, adminId: ${adminId}`);
+            const user = req.user;
+            console.log(`User making request:`, user);
 
-        res.sendStatus(200);
+            // Authorization check
+            const isAgencyEntity = user.userType === 'agency';
+
+            if (!isAgencyEntity) {
+                return res.status(403).json({ message: 'Access denied to delete agency admin' });
+            }
+
+            await this.deleteAgencyAdmin(adminId, id); 
+            res.status(200).json({ message: 'Agency admin deleted successfully' });
+        } catch (error) {
+            console.error('Delete agency admin error:', error);
+            res.status(400).json({ error: error.message });
+        }
     }
 
-    */
 
     // Add similar try-catch blocks to other handler methods...
     async handleGetAgencyById(req, res) {
@@ -352,8 +363,15 @@ class AgencyService {
         return await User.create({ ...agencyAdminData, role: 'agencyAdmin' });
     }
     
-    async deleteAgencyAdmin(id) {
-        const agencyAdmin = await User.findOne({ where: { id, role: 'agencyAdmin' } });
+    async deleteAgencyAdmin(adminId, agencyId) {
+        console.log(`Deleting agency admin: adminId=${adminId}, agencyId=${agencyId}`)
+        const agencyAdmin = await User.findOne({ 
+            where: { 
+                id: adminId, 
+                role: 'agencyAdmin',
+                agencyId: agencyId
+            } 
+        });
         if (!agencyAdmin) {
             throw new Error('Agency Admin not found');
         }

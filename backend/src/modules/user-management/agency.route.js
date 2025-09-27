@@ -48,12 +48,11 @@ router.post('/:id/admins', authenticateToken, asyncHandler(async (req, res) => {
     await agencyService.handleCreateAgencyAdmin(req, res);
 }));
 
-/*
+
 // DELETE /api/agencies/:id/admins/:adminId - Delete agencyAdmin
 router.delete('/:id/admins/:adminId', authenticateToken, asyncHandler(async (req, res) => {
     await agencyService.handleDeleteAgencyAdmin(req, res);
 }));
-*/
 
 // Location Management
 // GET /api/agencies/:id/locations - Get all locations for an agency

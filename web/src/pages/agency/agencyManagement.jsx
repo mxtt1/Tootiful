@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../../api/apiClient";
+import { useAuth } from "../../auth/AuthProvider";
 
 import {
   Table,
@@ -23,16 +24,20 @@ import { IconTrash, IconSearch, IconPlus } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 
 export default function AgencyManagement() {
+  const { user } = useAuth();
+  let agencyId = null;
+  if (user?.agencyId) {
+    agencyId = user.agencyId;
+  } else if (user?.userType === 'agency') {
+    agencyId = user.id;
+  }
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [error, setError] = useState(null);
   const [totalPages, setTotalPages] = useState(1);
-
-  // Search only
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Delete confirmation modal
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -51,17 +56,14 @@ export default function AgencyManagement() {
   });
   const [createErrors, setCreateErrors] = useState({});
 
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
   // Fetch agency admins
   useEffect(() => {
     const fetchAgencyAdmins = async () => {
+      if (!agencyId) {
+        console.log("No agencyId available");
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
@@ -69,10 +71,12 @@ export default function AgencyManagement() {
         const params = {
           limit: limit.toString(),
           offset: offset.toString(),
-          ...(debouncedSearch && { search: debouncedSearch })
         };
 
-        const response = await apiClient.get(`/agencies/?${new URLSearchParams(params).toString()}/admins`);
+        const response = await apiClient.get(
+        `/agencies/${agencyId}/admins?${new URLSearchParams(params).toString()}`
+      );
+      
         const agencyAdmins = response.rows || response.data || response || [];
         const totalCount = response.totalCount || response.data?.totalCount || agencyAdmins.length;
 
@@ -82,7 +86,7 @@ export default function AgencyManagement() {
           isActive: !!user.isActive,
           isSuspended: !!user.isSuspended,
           status: user.isSuspended ? "Suspended" : (user.isActive ? "Active" : "Inactive"),
-          role: "Agency Admin",
+          role: user.role,
           joinedDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "",
         }));
 
@@ -96,7 +100,7 @@ export default function AgencyManagement() {
       }
     };
     fetchAgencyAdmins();
-  }, [page, limit, debouncedSearch]);
+  }, [agencyId, page, limit]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -140,6 +144,14 @@ export default function AgencyManagement() {
 
   // Create agency admin
   const handleCreateAgencyAdmin = async () => {
+    if (!agencyId) {
+      notifications.show({
+        title: "Error",
+        message: "No agency selected",
+        color: "red",
+      });
+      return;
+    }
     const errors = validateCreateForm();
     if (Object.keys(errors).length > 0) {
       setCreateErrors(errors);
@@ -153,15 +165,17 @@ export default function AgencyManagement() {
         lastName: createForm.lastName.trim(),
         email: createForm.email.trim(),
         password: createForm.password,
-        role: "agencyAdmin",
+        // role will be set to 'agencyAdmin' automatically by  service
       };
 
-      const response = await apiClient.post("/agencies", userData);
+      const response = await apiClient.post(`/agencies/${agencyId}/admins`, userData);
 
       // Add new user to the list
       const newUser = {
         id: response.id,
         email: createForm.email,
+        firstName: createForm.firstName,
+        lastName: createForm.lastName,
         isActive: true,
         isSuspended: false,
         status: "Active",
@@ -212,11 +226,12 @@ export default function AgencyManagement() {
   };
 
   const confirmDeleteUser = async () => {
-    if (!userToDelete) return;
+    if (!userToDelete || !agencyId) return;
 
     setDeleting(true);
     try {
-      await apiClient.delete(`/agency-admins/${userToDelete.id}`);
+      console.log(`Deleting user - User ID: ${userToDelete.id}, Agency ID: ${agencyId}, User Email: ${userToDelete.email}`);
+      await apiClient.delete(`/agencies/${agencyId}/admins/${userToDelete.id}`);
 
       setRows(prevRows => prevRows.filter(user => user.id !== userToDelete.id));
       setDeleteModalOpen(false);
@@ -229,9 +244,17 @@ export default function AgencyManagement() {
       });
     } catch (err) {
       console.error("Delete error:", err);
+      console.error("Error response:", err.response);
+
+      let errorMessage = "Failed to delete agency admin";
+      if (err.message?.includes('404') || err.message?.includes('not found')) {
+          errorMessage = "Agency admin not found";
+      } else if (err.message) {
+          errorMessage = err.message;
+      }
       notifications.show({
         title: "Error",
-        message: err.message || "Failed to delete agency admin",
+        message: errorMessage || "Failed to delete agency admin",
         color: "red",
       });
     } finally {
@@ -252,7 +275,7 @@ export default function AgencyManagement() {
   return (
     <Container size="xl" py="xl">
       <Stack spacing="lg">
-        <Group position="apart">
+        <Group justify="space-between" align="center" w="100%">
           <Title order={2}>Agency Management</Title>
           <Button 
             leftSection={<IconPlus size={16} />} 
@@ -261,18 +284,6 @@ export default function AgencyManagement() {
             Create Agency Admin
           </Button>
         </Group>
-
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
-          <Group spacing="md" mb="md">
-            <TextInput
-              placeholder="Search agency admins by name or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              leftSection={<IconSearch size={16} />}
-              style={{ flexGrow: 1, minWidth: 300 }}
-            />
-          </Group>
-        </Card>
 
         {error && (
           <Alert color="red" title="Error">
