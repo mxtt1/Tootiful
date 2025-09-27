@@ -71,7 +71,7 @@ export default function AgencyProfile() {
         }
     };
 
-    // Fetch locations of that agency
+// Fetch locations of that agency
     const fetchAgencyInfo = async () => {
         try {
             if (user.agencyId) {
@@ -112,9 +112,7 @@ export default function AgencyProfile() {
     };
 
     useEffect(() => {
-        if (user?.userType === 'agency') {
             fetchAllData();
-        }
     }, [user]);
 
     // Personal Details Handlers
@@ -144,7 +142,7 @@ export default function AgencyProfile() {
                 firstName: response.firstName,
                 lastName: response.lastName,
                 email: response.email,
-                phone: response.phone
+                phone: response.phone || null
             }));
             setPersonalEditMode(false);
             

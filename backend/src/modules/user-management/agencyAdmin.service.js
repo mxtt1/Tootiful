@@ -12,10 +12,6 @@ class AgencyAdminService {
 
         const agencyAdmin = await this.getAgencyAdminById(id);
 
-        if (user.role === 'superAgencyAdmin' && agencyAdmin.agencyId !== user.agencyId) {
-            return res.status(403).json({ message: 'Access denied to agency admin from different agency' });
-        }
-
         const { password, role, hourlyRate, aboutMe, education, dateOfBirth, gender, gradeLevel, image, phone, ...agencyAdminResponse } = agencyAdmin.toJSON();
         res.status(200).json(agencyAdminResponse);
     }

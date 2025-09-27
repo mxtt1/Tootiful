@@ -26,17 +26,6 @@ import { notifications } from "@mantine/notifications";
 export default function AgencyManagement() {
   const { user } = useAuth();
 
-  console.log("=== useAuth() user data ===");
-  console.log("Full user object:", user);
-  console.log("User type:", user?.userType);
-  console.log("User ID:", user?.id);
-  console.log("Agency ID:", user?.agencyId);
-  console.log("All user properties:", user ? Object.keys(user) : "No user object");
-  console.log("========================");
-  const agencyId = user?.userType === 'agency' ? user.id : user?.agencyId || null;
-  console.log("Final agencyId:", agencyId);
-
-
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -64,7 +53,7 @@ export default function AgencyManagement() {
   // Fetch agency admins
   useEffect(() => {
     const fetchAgencyAdmins = async () => {
-      if (!agencyId) {
+      if (!user || !user.id) {
         console.log("No agencyId available");
         return;
       }
@@ -79,7 +68,7 @@ export default function AgencyManagement() {
         };
 
         const response = await apiClient.get(
-        `/agencies/${agencyId}/admins?${new URLSearchParams(params).toString()}`
+        `/agencies/${user.id}/admins?${new URLSearchParams(params).toString()}`
       );
       
         const agencyAdmins = response.rows || response.data || response || [];
@@ -105,7 +94,7 @@ export default function AgencyManagement() {
       }
     };
     fetchAgencyAdmins();
-  }, [agencyId, page, limit]);
+  }, [user, page, limit]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -149,7 +138,7 @@ export default function AgencyManagement() {
 
   // Create agency admin
   const handleCreateAgencyAdmin = async () => {
-    if (!agencyId) {
+    if (!user.id) {
       notifications.show({
         title: "Error",
         message: "No agency selected",
@@ -173,7 +162,7 @@ export default function AgencyManagement() {
         // role will be set to 'agencyAdmin' automatically by  service
       };
 
-      const response = await apiClient.post(`/agencies/${agencyId}/admins`, userData);
+      const response = await apiClient.post(`/agencies/${user.id}/admins`, userData);
 
       // Add new user to the list
       const newUser = {
@@ -231,12 +220,12 @@ export default function AgencyManagement() {
   };
 
   const confirmDeleteUser = async () => {
-    if (!userToDelete || !agencyId) return;
+    if (!userToDelete || !user.id) return;
 
     setDeleting(true);
     try {
-      console.log(`Deleting user - User ID: ${userToDelete.id}, Agency ID: ${agencyId}, User Email: ${userToDelete.email}`);
-      await apiClient.delete(`/agencies/${agencyId}/admins/${userToDelete.id}`);
+      console.log(`Deleting user - User ID: ${userToDelete.id}, Agency ID: ${user.id}, User Email: ${userToDelete.email}`);
+      await apiClient.delete(`/agencies/${user.id}/admins/${userToDelete.id}`);
 
       setRows(prevRows => prevRows.filter(user => user.id !== userToDelete.id));
       setDeleteModalOpen(false);

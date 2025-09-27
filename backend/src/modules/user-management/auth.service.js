@@ -119,7 +119,7 @@ export default class AuthService {
     const user = await User.findOne({
       where: {
         email,
-       // role: 'agencyAdmin'
+        role: 'agencyAdmin'
       }
     });
 
