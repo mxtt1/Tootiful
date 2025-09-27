@@ -31,7 +31,7 @@ export default class AuthService {
       throw new Error("Invalid email");
     }
 
-    if (admin && user.role !== 'admin') {
+    if (admin && user.role !== 'admin' && user.role !== 'agencyAdmin') {
       throw new Error("Admin access only");
     }
 
