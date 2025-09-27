@@ -33,13 +33,9 @@ export default function AgencyManagement() {
   console.log("Agency ID:", user?.agencyId);
   console.log("All user properties:", user ? Object.keys(user) : "No user object");
   console.log("========================");
-  
-  let agencyId = null;
-  if (user?.agencyId) {
-    agencyId = user.agencyId;
-  } else if (user?.userType === 'agency') {
-    agencyId = user.id;
-  }
+  const agencyId = user?.userType === 'agency' ? user.id : user?.agencyId || null;
+  console.log("Final agencyId:", agencyId);
+
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
