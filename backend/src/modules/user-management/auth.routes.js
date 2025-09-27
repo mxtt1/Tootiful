@@ -16,6 +16,7 @@ router.post("/login", asyncHandler(authService.handleLogin.bind(authService)));
 router.post('/agency-login', asyncHandler(async (req, res) => {
   await authService.handleAgencyLogin(req, res);
 }));
+router.post('/agency-admin-login', asyncHandler(authService.handleAgencyAdminLogin.bind(authService)));
 
 // Refresh access token endpoint (gets token from cookie)
 router.post(

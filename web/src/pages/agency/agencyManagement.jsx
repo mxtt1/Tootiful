@@ -72,13 +72,12 @@ export default function AgencyManagement() {
           ...(debouncedSearch && { search: debouncedSearch })
         };
 
-        const response = await apiClient.get(`/agency-admins?${new URLSearchParams(params).toString()}`);
+        const response = await apiClient.get(`/agencies/?${new URLSearchParams(params).toString()}/admins`);
         const agencyAdmins = response.rows || response.data || response || [];
         const totalCount = response.totalCount || response.data?.totalCount || agencyAdmins.length;
 
         const mappedUsers = agencyAdmins.map((user) => ({
           id: user.id,
-          fullName: [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username,
           email: user.email,
           isActive: !!user.isActive,
           isSuspended: !!user.isSuspended,
@@ -157,12 +156,11 @@ export default function AgencyManagement() {
         role: "agencyAdmin",
       };
 
-      const response = await apiClient.post("/agency-admins", userData);
+      const response = await apiClient.post("/agencies", userData);
 
       // Add new user to the list
       const newUser = {
         id: response.id,
-        fullName: `${createForm.firstName} ${createForm.lastName}`.trim(),
         email: createForm.email,
         isActive: true,
         isSuspended: false,
@@ -295,7 +293,6 @@ export default function AgencyManagement() {
             <Table striped highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>Full Name</Table.Th>
                   <Table.Th>Email</Table.Th>
                   <Table.Th>Status</Table.Th>
                   <Table.Th>Role</Table.Th>
@@ -306,7 +303,6 @@ export default function AgencyManagement() {
               <Table.Tbody>
                 {rows.map((user) => (
                   <Table.Tr key={user.id}>
-                    <Table.Td>{user.fullName}</Table.Td>
                     <Table.Td>{user.email}</Table.Td>
                     <Table.Td>
                       <Badge color={getStatusColor(user.status)} variant="filled">
@@ -447,7 +443,7 @@ export default function AgencyManagement() {
       >
         <Stack spacing="md">
           <Text>
-            Are you sure you want to delete <strong>{userToDelete?.fullName}</strong>?
+            Are you sure you want to delete <strong>{userToDelete?.email}</strong>?
           </Text>
           <Text size="sm" color="dimmed">
             This action cannot be undone. The agency admin will be permanently removed from the system.

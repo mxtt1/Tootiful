@@ -52,7 +52,8 @@ const AdminLayout = ({ children }) => {
     ];
   }
 
-  if (user?.role === "agencyAdmin" || user?.userType === "agency") {
+  // agency users (agency entity + agencyAdmin)
+  if (user?.userType === "agencyAdmin" || user?.userType === "agency") {
     const agencyItems = [
       {
         label: "Dashboard",
@@ -64,15 +65,19 @@ const AdminLayout = ({ children }) => {
         icon: IconUser,
         path: "/agency/tutors",
       },
-      {
+    ];
+    
+  // Profile only for agencyAdmin
+  if (user?.userType === "agencyAdmin") {
+      agencyItems.push({
         label: "Profile",
         icon: IconSettings,
         path: "/agency/profile",
-      },
-    ];
+      });
+    }
 
-  // Agency Management only for superAgencyAdmin
-  if (user?.role === "superAgencyAdmin") {
+  // Agency Management only for agency entity
+  if (user?.userType === "agency") {
       agencyItems.push({
         label: "Agency Management",
         icon: IconBuilding,
@@ -105,9 +110,9 @@ const AdminLayout = ({ children }) => {
   const getPanelTitle = () => {
     if (user?.role === "admin") {
       return "Admin Panel";
-    } else if (user?.role === "agencyAdmin") {
+    } else if (user?.userType === "agencyAdmin") {
       return "Agency Admin Panel";
-    } else if (user?.role === "superAgencyAdmin") {
+    } else if (user?.userType === "agency") {
       return "Super Agency Admin Panel";
     } else {
       return "Agency Panel";
@@ -117,10 +122,10 @@ const AdminLayout = ({ children }) => {
   const getUserRoleDisplay = () => {
     if (user?.role === "admin") {
       return "Administrator";
-    } else if (user?.role === "superAgencyAdmin") {
-      return "Super Agency Admin";
-    } else if (user?.role === "agencyAdmin") {
-      return "Agency Admin";
+    } else if (user?.userType === "agency") {
+      return "Agency";
+    } else if (user?.userType === "agencyAdmin") {
+      return "Agency Administrator";
     } else {
       return user?.email || "User";
     }

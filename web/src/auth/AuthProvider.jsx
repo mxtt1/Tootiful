@@ -59,7 +59,14 @@ const AuthProvider = ({ children }) => {
           password,
         });
       } catch (agencyError) {
-        // If agency login fails, try admin/user login
+          // If agency login fails, try agency admin login
+        try {
+        response = await apiClient.post("/auth/agency-admin-login", { 
+          email,
+          password,
+        });
+      } catch (agencyAdminError) {
+        // If agency admin login fails, try admin/user login
         try {
           response = await apiClient.post("/auth/login?admin=true", {
             email,
@@ -70,6 +77,7 @@ const AuthProvider = ({ children }) => {
           throw agencyError;
         }
       }
+    }
 
       const { accessToken, refreshToken, user: userData } = response;
 
@@ -164,7 +172,8 @@ const AuthProvider = ({ children }) => {
     checkAuthStatus,
     isAgency: user?.userType === 'agency',
     isUser: user?.userType === 'user',
-    isAdmin: user?.role === 'admin'
+    isAdmin: user?.role === 'admin',
+    isAgencyAdmin: user?.userType === 'agencyAdmin'
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

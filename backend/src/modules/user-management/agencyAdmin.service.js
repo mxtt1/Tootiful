@@ -1,44 +1,10 @@
-import { Agency, User } from '../../models/index.js';
+import { User } from '../../models/index.js';
 import { Op } from 'sequelize';
 import bcrypt from 'bcrypt';
 
 class AgencyAdminService {
     // Route handler methods with complete HTTP response logic
-    async handleGetAllAgencyAdmins(req, res) {
-        const { page, limit } = req.query;
-        const user = req.user;
-
-        if (!user.agencyId) {
-            return res.status(403).json({ message: 'Super admin must be associated with an agency' });
-        }
-
-        const where = { 
-            role: 'agencyAdmin',
-            agencyId: user.agencyId  // filter by super admin's agency
-        };
-
-        const result = await this.getAgencyAdmins({ page, limit, where });
-
-        // Only return agencyAdmin-relevant fields
-        const data = result.rows.map(user => {
-            const { password, role, hourlyRate, aboutMe, education, dateOfBirth, gender, gradeLevel, image, phone, ...agencyAdmin } = user.toJSON();
-            return agencyAdmin;
-        });
-        // Only include pagination if page and limit are present
-        let pagination = undefined;
-        if (page && limit) {
-            pagination = {
-                total: result.count,
-                page: parseInt(page),
-                limit: parseInt(limit),
-                totalPages: Math.ceil(result.count / limit)
-            };
-        }
-        res.status(200).json({
-            data,
-            ...(pagination ? { pagination } : {})
-        });
-    }
+    
 
     async handleGetAgencyAdminById(req, res) {
         const { id } = req.params;
@@ -52,18 +18,6 @@ class AgencyAdminService {
 
         const { password, role, hourlyRate, aboutMe, education, dateOfBirth, gender, gradeLevel, image, phone, ...agencyAdminResponse } = agencyAdmin.toJSON();
         res.status(200).json(agencyAdminResponse);
-    }
-
-    async handleCreateAgencyAdmin(req, res) {
-        const agencyAdminData = req.body;
-        const user = req.user;
-
-        // set agencyId to superAgencyAdmin's agency
-        agencyAdminData.agencyId = user.agencyId;
-
-        const newAgencyAdmin = await this.createAgencyAdmin(agencyAdminData);
-        const { password, role, hourlyRate, aboutMe, education, dateOfBirth, gender, gradeLevel, image, phone, ...agencyAdminResponse } = newAgencyAdmin.toJSON();
-        res.status(201).json(agencyAdminResponse);
     }
 
     async handleUpdateAgencyAdmin(req, res) {
@@ -89,43 +43,7 @@ class AgencyAdminService {
         res.sendStatus(200);
     }
 
-    async handleDeleteAgencyAdmin(req, res) {
-        const { id } = req.params;
-        await this.deleteAgencyAdmin(id);
-
-        res.sendStatus(200);
-    }
-
     // Business logic methods
-    async createAgencyAdmin(agencyAdminData) {
-        // Check if email already exists
-        const existingUser = await User.findOne({ where: { email: agencyAdminData.email } });
-        if (existingUser) {
-            throw new Error('User with this email already exists');
-        }
-        return await User.create({ ...agencyAdminData, role: 'agencyAdmin' });
-    }
-
-    async getAgencyAdmins(options = {}) {
-        const { page, limit, where = {} } = options;
-
-        const finalWhere = {
-        role: 'agencyAdmin', // base filter
-        ...where  // includes agencyId from handleGetAllAgencyAdmins
-    };
-
-        const queryOptions = {
-            attributes: { exclude: ['password'] },
-            where: finalWhere,
-            order: [['createdAt', 'DESC']]
-        };
-        if (page && limit) {
-            queryOptions.limit = parseInt(limit);
-            queryOptions.offset = (parseInt(page) - 1) * parseInt(limit);
-        }
-        return await User.findAndCountAll(queryOptions);
-    }
-
     async getAgencyAdminById(id) {
         const agencyAdmin = await User.findOne({ where: { id, role: 'agencyAdmin' } });
         if (!agencyAdmin) {
@@ -145,11 +63,6 @@ class AgencyAdminService {
         return await agencyAdmin.update(updateData);
     }
 
-
-    async deleteAgencyAdmin(id) {
-        const agencyAdmin = await this.getAgencyAdminById(id);
-        await agencyAdmin.destroy();
-    }
 
     async changePassword(agencyAdminId, currentPassword, newPassword) {
         const agencyAdmin = await this.getAgencyAdminById(agencyAdminId);
