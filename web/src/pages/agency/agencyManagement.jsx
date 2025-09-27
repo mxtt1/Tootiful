@@ -25,6 +25,15 @@ import { notifications } from "@mantine/notifications";
 
 export default function AgencyManagement() {
   const { user } = useAuth();
+
+  console.log("=== useAuth() user data ===");
+  console.log("Full user object:", user);
+  console.log("User type:", user?.userType);
+  console.log("User ID:", user?.id);
+  console.log("Agency ID:", user?.agencyId);
+  console.log("All user properties:", user ? Object.keys(user) : "No user object");
+  console.log("========================");
+  
   let agencyId = null;
   if (user?.agencyId) {
     agencyId = user.agencyId;
