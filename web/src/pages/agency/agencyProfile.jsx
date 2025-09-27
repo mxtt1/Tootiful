@@ -13,8 +13,7 @@ import {
     Badge,
     ActionIcon,
     Box,
-    Flex,
-    Textarea
+    Flex
 } from "@mantine/core";
 import { IconEdit, IconCheck, IconX, IconMapPin, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useAuth } from "../../auth/AuthProvider";
@@ -31,7 +30,7 @@ export default function AgencyProfile() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
 
-    // State for personal details
+    // State for personal details with initial data tracking
     const [personalDetails, setPersonalDetails] = useState({
         firstName: "",
         lastName: "",
@@ -39,8 +38,9 @@ export default function AgencyProfile() {
         phone: "",
         role: ""
     });
+    const [initialPersonalData, setInitialPersonalData] = useState({});
 
-    // State for agency info
+    // State for agency info with initial data tracking
     const [agencyInfo, setAgencyInfo] = useState({
         name: "",
         email: "",
@@ -48,6 +48,7 @@ export default function AgencyProfile() {
         isActive: true,
         locations: []
     });
+    const [initialAgencyData, setInitialAgencyData] = useState({});
 
     // State for new location
     const [newLocation, setNewLocation] = useState({
@@ -58,20 +59,23 @@ export default function AgencyProfile() {
     const fetchPersonalDetails = async () => {
         try {
             const response = await apiClient.get(`/agency-admins/${user.id}`);
-            setPersonalDetails({
+            const personalData = {
                 firstName: response.firstName || "",
                 lastName: response.lastName || "",
                 email: response.email || "",
                 phone: response.phone || "",
                 role: response.role || ""
-            });
+            };
+            
+            setPersonalDetails(personalData);
+            setInitialPersonalData(personalData); // Store initial data for comparison
         } catch (err) {
             setError("Failed to load personal details");
             console.error("Personal details fetch error:", err);
         }
     };
 
-// Fetch locations of that agency
+    // Fetch locations of that agency
     const fetchAgencyInfo = async () => {
         try {
             if (user.agencyId) {
@@ -81,13 +85,16 @@ export default function AgencyProfile() {
                 // Fetch locations of that agency
                 const locationsResponse = await apiClient.get(`/agencies/${user.agencyId}/locations`);
 
-                setAgencyInfo({
+                const agencyData = {
                     name: agencyResponse.name || "",
                     email: agencyResponse.email || "",
                     phone: agencyResponse.phone || "",
                     isActive: agencyResponse.isActive || true,
                     locations: locationsResponse || []
-                });
+                };
+                
+                setAgencyInfo(agencyData);
+                setInitialAgencyData(agencyData); // Store initial data for comparison
             }
         } catch (err) {
             setError("Failed to load agency information");
@@ -112,21 +119,48 @@ export default function AgencyProfile() {
     };
 
     useEffect(() => {
+        if (user) {
             fetchAllData();
+        }
     }, [user]);
 
-    // Personal Details Handlers
+    // OPTIMIZED: Personal Details Handler - Only send changed fields
     const handlePersonalSave = async () => {
         setSaving(true);
         setError("");
 
         try {
-            const updateData = {
-                firstName: personalDetails.firstName.trim(),
-                lastName: personalDetails.lastName.trim(),
-                email: personalDetails.email.trim(),
-                phone: personalDetails.phone.trim()
-            };
+            // Create update object with only changed fields
+            const updateData = {};
+            Object.keys(personalDetails).forEach((key) => {
+                if (personalDetails[key] !== initialPersonalData[key]) {
+                    // Only include phone if it has a value (to avoid validation errors)
+                    if (key === 'phone') {
+                        if (personalDetails[key].trim()) {
+                            updateData[key] = personalDetails[key].trim();
+                        } else {
+                            updateData[key] = null; // Send null for empty phone
+                        }
+                    } else {
+                        updateData[key] = personalDetails[key].trim();
+                    }
+                }
+            });
+
+            // Check if there are any changes
+            if (Object.keys(updateData).length === 0) {
+                notifications.show({
+                    title: "No Changes",
+                    message: "No changes detected to save",
+                    color: "blue",
+                    icon: <IconCheck size={16} />
+                });
+                setPersonalEditMode(false);
+                setSaving(false);
+                return;
+            }
+
+            console.log("🔧 Sending personal update data:", updateData);
 
             const response = await apiClient.patch(`/agency-admins/${user.id}`, updateData);
             
@@ -137,17 +171,22 @@ export default function AgencyProfile() {
                 icon: <IconCheck size={16} />
             });
 
-            setPersonalDetails(prev => ({
-                ...prev,
-                firstName: response.firstName,
-                lastName: response.lastName,
-                email: response.email,
-                phone: response.phone || null
-            }));
+            // Update both current and initial data
+            const updatedPersonalData = {
+                ...personalDetails,
+                firstName: response.firstName || personalDetails.firstName,
+                lastName: response.lastName || personalDetails.lastName,
+                email: response.email || personalDetails.email,
+                phone: response.phone || personalDetails.phone
+            };
+            
+            setPersonalDetails(updatedPersonalData);
+            setInitialPersonalData(updatedPersonalData); // Update initial data
             setPersonalEditMode(false);
             
         } catch (err) {
-            const errorMessage = err.response?.data?.error || "Failed to update personal details";
+            console.error("❌ Personal update error:", err);
+            const errorMessage = err.data?.error || err.message || "Failed to update personal details";
             setError(errorMessage);
             notifications.show({
                 title: "Error",
@@ -161,22 +200,50 @@ export default function AgencyProfile() {
     };
 
     const handlePersonalCancel = () => {
-        fetchPersonalDetails();
+        // Reset to initial data
+        setPersonalDetails(initialPersonalData);
         setPersonalEditMode(false);
         setError("");
     };
 
-    // Agency Info Handlers
+    // OPTIMIZED: Agency Info Handler - Only send changed fields
     const handleAgencySave = async () => {
         setSaving(true);
         setError("");
 
         try {
-            const updateData = {
-                name: agencyInfo.name.trim(),
-                email: agencyInfo.email.trim(),
-                phone: agencyInfo.phone.trim()
-            };
+            // Create update object with only changed fields
+            const updateData = {};
+            Object.keys(agencyInfo).forEach((key) => {
+                // Only include editable fields (exclude locations and isActive)
+                if (['name', 'email', 'phone'].includes(key) && agencyInfo[key] !== initialAgencyData[key]) {
+                    // Only include phone if it has a value
+                    if (key === 'phone') {
+                        if (agencyInfo[key].trim()) {
+                            updateData[key] = agencyInfo[key].trim();
+                        } else {
+                            updateData[key] = null; // Send null for empty phone
+                        }
+                    } else {
+                        updateData[key] = agencyInfo[key].trim();
+                    }
+                }
+            });
+
+            // Check if there are any changes
+            if (Object.keys(updateData).length === 0) {
+                notifications.show({
+                    title: "No Changes",
+                    message: "No changes detected to save",
+                    color: "blue",
+                    icon: <IconCheck size={16} />
+                });
+                setAgencyEditMode(false);
+                setSaving(false);
+                return;
+            }
+
+            console.log("🏢 Sending agency update data:", updateData);
 
             const response = await apiClient.patch(`/agencies/${user.agencyId}`, updateData);
             
@@ -187,16 +254,21 @@ export default function AgencyProfile() {
                 icon: <IconCheck size={16} />
             });
 
-            setAgencyInfo(prev => ({
-                ...prev,
-                name: response.name,
-                email: response.email,
-                phone: response.phone
-            }));
+            // Update both current and initial data
+            const updatedAgencyData = {
+                ...agencyInfo,
+                name: response.name || agencyInfo.name,
+                email: response.email || agencyInfo.email,
+                phone: response.phone || agencyInfo.phone
+            };
+            
+            setAgencyInfo(updatedAgencyData);
+            setInitialAgencyData(updatedAgencyData); // Update initial data
             setAgencyEditMode(false);
             
         } catch (err) {
-            const errorMessage = err.response?.data?.error || "Failed to update agency information";
+            console.error("❌ Agency update error:", err);
+            const errorMessage = err.data?.error || err.message || "Failed to update agency information";
             setError(errorMessage);
             notifications.show({
                 title: "Error",
@@ -210,12 +282,13 @@ export default function AgencyProfile() {
     };
 
     const handleAgencyCancel = () => {
-        fetchAgencyInfo();
+        // Reset to initial data
+        setAgencyInfo(initialAgencyData);
         setAgencyEditMode(false);
         setError("");
     };
 
-    // Location Handlers
+    // Location Handlers (unchanged)
     const handleAddLocation = async () => {
         if (!newLocation.address.trim()) {
             notifications.show({
