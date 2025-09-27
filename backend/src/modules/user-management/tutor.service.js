@@ -12,7 +12,8 @@ export default class TutorService {
             active,
             minRate,
             maxRate,
-            subject
+            subject,
+            agencyId
         } = req.query;
 
         // Handle multivalued parameters - convert to arrays if needed
@@ -24,7 +25,8 @@ export default class TutorService {
             active, 
             minRate, 
             maxRate, 
-            subjects
+            subjects,
+            agencyId
         });
 
         // Only include pagination if page and limit are present
@@ -128,7 +130,8 @@ export default class TutorService {
             active,
             minRate,
             maxRate,
-            subjects = []
+            subjects = [],
+            agencyId   
         } = options;
         const where = { role: 'tutor' }; //get users with role 'tutor'
 
@@ -140,6 +143,11 @@ export default class TutorService {
             }
         ];
 
+        // filter by agencyId
+        if (agencyId !== undefined) {
+          where.agencyId = agencyId;
+        }
+
         // filter by active status
         if (active !== undefined) {
             where.isActive = active === 'true' || active === true;
@@ -149,7 +157,7 @@ export default class TutorService {
         if (minRate !== undefined || maxRate !== undefined) {
             include[0].through = {
                 where: {}
-            };
+            };  
 
             // both min and max rate provided
             if (minRate !== undefined && maxRate !== undefined) {     
@@ -170,6 +178,7 @@ export default class TutorService {
             
             include[0].required = true; 
         }
+
         // filter by subjects
         if (subjects.length > 0) {
             const subjectWhere = {};

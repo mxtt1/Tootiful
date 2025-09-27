@@ -1,4 +1,4 @@
-import Agency from '../../models/agency.model.js';
+import { Agency, Location, User } from '../../models/index.js';
 import { Op } from 'sequelize';
 import bcrypt from 'bcrypt';
 
@@ -50,6 +50,98 @@ class AgencyService {
         }
     }
 
+    async handleGetAgencyAdmins(req, res) {
+        try {
+            const { id } = req.params;
+            const { page, limit } = req.query;
+            const user = req.user;
+
+            // authorization
+            const isAgencyEntity = user.userType === 'agency';
+
+            if (!isAgencyEntity) {
+                return res.status(403).json({ message: 'Access denied to agency admins' });
+            }
+
+            const where = { 
+                role: 'agencyAdmin',
+                agencyId: id // filter by agency
+            };
+
+            const result = await this.getAgencyAdmins({ page, limit, where });
+
+            // Only return agencyAdmin-relevant fields
+            const data = result.rows.map(user => {
+                const { password, hourlyRate, aboutMe, education, dateOfBirth, gender, gradeLevel, image, phone, ...agencyAdmin } = user.toJSON();
+                return agencyAdmin;
+            });
+            // Only include pagination if page and limit are present
+            let pagination = undefined;
+            if (page && limit) {
+                pagination = {
+                    total: result.count,
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    totalPages: Math.ceil(result.count / limit)
+                };
+            }
+            res.status(200).json({
+                data,
+                ...(pagination ? { pagination } : {})
+            });
+        } catch (error) {
+            console.error('Get agency admins error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    async handleCreateAgencyAdmin(req, res) {
+        try {
+            const { id } = req.params;
+            const agencyAdminData = req.body;
+            const user = req.user;
+
+            // authorization
+            const isAgencyEntity = user.userType === 'agency';
+
+            if (!isAgencyEntity) {
+                return res.status(403).json({ message: 'Access denied to create agency admin' });
+            }
+
+            agencyAdminData.agencyId = id;
+
+            const newAgencyAdmin = await this.createAgencyAdmin(agencyAdminData);
+            const { password, role, hourlyRate, aboutMe, education, dateOfBirth, gender, gradeLevel, image, phone, ...agencyAdminResponse } = newAgencyAdmin.toJSON();
+            res.status(201).json(agencyAdminResponse);
+        } catch (error) {
+            console.error('Create agency admin error:', error);
+            res.status(400).json({ error: error.message });
+        }
+    }
+
+    async handleDeleteAgencyAdmin(req, res) {
+        try {
+            const { id, adminId } = req.params; 
+            console.log(`DELETE request - agencyId: ${id}, adminId: ${adminId}`);
+            const user = req.user;
+            console.log(`User making request:`, user);
+
+            // Authorization check
+            const isAgencyEntity = user.userType === 'agency';
+
+            if (!isAgencyEntity) {
+                return res.status(403).json({ message: 'Access denied to delete agency admin' });
+            }
+
+            await this.deleteAgencyAdmin(adminId, id); 
+            res.status(200).json({ message: 'Agency admin deleted successfully' });
+        } catch (error) {
+            console.error('Delete agency admin error:', error);
+            res.status(400).json({ error: error.message });
+        }
+    }
+
+
     // Add similar try-catch blocks to other handler methods...
     async handleGetAgencyById(req, res) {
         try {
@@ -91,6 +183,78 @@ class AgencyService {
         const { id } = req.params;
         await this.deleteAgency(id);
         res.sendStatus(200);
+    }
+
+    async handleGetAgencyLocations(req, res) {
+        try {
+            const { id } = req.params;
+            const user = req.user;
+
+            const isAgencyEntity = user.userType === 'agency' && user.id === parseInt(id);
+            const isAuthorized = isAgencyEntity || ['admin', 'agencyAdmin'].includes(user.role);
+
+            if (!isAuthorized) {
+                return res.status(403).json({ message: 'Access denied to agency locations' });
+            }
+
+            const locations = await this.getAgencyLocations(id);
+            res.status(200).json(locations);
+        } catch (error) {
+            console.error('Get agency locations error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    async handleCreateLocation(req, res) {
+        try {
+            const { id } = req.params;
+            const locationData = req.body;
+            const user = req.user;
+
+            // Authorization: users can only add locations to their own agency
+            const isAgencyEntity = user.userType === 'agency' && user.id === parseInt(id);
+            const isAuthorized = isAgencyEntity || ['admin', 'agencyAdmin'].includes(user.role);
+
+            if (!isAuthorized) {
+                return res.status(403).json({ message: 'Access denied to add locations' });
+            }
+            const newLocation = await this.createLocation(id, locationData);
+            res.status(201).json(newLocation);
+        } catch (error) {
+            console.error('Create location error:', error);
+            res.status(400).json({ error: error.message });
+        }
+    }
+
+    async handleDeleteLocation(req, res) {
+        try {
+            const { agencyId, locationId } = req.params;
+            const user = req.user;
+
+            const isAgencyEntity = user.userType === 'agency' && user.id === parseInt(agencyId);
+            const isAuthorized = isAgencyEntity || ['admin', 'agencyAdmin'].includes(user.role);
+
+            if (!isAuthorized) {
+                return res.status(403).json({ message: 'Access denied to delete location' });
+            }
+
+            const location = await Location.findOne({
+                where: { 
+                    id: locationId, 
+                    agencyId: agencyId 
+                }
+            });
+
+            if (!location) {
+                return res.status(404).json({ message: 'Location not found' });
+            }
+
+            await location.destroy();
+            res.status(200).json({ message: 'Location deleted successfully' });
+        } catch (error) {
+            console.error('Delete location error:', error);
+            res.status(500).json({ error: error.message });
+        }
     }
 
     // Business logic methods
@@ -186,6 +350,69 @@ class AgencyService {
 
         return await agency.update({ password: newPassword });
     }
+
+    async createAgencyAdmin(agencyAdminData) {
+        // Check if email already exists
+        const existingUser = await User.findOne({ where: { email: agencyAdminData.email } });
+        if (existingUser) {
+            throw new Error('User with this email already exists');
+        }
+        if (agencyAdminData.password) {
+            agencyAdminData.password = await bcrypt.hash(agencyAdminData.password, 10);
+        }
+        return await User.create({ ...agencyAdminData, role: 'agencyAdmin' });
+    }
+    
+    async deleteAgencyAdmin(adminId, agencyId) {
+        console.log(`Deleting agency admin: adminId=${adminId}, agencyId=${agencyId}`)
+        const agencyAdmin = await User.findOne({ 
+            where: { 
+                id: adminId, 
+                role: 'agencyAdmin',
+                agencyId: agencyId
+            } 
+        });
+        if (!agencyAdmin) {
+            throw new Error('Agency Admin not found');
+        }
+        await agencyAdmin.destroy();
+    }
+
+    async getAgencyAdmins(options = {}) {
+        const { page, limit, where = {} } = options;
+
+        const finalWhere = {
+        role: 'agencyAdmin', // base filter
+        ...where  // includes agencyId from handleGetAllAgencyAdmins
+    };
+
+        const queryOptions = {
+            attributes: { exclude: ['password'] },
+            where: finalWhere,
+            order: [['createdAt', 'DESC']]
+        };
+        if (page && limit) {
+            queryOptions.limit = parseInt(limit);
+            queryOptions.offset = (parseInt(page) - 1) * parseInt(limit);
+        }
+        return await User.findAndCountAll(queryOptions);
+    }
+
+
+    async getAgencyLocations(agencyId) {
+        return await Location.findAll({
+            where: { agencyId },
+            order: [['createdAt', 'DESC']]
+        });
+    }
+
+    async createLocation(agencyId, locationData) {
+        return await Location.create({
+            ...locationData,
+            agencyId
+        });
+    }
+
 }
 
 export default AgencyService;

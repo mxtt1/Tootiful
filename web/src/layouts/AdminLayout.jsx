@@ -15,6 +15,8 @@ import {
   IconUser,
   IconChevronDown,
   IconMenu2,
+  IconBuilding,
+  IconSettings,
 } from "@tabler/icons-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
@@ -34,31 +36,102 @@ const AdminLayout = ({ children }) => {
     navigate("/login");
   };
 
-  const menuItems = [
-    {
-      label: "Dashboard",
-      icon: IconDashboard,
-      path: "/admin/dashboard",
-    },
-    {
-      label: "User Management",
-      icon: IconUsers,
-      path: "/admin/users",
-    },
-  ];
+  const getMenuItems = () => {
+    if (user?.role === 'admin') {
+      return [    
+      {
+        label: "Dashboard",
+        icon: IconDashboard,
+        path: "/admin/dashboard",
+      },
+      {
+        label: "User Management",
+        icon: IconUsers,
+        path: "/admin/users",
+      },
+    ];
+  }
+
+  // agency users (agency entity + agencyAdmin)
+  if (user?.userType === "agencyAdmin" || user?.userType === "agency") {
+    const agencyItems = [
+      {
+        label: "Dashboard",
+        icon: IconDashboard,
+        path: "/agency/dashboard",
+      },
+      {
+        label: "Tutor Management",
+        icon: IconUser,
+        path: "/agency/tutors",
+      },
+    ];
+    
+  // Profile only for agencyAdmin
+  if (user?.userType === "agencyAdmin") {
+      agencyItems.push({
+        label: "Profile",
+        icon: IconSettings,
+        path: "/agency/profile",
+      });
+    }
+
+  // Agency Management only for agency entity
+  if (user?.userType === "agency") {
+      agencyItems.push({
+        label: "Agency Management",
+        icon: IconBuilding,
+        path: "/agency/management",
+      });
+    }
+    return agencyItems;
+  }
+
+  //fallback
+  return [
+      {
+        label: "Dashboard",
+        icon: IconDashboard,
+        path: "/",
+      },
+    ];
+  };
+
+  const menuItems = getMenuItems();
 
   const getUserInitials = () => {
     if (user?.firstName || user?.lastName) {
-      const initials = `${user.firstName?.[0] || ""}${
-        user.lastName?.[0] || ""
-      }`;
+      const initials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`;
       return initials.toUpperCase() || "A";
     }
     return "A";
   };
 
+  const getPanelTitle = () => {
+    if (user?.role === "admin") {
+      return "Admin Panel";
+    } else if (user?.userType === "agencyAdmin") {
+      return "Agency Admin Panel";
+    } else if (user?.userType === "agency") {
+      return "Super Agency Admin Panel";
+    } else {
+      return "Agency Panel";
+    }
+  };
+
+  const getUserRoleDisplay = () => {
+    if (user?.role === "admin") {
+      return "Administrator";
+    } else if (user?.userType === "agency") {
+      return "Agency";
+    } else if (user?.userType === "agencyAdmin") {
+      return "Agency Administrator";
+    } else {
+      return user?.email || "User";
+    }
+  };
+
   if (loading) {
-    // You can customize this loader as you wish
     return (
       <div
         style={{
@@ -141,7 +214,7 @@ const AdminLayout = ({ children }) => {
                 <IconMenu2 size={18} />
               </ActionIcon>
               <Text size="lg" fw={600}>
-                Admin Panel
+                {getPanelTitle()}
               </Text>
             </Group>
 
@@ -156,13 +229,11 @@ const AdminLayout = ({ children }) => {
                     <Box style={{ flex: 1 }}>
                       <Text size="sm" fw={500}>
                         {user && (user.firstName || user.lastName)
-                          ? `${user.firstName || ""} ${
-                              user.lastName || ""
-                            }`.trim()
-                          : "Admin"}
+                          ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
+                          : getPanelTitle()}
                       </Text>
                       <Text size="xs" c="dimmed">
-                        {user?.email || "admin@tutiful.com"}
+                        {getUserRoleDisplay()}
                       </Text>
                     </Box>
                     <IconChevronDown size={14} />
@@ -171,6 +242,12 @@ const AdminLayout = ({ children }) => {
               </Menu.Target>
 
               <Menu.Dropdown>
+                <Menu.Item disabled>
+                  <Text size="sm" c="dimmed">
+                    Role: {getUserRoleDisplay()}
+                  </Text>
+                </Menu.Item>
+                <Menu.Divider />
                 <Menu.Item
                   leftSection={<IconLogout size={16} />}
                   onClick={handleLogout}
