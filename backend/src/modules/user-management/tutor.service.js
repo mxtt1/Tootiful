@@ -13,7 +13,8 @@ export default class TutorService {
             minRate,
             maxRate,
             subject,
-            agencyId
+            agencyId,
+            search
         } = req.query;
 
         // Handle multivalued parameters - convert to arrays if needed
@@ -26,7 +27,8 @@ export default class TutorService {
             minRate, 
             maxRate, 
             subjects,
-            agencyId
+            agencyId,
+            search
         });
 
         // Only include pagination if page and limit are present
@@ -131,9 +133,19 @@ export default class TutorService {
             minRate,
             maxRate,
             subjects = [],
-            agencyId   
+            agencyId,
+            search
         } = options;
-        const where = { role: 'tutor' }; //get users with role 'tutor'
+        const where = { role: 'tutor' };
+        // Server-side search logic
+        if (search) {
+            where[Op.or] = [
+                { firstName: { [Op.iLike]: `%${search}%` } },
+                { lastName: { [Op.iLike]: `%${search}%` } },
+                { email: { [Op.iLike]: `%${search}%` } },
+                { phone: { [Op.iLike]: `%${search}%` } }
+            ];
+        }
 
         const include = [
             {

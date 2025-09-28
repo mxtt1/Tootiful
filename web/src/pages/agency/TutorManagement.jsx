@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button, Table, Modal, Group, Text, Loader, ActionIcon, Card, Stack, TextInput, Container, Title, Badge, Alert, Pagination } from "@mantine/core";
 import { IconEdit, IconTrash, IconSearch, IconPlus } from "@tabler/icons-react";
 import { useAuth } from "../../auth/AuthProvider";
@@ -112,6 +112,8 @@ export default function TutorManagement() {
     const [tutorToDelete, setTutorToDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const debounceTimeout = useRef(null);
     const { user } = useAuth();
 
     let agencyId = null;
@@ -131,7 +133,22 @@ export default function TutorManagement() {
     const [limit] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
 
-    // Fetch tutors
+    // Debounce search input
+    useEffect(() => {
+        if (debounceTimeout.current) {
+            clearTimeout(debounceTimeout.current);
+        }
+        debounceTimeout.current = setTimeout(() => {
+            setDebouncedSearch(searchQuery.trim());
+        }, 400); // 400ms debounce
+        return () => {
+            if (debounceTimeout.current) {
+                clearTimeout(debounceTimeout.current);
+            }
+        };
+    }, [searchQuery]);
+
+    // Fetch tutors (with server-side search)
     useEffect(() => {
         const fetchTutors = async () => {
             if (!agencyId) return;
@@ -142,12 +159,13 @@ export default function TutorManagement() {
                 const params = {
                     limit: limit.toString(),
                     offset: offset.toString(),
+                    search: debouncedSearch
                 };
                 const res = await apiClient.get(`/tutors?agencyId=${agencyId}&${new URLSearchParams(params).toString()}`);
                 const tutorsData = res.data || res.rows || res || [];
                 setTutors(tutorsData);
                 // If backend provides totalCount, set totalPages
-                const totalCount = res.totalCount || res.data?.totalCount || tutorsData.length;
+                const totalCount = res.pagination?.total || tutorsData.length;
                 setTotalPages(Math.ceil(totalCount / limit));
             } catch (err) {
                 setError("Failed to load tutors");
@@ -156,20 +174,7 @@ export default function TutorManagement() {
             }
         };
         fetchTutors();
-    }, [agencyId, page, limit]);
-
-    // Filter tutors by search query (full name, email, phone)
-    const filteredTutors = tutors.filter((tutor) => {
-        const fullName = `${tutor.firstName} ${tutor.lastName}`.toLowerCase();
-        const email = tutor.email?.toLowerCase() || "";
-        const phone = tutor.phone?.toLowerCase() || "";
-        const query = searchQuery.toLowerCase();
-        return (
-            fullName.includes(query) ||
-            email.includes(query) ||
-            phone.includes(query)
-        );
-    });
+    }, [agencyId, page, limit, debouncedSearch]);
 
     // Status color logic
     const getStatusColor = (status) => {
@@ -186,7 +191,7 @@ export default function TutorManagement() {
     };
 
     // Map tutors to rows with status
-    const mappedTutors = filteredTutors.map((tutor) => ({
+    const mappedTutors = tutors.map((tutor) => ({
         ...tutor,
         status: tutor.isSuspended ? "Suspended" : tutor.isActive ? "Active" : "Inactive",
     }));
