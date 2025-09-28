@@ -42,7 +42,6 @@ const AuthProvider = ({ children }) => {
       console.error("Auth check failed:", error);
       // Clear invalid tokens
       localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
     } finally {
       setLoading(false);
     }
@@ -74,9 +73,6 @@ const AuthProvider = ({ children }) => {
       const { accessToken, refreshToken, user: userData } = response;
 
       localStorage.setItem("accessToken", accessToken);
-      if (rememberMe && refreshToken) {
-        localStorage.setItem("refreshToken", refreshToken);
-      }
       localStorage.setItem("user", JSON.stringify(userData));
 
       setUser(userData);
@@ -96,11 +92,8 @@ const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Call backend logout if refresh token exists
-      const refreshToken = localStorage.getItem("refreshToken");
-      if (refreshToken) {
-        await apiClient.post("/auth/logout", { refreshToken });
-      }
+      // call backend logout to destroy refresh token
+      await apiClient.post("/auth/logout", { refreshToken });
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
