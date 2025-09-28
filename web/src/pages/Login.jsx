@@ -32,13 +32,12 @@ const Login = () => {
   // Load saved credentials on component mount
   useEffect(() => {
     const savedEmail = localStorage.getItem("rememberedEmail");
-    const savedPassword = localStorage.getItem("rememberedPassword");
     const wasRemembered = localStorage.getItem("rememberMe") === "true";
 
-    if (wasRemembered && savedEmail && savedPassword) {
+    if (wasRemembered && savedEmail) {
       form.setValues({
         email: savedEmail,
-        password: savedPassword,
+        password: "",
         rememberMe: true,
       });
     }
@@ -78,14 +77,12 @@ const Login = () => {
       if (result.success) {
         // Handle Remember Me functionality
         if (values.rememberMe) {
-          // Save credentials to localStorage
+          // Save only email to localStorage
           localStorage.setItem("rememberedEmail", values.email);
-          localStorage.setItem("rememberedPassword", values.password);
           localStorage.setItem("rememberMe", "true");
         } else {
           // Clear saved credentials if not remembering
           localStorage.removeItem("rememberedEmail");
-          localStorage.removeItem("rememberedPassword");
           localStorage.removeItem("rememberMe");
         }
 
@@ -95,7 +92,10 @@ const Login = () => {
           color: "green",
         });
         // Redirect based on user type/role
-        if (result.user?.userType === "agency" || result.user?.role === "agencyAdmin") {
+        if (
+          result.user?.userType === "agency" ||
+          result.user?.role === "agencyAdmin"
+        ) {
           navigate("/agency/dashboard");
         } else {
           navigate("/admin/dashboard");
@@ -135,7 +135,6 @@ const Login = () => {
     // If unchecking remember me, optionally clear saved credentials immediately
     if (!isChecked) {
       localStorage.removeItem("rememberedEmail");
-      localStorage.removeItem("rememberedPassword");
       localStorage.removeItem("rememberMe");
     }
   };
