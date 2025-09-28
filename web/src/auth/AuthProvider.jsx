@@ -70,7 +70,7 @@ const AuthProvider = ({ children }) => {
         }
       }
 
-      const { accessToken, refreshToken, user: userData } = response;
+      const { accessToken, user: userData } = response;
 
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("user", JSON.stringify(userData));
@@ -93,13 +93,12 @@ const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       // call backend logout to destroy refresh token
-      await apiClient.post("/auth/logout", { refreshToken });
+      await apiClient.post("/auth/logout");
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
       // Clear local storage and state regardless of backend response
       localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
       localStorage.removeItem("dev_user"); // Clear dev user
       setUser(null);
       setIsAuthenticated(false);
