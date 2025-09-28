@@ -50,49 +50,28 @@ const AuthProvider = ({ children }) => {
 
   const login = async (email, password, rememberMe = false) => {
     try {
-      let response;
+      let response = null;
 
       // Try agency login first
       try {
-        console.log('Trying agency login...');
-        response = await apiClient.post("/auth/agency-login", {
-          email,
-          password,
-        });
+        response = await apiClient.post("/auth/agency-login", { email, password });
         console.log('Agency login successful');
-      } catch (agencyError) {
-        console.log('Agency login failed, trying agency admin...');
+      } catch (err) {
+        console.error('Agency login failed:', err);
+        throw err;
+      }
 
-        // Try agency admin login SECOND
+      // If agency login failed, try admin login
+      if (!response) {
         try {
-          response = await apiClient.post("/auth/agency-admin-login", {
-            email,
-            password,
-          });
-          console.log('Agency admin login successful');
-        } catch (agencyAdminError) {
-          // lastError = agencyAdminError;
-
-          // If this is a password error, don't try other endpoints
-          if (agencyAdminError.message?.toLowerCase().includes('password')) {
-            throw agencyAdminError; // Stop here - user found but wrong password
-          }
-
-          // Try regular admin/user login LAST
-          try {
-            response = await apiClient.post("/auth/login?admin=true", {
-              email,
-              password,
-            });
-            console.log('Regular admin login successful');
-          } catch (userError) {
-            console.log('All login attempts failed');
-            throw agencyError; // or throw the most relevant error
-          }
+          response = await apiClient.post("/auth/login?admin=true", { email, password });
+          console.log('Regular admin login successful');
+        } catch (err) {
+          console.log('Admin login failed:', err);
+          throw err;
         }
       }
 
-      // Rest of your existing code...
       const { accessToken, refreshToken, user: userData } = response;
 
       localStorage.setItem("accessToken", accessToken);

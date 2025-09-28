@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Button, Table, Modal, Group, Text, Loader, ActionIcon, Card, Stack, TextInput } from "@mantine/core";
-import { IconEdit, IconTrash, IconSearch } from "@tabler/icons-react";
+import { Button, Table, Modal, Group, Text, Loader, ActionIcon, Card, Stack, TextInput, Container, Title, Badge, Alert, Pagination } from "@mantine/core";
+import { IconEdit, IconTrash, IconSearch, IconPlus } from "@tabler/icons-react";
 import { useAuth } from "../../auth/AuthProvider";
 import apiClient from "../../api/apiClient";
 import TutorCreateForm from "../../components/TutorCreateForm";
@@ -126,25 +126,40 @@ export default function TutorManagement() {
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedTutor, setSelectedTutor] = useState(null);
+    const [error, setError] = useState(null);
+    const [page, setPage] = useState(1);
+    const [limit] = useState(10);
+    const [totalPages, setTotalPages] = useState(1);
 
-    const fetchTutors = async () => {
-        setLoading(true);
-        try {
-            const res = await apiClient.get(`/tutors?agencyId=${agencyId}`);
-            setTutors(res.data);
-        } catch (err) {
-            // handle error
-        } finally {
-            setLoading(false);
-        }
-    };
-
+    // Fetch tutors
     useEffect(() => {
-        if (agencyId) fetchTutors();
-    }, [agencyId]);
+        const fetchTutors = async () => {
+            if (!agencyId) return;
+            setLoading(true);
+            setError(null);
+            try {
+                const offset = (page - 1) * limit;
+                const params = {
+                    limit: limit.toString(),
+                    offset: offset.toString(),
+                };
+                const res = await apiClient.get(`/tutors?agencyId=${agencyId}&${new URLSearchParams(params).toString()}`);
+                const tutorsData = res.data || res.rows || res || [];
+                setTutors(tutorsData);
+                // If backend provides totalCount, set totalPages
+                const totalCount = res.totalCount || res.data?.totalCount || tutorsData.length;
+                setTotalPages(Math.ceil(totalCount / limit));
+            } catch (err) {
+                setError("Failed to load tutors");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchTutors();
+    }, [agencyId, page, limit]);
 
     // Filter tutors by search query (full name, email, phone)
-    const filteredTutors = tutors.filter(tutor => {
+    const filteredTutors = tutors.filter((tutor) => {
         const fullName = `${tutor.firstName} ${tutor.lastName}`.toLowerCase();
         const email = tutor.email?.toLowerCase() || "";
         const phone = tutor.phone?.toLowerCase() || "";
@@ -156,103 +171,144 @@ export default function TutorManagement() {
         );
     });
 
+    // Status color logic
+    const getStatusColor = (status) => {
+        switch (status) {
+            case "Active":
+                return "green";
+            case "Inactive":
+                return "gray";
+            case "Suspended":
+                return "orange";
+            default:
+                return "gray";
+        }
+    };
+
+    // Map tutors to rows with status
+    const mappedTutors = filteredTutors.map((tutor) => ({
+        ...tutor,
+        status: tutor.isSuspended ? "Suspended" : tutor.isActive ? "Active" : "Inactive",
+    }));
+
     return (
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Container size="xl" py="xl">
             <Stack spacing="lg">
-                <Group justify="space-between" mb="md">
-                    <Text size="xl" fw={700}>Tutor Management</Text>
-                    <Button leftSection={<IconEdit size={16} />} styles={{ root: { backgroundColor: 'var(--tutiful-primary)', color: 'white' }, rootHovered: { backgroundColor: 'var(--tutiful-primary-dark)' } }} onClick={() => setCreateModalOpen(true)}>
+                <Group justify="space-between" align="center" w="100%">
+                    <Title order={2}>Tutor Management</Title>
+                    <Button leftSection={<IconPlus size={16} />} onClick={() => setCreateModalOpen(true)}>
                         Create Tutor
                     </Button>
                 </Group>
-                <Group mb="md">
-                    <TextInput
-                        placeholder="Search by name, email, or phone"
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        leftSection={<IconSearch size={16} />}
-                        style={{ maxWidth: 300 }}
-                    />
-                </Group>
-                {loading ? (
-                    <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
-                        <Loader />
-                    </div>
-                ) : filteredTutors.length === 0 ? (
-                    <Text align="center" py="xl" color="dimmed">
-                        No tutors found
-                    </Text>
-                ) : (
-                    <Table striped highlightOnHover>
-                        <thead>
-                            <tr>
-                                <th style={{ textAlign: 'left', padding: '12px 16px' }}>Full Name</th>
-                                <th style={{ textAlign: 'left', padding: '12px 16px' }}>Email</th>
-                                <th style={{ textAlign: 'left', padding: '12px 16px' }}>Phone</th>
-                                <th style={{ textAlign: 'left', padding: '12px 16px' }}>Date of Birth</th>
-                                <th style={{ textAlign: 'left', padding: '12px 16px' }}>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredTutors.map(tutor => (
-                                <tr key={tutor.id}>
-                                    <td style={{ textAlign: 'left', padding: '12px 16px' }}>{`${tutor.firstName} ${tutor.lastName}`.trim()}</td>
-                                    <td style={{ textAlign: 'left', padding: '12px 16px' }}>{tutor.email}</td>
-                                    <td style={{ textAlign: 'left', padding: '12px 16px' }}>{tutor.phone}</td>
-                                    <td style={{ textAlign: 'left', padding: '12px 16px' }}>{tutor.dateOfBirth ? new Date(tutor.dateOfBirth).toLocaleDateString() : ""}</td>
-                                    <td style={{ textAlign: 'left', padding: '12px 16px' }}>
-                                        <Group spacing="xs">
-                                            <ActionIcon styles={{ root: { backgroundColor: 'var(--tutiful-primary-light)' } }} onClick={() => { setSelectedTutor(tutor); setEditModalOpen(true); }}>
-                                                <IconEdit size={16} color="var(--tutiful-primary)" />
-                                            </ActionIcon>
-                                            <ActionIcon styles={{ root: { backgroundColor: 'var(--tutiful-error)' } }} onClick={() => { setTutorToDelete(tutor); setDeleteModalOpen(true); }}>
-                                                <IconTrash size={16} color="white" />
-                                            </ActionIcon>
-                                        </Group>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </Table>
+
+                <TextInput
+                    w="100%"
+                    placeholder="Search by name, email, or phone"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    leftSection={<IconSearch size={16} />}
+                />
+
+                {error && (
+                    <Alert color="red" title="Error">
+                        {error}
+                    </Alert>
                 )}
-                <TutorCreateForm
-                    opened={createModalOpen}
-                    onClose={() => setCreateModalOpen(false)}
-                    onCreated={fetchTutors}
-                    agencyId={agencyId}
-                />
-                <EditTutorModal
-                    opened={editModalOpen}
-                    onClose={() => setEditModalOpen(false)}
-                    tutor={selectedTutor}
-                    onUpdated={fetchTutors}
-                />
-                <Modal
-                    opened={deleteModalOpen}
-                    onClose={() => setDeleteModalOpen(false)}
-                    title="Delete Tutor"
-                    size="sm"
-                >
-                    <Text mb="md">Are you sure you want to delete tutor <b>{tutorToDelete ? `${tutorToDelete.firstName} ${tutorToDelete.lastName}` : ""}</b>?</Text>
-                    <Group justify="flex-end">
-                        <Button variant="subtle" onClick={() => setDeleteModalOpen(false)} disabled={deleting} styles={{ root: { color: 'var(--tutiful-gray-700)' } }}>Cancel</Button>
-                        <Button styles={{ root: { backgroundColor: 'var(--tutiful-error)', color: 'white' }, rootHovered: { backgroundColor: '#991b1b' } }} loading={deleting} onClick={async () => {
-                            if (!tutorToDelete) return;
-                            setDeleting(true);
-                            try {
-                                await apiClient.delete(`/tutors/${tutorToDelete.id}`);
-                                setDeleteModalOpen(false);
-                                setTutorToDelete(null);
-                                await fetchTutors();
-                            } catch (err) {
-                                // handle error
-                            } finally {
-                                setDeleting(false);
-                            }
-                        }}>Delete</Button>
+
+                <Card shadow="sm" padding="lg" radius="md" withBorder>
+                    {loading ? (
+                        <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
+                            <Loader />
+                        </div>
+                    ) : mappedTutors.length === 0 ? (
+                        <Text align="center" py="xl" color="dimmed">
+                            No tutors found
+                        </Text>
+                    ) : (
+                        <Table striped highlightOnHover>
+                            <thead>
+                                <tr>
+                                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Full Name</th>
+                                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Email</th>
+                                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Phone</th>
+                                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Status</th>
+                                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Date of Birth</th>
+                                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {mappedTutors.map((tutor) => (
+                                    <tr key={tutor.id}>
+                                        <td>{`${tutor.firstName} ${tutor.lastName}`.trim()}</td>
+                                        <td>{tutor.email}</td>
+                                        <td>{tutor.phone}</td>
+                                        <td>
+                                            <Badge color={getStatusColor(tutor.status)} variant="filled">
+                                                {tutor.status}
+                                            </Badge>
+                                        </td>
+                                        <td>{tutor.dateOfBirth ? new Date(tutor.dateOfBirth).toLocaleDateString() : ""}</td>
+                                        <td>
+                                            <Group spacing="xs">
+                                                <ActionIcon styles={{ root: { backgroundColor: "var(--tutiful-primary-light)" } }} onClick={() => { setSelectedTutor(tutor); setEditModalOpen(true); }}>
+                                                    <IconEdit size={16} color="white" />
+                                                </ActionIcon>
+                                                <ActionIcon styles={{ root: { backgroundColor: "var(--tutiful-error)" } }} onClick={() => { setTutorToDelete(tutor); setDeleteModalOpen(true); }}>
+                                                    <IconTrash size={16} color="white" />
+                                                </ActionIcon>
+                                            </Group>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                    )}
+                </Card>
+
+                {totalPages > 1 && (
+                    <Group justify="center">
+                        <Pagination value={page} onChange={setPage} total={totalPages} size="sm" />
                     </Group>
-                </Modal>
+                )}
             </Stack>
-        </Card>
+
+            <TutorCreateForm
+                opened={createModalOpen}
+                onClose={() => setCreateModalOpen(false)}
+                onCreated={() => setPage(1)}
+                agencyId={agencyId}
+            />
+            <EditTutorModal
+                opened={editModalOpen}
+                onClose={() => setEditModalOpen(false)}
+                tutor={selectedTutor}
+                onUpdated={() => setPage(1)}
+            />
+            <Modal
+                opened={deleteModalOpen}
+                onClose={() => setDeleteModalOpen(false)}
+                title="Delete Tutor"
+                size="sm"
+            >
+                <Text mb="md">Are you sure you want to delete tutor <b>{tutorToDelete ? `${tutorToDelete.firstName} ${tutorToDelete.lastName}` : ""}</b>?</Text>
+                <Group justify="flex-end">
+                    <Button variant="subtle" onClick={() => setDeleteModalOpen(false)} disabled={deleting} styles={{ root: { color: "var(--tutiful-gray-700)" } }}>Cancel</Button>
+                    <Button styles={{ root: { backgroundColor: "var(--tutiful-error)", color: "white" }, rootHovered: { backgroundColor: "#991b1b" } }} loading={deleting} onClick={async () => {
+                        if (!tutorToDelete) return;
+                        setDeleting(true);
+                        try {
+                            await apiClient.delete(`/tutors/${tutorToDelete.id}`);
+                            setDeleteModalOpen(false);
+                            setTutorToDelete(null);
+                            setPage(1);
+                        } catch (err) {
+                            // handle error
+                        } finally {
+                            setDeleting(false);
+                        }
+                    }}>Delete</Button>
+                </Group>
+            </Modal>
+        </Container>
     );
 }
