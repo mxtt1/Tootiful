@@ -58,7 +58,6 @@ const AuthProvider = ({ children }) => {
         console.log('Agency login successful');
       } catch (err) {
         console.error('Agency login failed:', err);
-        throw err;
       }
 
       // If agency login failed, try admin login

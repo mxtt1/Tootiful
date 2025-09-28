@@ -37,7 +37,7 @@ export default class AuthService {
     }
 
     // Prevent admin and agencyAdmin from logging in here
-    if (!admin && user.role === 'admin' || user.role === 'agencyAdmin') {
+    if (!admin && (user.role === 'admin' || user.role === 'agencyAdmin')) {
       throw new Error("Admin accounts cannot log in here");
     }
 

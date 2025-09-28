@@ -53,7 +53,7 @@ const AdminLayout = ({ children }) => {
   }
 
   // agency users (agency entity + agencyAdmin)
-  if (user?.userType === "agencyAdmin" || user?.userType === "agency") {
+  if (user?.role === "agencyAdmin" || user?.userType === "agency") {
     const agencyItems = [
       {
         label: "Dashboard",
@@ -68,7 +68,7 @@ const AdminLayout = ({ children }) => {
     ];
     
   // Profile only for agencyAdmin
-  if (user?.userType === "agencyAdmin") {
+  if (user?.role === "agencyAdmin") {
       agencyItems.push({
         label: "Profile",
         icon: IconSettings,
