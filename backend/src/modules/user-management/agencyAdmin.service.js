@@ -12,7 +12,7 @@ class AgencyAdminService {
 
         const agencyAdmin = await this.getAgencyAdminById(id);
 
-        const { password, role, hourlyRate, aboutMe, education, dateOfBirth, gender, gradeLevel, image, phone, ...agencyAdminResponse } = agencyAdmin.toJSON();
+        const { password, role, hourlyRate, aboutMe, education, dateOfBirth, gender, gradeLevel, image, ...agencyAdminResponse } = agencyAdmin.toJSON();
         res.status(200).json(agencyAdminResponse);
     }
 
@@ -26,7 +26,7 @@ class AgencyAdminService {
             });
         }
         const updatedAgencyAdmin = await this.updateAgencyAdmin(id, updateData);
-        const { password, role, hourlyRate, aboutMe, education, dateOfBirth, gender, gradeLevel, image, phone, ...agencyAdminResponse } = updatedAgencyAdmin.toJSON();
+        const { password, role, hourlyRate, aboutMe, education, dateOfBirth, gender, gradeLevel, image, ...agencyAdminResponse } = updatedAgencyAdmin.toJSON();
         res.status(200).json(agencyAdminResponse);
     }
 
