@@ -59,12 +59,21 @@ class ApiClient {
 
       const response = await fetch(url, config);
 
-      // Handle 401 with refresh (but NOT for login or refresh endpoints)
+      // Handle 401 with refresh (but NOT for login or refresh endpoints, and not for agency users)
+      const userStr = localStorage.getItem("user");
+      let isAgencyUser = false;
+      if (userStr) {
+        try {
+          const userObj = JSON.parse(userStr);
+          isAgencyUser = userObj?.userType === "agency";
+        } catch {}
+      }
       if (
         response.status === 401 &&
         !isRetry &&
         endpoint !== "/auth/refresh" &&
-        endpoint !== "/auth/login"
+        endpoint !== "/auth/login" &&
+        !isAgencyUser
       ) {
         try {
           await this.refreshToken();

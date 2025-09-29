@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import apiClient from "../api/apiClient";
 
 const AuthContext = createContext(null);
@@ -12,9 +13,17 @@ export const useAuth = () => {
 };
 
 const AuthProvider = ({ children }) => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Helper for protected pages
+  const AuthGate = ({ children }) => {
+    if (loading) return null;
+    if (!isAuthenticated) return null;
+    return children;
+  };
 
   // Admin account emails:
   // "e1123046@u.nus.edu", "mattlow1504@gmail.com", "e1122690@u.nus.edu","e1155487@u.nus.edu","E1138943@u.nus.edu"
@@ -29,6 +38,7 @@ const AuthProvider = ({ children }) => {
       const token = localStorage.getItem("accessToken");
       if (!token) {
         setLoading(false);
+        navigate("/login");
         return;
       }
 
@@ -37,11 +47,14 @@ const AuthProvider = ({ children }) => {
       if (response && response.user) {
         setUser(response.user);
         setIsAuthenticated(true);
+      } else {
+        navigate("/login");
       }
     } catch (error) {
       console.error("Auth check failed:", error);
       // Clear invalid tokens
       localStorage.removeItem("accessToken");
+      navigate("/login");
     } finally {
       setLoading(false);
     }
@@ -148,7 +161,8 @@ const AuthProvider = ({ children }) => {
     checkAuthStatus,
     isAgency: user?.userType === 'agency',
     isUser: user?.userType === 'user',
-    isAdmin: user?.role === 'admin'
+    isAdmin: user?.role === 'admin',
+    AuthGate
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

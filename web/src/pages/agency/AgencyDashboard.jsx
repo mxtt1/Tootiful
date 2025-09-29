@@ -14,7 +14,7 @@ import {
 import { useAuth } from "../../auth/AuthProvider";
 
 const AgencyDashboard = () => {
-  const { user } = useAuth();
+  const { user, AuthGate } = useAuth();
   const [totalTutors, setTotalTutors] = useState(0);
   const [totalStudents, setTotalStudents] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -164,337 +164,339 @@ const AgencyDashboard = () => {
   );
 
   return (
-    <div
-      style={{
-        background: "linear-gradient(to bottom, #C7D3FF, #9B95E2)",
-        minHeight: "100vh",
-        width: "100vw",
-        margin: 0,
-        padding: 0,
-        boxSizing: "border-box",
-      }}
-    >
+    <AuthGate>
       <div
         style={{
-          padding: "2.5rem 0.5rem 2rem 2.5rem", // more left flush
-          width: "100%",
+          background: "linear-gradient(to bottom, #C7D3FF, #9B95E2)",
+          minHeight: "100vh",
+          width: "100vw",
+          margin: 0,
+          padding: 0,
           boxSizing: "border-box",
         }}
       >
-        <div style={{ marginBottom: "2rem" }}>
-          <h1
-            style={{
-              fontSize: "2rem",
-              fontWeight: "bold",
-              color: "#333",
-              marginBottom: "0.5rem",
-            }}
-          >
-            Agency Dashboard
-          </h1>
-          <p style={{ color: "#252627ff", fontSize: "1rem" }}>
-            Welcome back, {user?.name || user?.firstName} {user?.lastName}!
-            Here's an overview of your agency's performance.
-          </p>
-        </div>
-
-        <TabNavigation />
-
-        {activeTab === "user-distribution" && (
-          <>
-            {/* Stats Cards */}
-            <div
+        <div
+          style={{
+            padding: "2.5rem 0.5rem 2rem 2.5rem", // more left flush
+            width: "100%",
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ marginBottom: "2rem" }}>
+            <h1
               style={{
-                display: "flex",
-                gap: "1.5rem",
-                marginBottom: "2rem",
-                flexWrap: "wrap",
-                justifyContent: "flex-start",
-              }}
-            >
-              <div
-                style={{
-                  backgroundColor: "white",
-                  padding: "1.5rem",
-                  borderRadius: "10px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  minWidth: "240px",
-                  maxWidth: "320px",
-                  flex: "1 1 260px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    marginBottom: "1rem",
-                  }}
-                >
-                  <FaUsers
-                    style={{
-                      fontSize: "2rem",
-                      color: "#6155F5",
-                      marginRight: "1rem",
-                    }}
-                  />
-                  <div>
-                    <h3
-                      style={{
-                        fontSize: "1.5rem",
-                        fontWeight: "bold",
-                        color: "#333",
-                        margin: 0,
-                      }}
-                    >
-                      {totalTutors}
-                    </h3>
-                    <p style={{ color: "#6c757d", margin: 0 }}>Total Tutors</p>
-                  </div>
-                </div>
-              </div>
-              <div
-                style={{
-                  backgroundColor: "white",
-                  padding: "1.5rem",
-                  borderRadius: "10px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  minWidth: "240px",
-                  maxWidth: "320px",
-                  flex: "1 1 260px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    marginBottom: "1rem",
-                  }}
-                >
-                  <FaGraduationCap
-                    style={{
-                      fontSize: "2rem",
-                      color: "#28a745",
-                      marginRight: "1rem",
-                    }}
-                  />
-                  <div>
-                    <h3
-                      style={{
-                        fontSize: "1.5rem",
-                        fontWeight: "bold",
-                        color: "#333",
-                        margin: 0,
-                      }}
-                    >
-                      {totalStudents}
-                    </h3>
-                    <p style={{ color: "#6c757d", margin: 0 }}>
-                      Total Students
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Charts */}
-            <div
-              style={{
-                display: "flex",
-                gap: "1.5rem",
-                flexWrap: "wrap",
-                justifyContent: "flex-start",
-              }}
-            >
-              <div
-                style={{
-                  backgroundColor: "white",
-                  padding: "1.5rem",
-                  borderRadius: "10px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  minWidth: "340px",
-                  maxWidth: "600px",
-                  flex: "2 1 400px",
-                }}
-              >
-                <h3
-                  style={{
-                    fontSize: "1.25rem",
-                    fontWeight: "bold",
-                    color: "#333",
-                    marginBottom: "1rem",
-                  }}
-                >
-                  User Distribution
-                </h3>
-                <UserPieChart
-                  tutors={totalTutors}
-                  students={totalStudents}
-                  agencies={0}
-                />
-              </div>
-            </div>
-          </>
-        )}
-
-        {activeTab === "revenue" && (
-          <>
-            {/* Stats Cards */}
-            <div
-              style={{
-                display: "flex",
-                gap: "1.5rem",
-                marginBottom: "2rem",
-                flexWrap: "wrap",
-                justifyContent: "flex-start",
-              }}
-            >
-              <div
-                style={{
-                  backgroundColor: "white",
-                  padding: "1.5rem",
-                  borderRadius: "10px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  minWidth: "240px",
-                  maxWidth: "320px",
-                  flex: "1 1 260px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    marginBottom: "1rem",
-                  }}
-                >
-                  <FaMoneyBillAlt
-                    style={{
-                      fontSize: "2rem",
-                      color: "#ffc107",
-                      marginRight: "1rem",
-                    }}
-                  />
-                  <div>
-                    <h3
-                      style={{
-                        fontSize: "1.5rem",
-                        fontWeight: "bold",
-                        color: "#333",
-                        margin: 0,
-                      }}
-                    >
-                      ${totalRevenue}
-                    </h3>
-                    <p style={{ color: "#6c757d", margin: 0 }}>Total Revenue</p>
-                  </div>
-                </div>
-              </div>
-              <div
-                style={{
-                  backgroundColor: "white",
-                  padding: "1.5rem",
-                  borderRadius: "10px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  minWidth: "240px",
-                  maxWidth: "320px",
-                  flex: "1 1 260px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    marginBottom: "1rem",
-                  }}
-                >
-                  <FaBook
-                    style={{
-                      fontSize: "2rem",
-                      color: "#dc3545",
-                      marginRight: "1rem",
-                    }}
-                  />
-                  <div>
-                    <h3
-                      style={{
-                        fontSize: "1.5rem",
-                        fontWeight: "bold",
-                        color: "#333",
-                        margin: 0,
-                      }}
-                    >
-                      {totalSubscriptions}
-                    </h3>
-                    <p style={{ color: "#6c757d", margin: 0 }}>
-                      Active Subscriptions
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Charts */}
-            <div
-              style={{
-                display: "flex",
-                gap: "1.5rem",
-                flexWrap: "wrap",
-                justifyContent: "flex-start",
-              }}
-            >
-              <div
-                style={{
-                  backgroundColor: "white",
-                  padding: "1.5rem",
-                  borderRadius: "10px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  minWidth: "340px",
-                  maxWidth: "900px",
-                  flex: "2 1 600px",
-                }}
-              >
-                <h3
-                  style={{
-                    fontSize: "1.25rem",
-                    fontWeight: "bold",
-                    color: "#333",
-                    marginBottom: "1rem",
-                  }}
-                >
-                  Revenue Growth
-                </h3>
-                <GrowthChart data={[]} />
-              </div>
-            </div>
-          </>
-        )}
-
-        {activeTab === "transactions" && (
-          <div
-            style={{
-              backgroundColor: "white",
-              padding: "1.5rem",
-              borderRadius: "10px",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-              marginTop: "2rem",
-              minWidth: "340px",
-              maxWidth: "100%",
-            }}
-          >
-            <h3
-              style={{
-                fontSize: "1.25rem",
+                fontSize: "2rem",
                 fontWeight: "bold",
                 color: "#333",
-                marginBottom: "1rem",
+                marginBottom: "0.5rem",
               }}
             >
-              Transaction History
-            </h3>
-            <TransactionTable data={[]} />
+              Agency Dashboard
+            </h1>
+            <p style={{ color: "#252627ff", fontSize: "1rem" }}>
+              Welcome back, {user?.name || user?.firstName} {user?.lastName}!
+              Here's an overview of your agency's performance.
+            </p>
           </div>
-        )}
+
+          <TabNavigation />
+
+          {activeTab === "user-distribution" && (
+            <>
+              {/* Stats Cards */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "1.5rem",
+                  marginBottom: "2rem",
+                  flexWrap: "wrap",
+                  justifyContent: "flex-start",
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: "white",
+                    padding: "1.5rem",
+                    borderRadius: "10px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                    minWidth: "240px",
+                    maxWidth: "320px",
+                    flex: "1 1 260px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    <FaUsers
+                      style={{
+                        fontSize: "2rem",
+                        color: "#6155F5",
+                        marginRight: "1rem",
+                      }}
+                    />
+                    <div>
+                      <h3
+                        style={{
+                          fontSize: "1.5rem",
+                          fontWeight: "bold",
+                          color: "#333",
+                          margin: 0,
+                        }}
+                      >
+                        {totalTutors}
+                      </h3>
+                      <p style={{ color: "#6c757d", margin: 0 }}>Total Tutors</p>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    backgroundColor: "white",
+                    padding: "1.5rem",
+                    borderRadius: "10px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                    minWidth: "240px",
+                    maxWidth: "320px",
+                    flex: "1 1 260px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    <FaGraduationCap
+                      style={{
+                        fontSize: "2rem",
+                        color: "#28a745",
+                        marginRight: "1rem",
+                      }}
+                    />
+                    <div>
+                      <h3
+                        style={{
+                          fontSize: "1.5rem",
+                          fontWeight: "bold",
+                          color: "#333",
+                          margin: 0,
+                        }}
+                      >
+                        {totalStudents}
+                      </h3>
+                      <p style={{ color: "#6c757d", margin: 0 }}>
+                        Total Students
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Charts */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "1.5rem",
+                  flexWrap: "wrap",
+                  justifyContent: "flex-start",
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: "white",
+                    padding: "1.5rem",
+                    borderRadius: "10px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                    minWidth: "340px",
+                    maxWidth: "600px",
+                    flex: "2 1 400px",
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontSize: "1.25rem",
+                      fontWeight: "bold",
+                      color: "#333",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    User Distribution
+                  </h3>
+                  <UserPieChart
+                    tutors={totalTutors}
+                    students={totalStudents}
+                    agencies={0}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === "revenue" && (
+            <>
+              {/* Stats Cards */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "1.5rem",
+                  marginBottom: "2rem",
+                  flexWrap: "wrap",
+                  justifyContent: "flex-start",
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: "white",
+                    padding: "1.5rem",
+                    borderRadius: "10px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                    minWidth: "240px",
+                    maxWidth: "320px",
+                    flex: "1 1 260px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    <FaMoneyBillAlt
+                      style={{
+                        fontSize: "2rem",
+                        color: "#ffc107",
+                        marginRight: "1rem",
+                      }}
+                    />
+                    <div>
+                      <h3
+                        style={{
+                          fontSize: "1.5rem",
+                          fontWeight: "bold",
+                          color: "#333",
+                          margin: 0,
+                        }}
+                      >
+                        ${totalRevenue}
+                      </h3>
+                      <p style={{ color: "#6c757d", margin: 0 }}>Total Revenue</p>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    backgroundColor: "white",
+                    padding: "1.5rem",
+                    borderRadius: "10px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                    minWidth: "240px",
+                    maxWidth: "320px",
+                    flex: "1 1 260px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    <FaBook
+                      style={{
+                        fontSize: "2rem",
+                        color: "#dc3545",
+                        marginRight: "1rem",
+                      }}
+                    />
+                    <div>
+                      <h3
+                        style={{
+                          fontSize: "1.5rem",
+                          fontWeight: "bold",
+                          color: "#333",
+                          margin: 0,
+                        }}
+                      >
+                        {totalSubscriptions}
+                      </h3>
+                      <p style={{ color: "#6c757d", margin: 0 }}>
+                        Active Subscriptions
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Charts */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "1.5rem",
+                  flexWrap: "wrap",
+                  justifyContent: "flex-start",
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: "white",
+                    padding: "1.5rem",
+                    borderRadius: "10px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                    minWidth: "340px",
+                    maxWidth: "900px",
+                    flex: "2 1 600px",
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontSize: "1.25rem",
+                      fontWeight: "bold",
+                      color: "#333",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    Revenue Growth
+                  </h3>
+                  <GrowthChart data={[]} />
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === "transactions" && (
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "1.5rem",
+                borderRadius: "10px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                marginTop: "2rem",
+                minWidth: "340px",
+                maxWidth: "100%",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "1.25rem",
+                  fontWeight: "bold",
+                  color: "#333",
+                  marginBottom: "1rem",
+                }}
+              >
+                Transaction History
+              </h3>
+              <TransactionTable data={[]} />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </AuthGate>
   );
 };
 
