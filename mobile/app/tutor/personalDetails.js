@@ -5,8 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  TouchableOpacity,
 } from "react-native";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import Form from "../../components/form";
 import { Link, useLocalSearchParams, router } from "expo-router";
@@ -21,6 +22,8 @@ import {
 import { jwtDecode } from "jwt-decode";
 import supabase from "../../services/supabaseClient";
 
+const RESEND_SECONDS = 60;
+
 export default function PersonalDetails() {
   const { id } = useLocalSearchParams();
   const [errors, setErrors] = useState({});
@@ -31,9 +34,36 @@ export default function PersonalDetails() {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
 
+  // verification display + resend cooldown
+  const [isActive, setIsActive] = useState(true);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const timerRef = useRef(null);
+
   useEffect(() => {
     fetchTutorData();
+    return () => stopCooldown();
   }, []);
+
+  const startCooldown = () => {
+    stopCooldown();
+    setSecondsLeft(RESEND_SECONDS);
+    timerRef.current = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          clearInterval(timerRef.current);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+  };
+
+  const stopCooldown = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
 
   const fetchTutorData = async () => {
     try {
@@ -58,12 +88,16 @@ export default function PersonalDetails() {
       const tutorData = await apiClient.get(`/tutors/${tutorId}`);
 
       console.log("Fetched tutor data:", tutorData);
+
+      // Prefer pendingEmail if present so the new email shows immediately
+      const displayEmail = tutorData.pendingEmail || tutorData.email || "";
+
       // Update form data with fetched data
       setFormData({
         firstName: tutorData.firstName || "",
         lastName: tutorData.lastName || "",
         dateOfBirth: tutorData.dateOfBirth || "",
-        email: tutorData.email || "",
+        email: displayEmail,
         phone: tutorData.phone || "",
         image: tutorData.image || "",
       });
@@ -72,10 +106,13 @@ export default function PersonalDetails() {
         firstName: tutorData.firstName || "",
         lastName: tutorData.lastName || "",
         dateOfBirth: tutorData.dateOfBirth || "",
-        email: tutorData.email || "",
+        email: displayEmail,
         phone: tutorData.phone || "",
         image: tutorData.image || "",
       });
+
+      setIsActive(Boolean(tutorData.isActive));
+      setSecondsLeft(0);
     } catch (error) {
       console.error("Error fetching tutor data:", error);
       Alert.alert("Error", "An error occurred while fetching data");
@@ -84,7 +121,7 @@ export default function PersonalDetails() {
     }
   };
 
-  if (loading) {
+  if (loading || !formData || !initialData) {
     return (
       <View style={[styles.container, styles.center]}>
         <Text>Loading...</Text>
@@ -185,9 +222,9 @@ export default function PersonalDetails() {
       const changedFields = {};
       Object.keys(formData).forEach((key) => {
         // If a new image was uploaded, always set image field
-        if (key === 'image' && imageUrl && imageUrl.startsWith('http')) {
+        if (key === "image" && imageUrl && imageUrl.startsWith("http")) {
           changedFields[key] = imageUrl;
-        } else if (formData[key] !== initialData[key] && key !== 'image') {
+        } else if (formData[key] !== initialData[key] && key !== "image") {
           changedFields[key] = formData[key];
         }
       });
@@ -205,9 +242,22 @@ export default function PersonalDetails() {
       console.log("Saving tutor data for ID:", tutorId);
       console.log("Request Body:", requestBody);
 
-      await apiClient.patch(`/tutors/${tutorId}`, requestBody);
+      const res = await apiClient.patch(`/tutors/${tutorId}`, requestBody);
 
-      console.log("✅ Personal details updated successfully");
+      console.log("✅ Personal details updated successfully", res);
+
+      // If email was changed → verification flow triggered (backend mirrors student logic)
+      if (res?.requiresEmailVerification && changedFields.email) {
+        // Flip UI immediately to "not verified" and keep the edited email
+        setIsActive(false);
+        setInitialData((prev) => ({ ...prev, email: changedFields.email }));
+        startCooldown();
+        Alert.alert(
+          "Verify your new email",
+          "We’ve sent a verification link to your new address."
+        );
+        return;
+      }
 
       // Use Alert for mobile compatibility
       Alert.alert(
@@ -229,6 +279,66 @@ export default function PersonalDetails() {
       );
     }
   };
+
+  const canResend = secondsLeft === 0;
+
+  const handleResend = async () => {
+    if (!formData?.email) return;
+    if (!canResend) return;
+    try {
+      await authService.resendVerification(String(formData.email));
+      Alert.alert(
+        "Email sent",
+        "If your account is unverified, we've sent a new verification email."
+      );
+      startCooldown();
+    } catch (e) {
+      Alert.alert("Failed to resend. Try again later.");
+    }
+  };
+
+  const emailChanged = formData.email !== initialData.email;
+  const renderBelowEmail = (
+    <View style={{ marginTop: 8 }}>
+      {emailChanged ? (
+        <View style={styles.statusRow}>
+          <Ionicons name="alert-circle" size={18} color="#F59E0B" />
+          <Text style={styles.statusTextWarn}>
+            Will require verification after you save
+          </Text>
+        </View>
+      ) : isActive ? (
+        <View style={styles.verifiedPill}>
+          <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+          <Text style={styles.verifiedPillText}>Email verified</Text>
+        </View>
+      ) : (
+        <View style={styles.statusRowBetween}>
+          <View style={styles.statusRow}>
+            <Ionicons name="close-circle" size={18} color="#EF4444" />
+            <Text style={styles.statusTextError}>Email not verified</Text>
+          </View>
+
+          {/* Actions: Resend + Refresh status */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <TouchableOpacity
+              onPress={handleResend}
+              disabled={!canResend}
+              style={styles.resendLink}
+            >
+              <Text style={styles.resendLinkText}>
+                {canResend ? "Resend" : `Resend in ${secondsLeft}s`}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={fetchTutorData}>
+              <Text style={styles.refreshLinkText}>Refresh status</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+    </View>
+  );
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -253,6 +363,7 @@ export default function PersonalDetails() {
             showGender={false}
             saveButtonText="Save"
             errors={errors}
+            renderBelowEmail={renderBelowEmail} // ⬅️ important
           />
         </ScrollView>
       </View>
@@ -289,4 +400,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
   },
+
+  // Verification UI (matched to student flow)
+  statusRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  statusRowBetween: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  statusTextWarn: { color: "#F59E0B", fontSize: 13, fontWeight: "600" },
+  statusTextError: { color: "#EF4444", fontSize: 13, fontWeight: "600" },
+
+  verifiedPill: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#D1FAE5",
+  },
+  verifiedPillText: { color: "#065F46", fontSize: 12, fontWeight: "700" },
+
+  resendLink: { paddingVertical: 6, paddingHorizontal: 10 },
+  resendLinkText: { color: "#111827", fontWeight: "700", fontSize: 13 },
+
+  // Added for the refresh text link
+  refreshLinkText: { color: "#2563EB", fontWeight: "700", fontSize: 13, textDecorationLine: "underline" },
 });

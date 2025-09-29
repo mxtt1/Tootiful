@@ -70,7 +70,8 @@ export default function RegisterScreen() {
             }
 
             console.log("Registration successful:", data);
-            router.replace("/login");
+            // router.replace("/login");
+            router.replace({ pathname: "/verify_email", params: { email } });
         } catch (error) {
             console.error("Registration error:", error);
 

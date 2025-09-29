@@ -34,6 +34,11 @@ function AppRoutes() {
       <Route path="/forgot-password/verify" element={<VerifyCode />} />
       <Route path="/forgot-password/new" element={<NewPassword />} />
       <Route path="/forgot-password/success" element={<ResetSuccess />} />
+      {/* Agency aliases reusing the same screens with context */}
+      <Route path="/agency/forgot/email" element={<ForgotEmail context="agency" />} />
+      <Route path="/agency/forgot/verify" element={<VerifyCode context="agency" />} />
+      <Route path="/agency/forgot/new-password" element={<NewPassword context="agency" />} />
+      <Route path="/agency/forgot/success" element={<ResetSuccess context="agency" />} />
       {/* Admin */}
       <Route
         path="/admin/*"

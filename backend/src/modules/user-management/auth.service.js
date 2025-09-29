@@ -41,8 +41,16 @@ export default class AuthService {
       throw new Error("Admin accounts cannot log in here");
     }
 
-    if (!user.isActive || user.isSuspended) {
+    if (user.isSuspended) {
       throw new Error("Account is deactivated. Please contact support.");
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        code: "ACCOUNT_INACTIVE",
+        message: "Please verify your email to continue.",
+      });
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password);

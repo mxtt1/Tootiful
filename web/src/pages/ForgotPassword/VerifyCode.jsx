@@ -36,10 +36,14 @@ function isOk(resLike) {
   return s >= 200 && s < 300;
 }
 
-export default function VerifyCode() {
+export default function VerifyCode({ context }) {
   const navigate = useNavigate();
   const location = useLocation();
   const emailFromState = location?.state?.email;
+
+  // NEW: context-aware base path (works with or without prop)
+  const isAgency = context === "agency" || window.location.pathname.startsWith("/agency/");
+  const baseForgotPath = isAgency ? "/agency/forgot-password" : "/forgot-password";
 
   // keep email in session in case of hard refresh
   const [email, setEmail] = useState(
@@ -48,8 +52,11 @@ export default function VerifyCode() {
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // resend countdown
-  const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
+  // initialize from session
+  const [secondsLeft, setSecondsLeft] = useState(() => {
+    const saved = Number(sessionStorage.getItem("fp_resend_seconds"));
+    return Number.isFinite(saved) && saved > 0 ? saved : RESEND_SECONDS;
+  });
 
   useEffect(() => {
     if (!email) {
@@ -58,11 +65,12 @@ export default function VerifyCode() {
         title: "Email required",
         message: "Please enter your email again.",
       });
-      navigate("/forgot-password", { replace: true });
+      // CHANGED: context-aware start page
+      navigate(baseForgotPath, { replace: true });
       return;
     }
     sessionStorage.setItem("fp_email", email);
-  }, [email, navigate]);
+  }, [email, navigate, baseForgotPath]);
 
   // handle countdown persistently
   useEffect(() => {
@@ -101,7 +109,8 @@ export default function VerifyCode() {
         message: "You can now set a new password.",
       });
 
-      navigate("/forgot-password/new", {
+      // CHANGED: context-aware next step
+      navigate(`${baseForgotPath}/new`, {
         state: { email, resetToken },
         replace: true,
       });
@@ -200,7 +209,8 @@ export default function VerifyCode() {
                   type="button"
                   size="sm"
                   onClick={() =>
-                    navigate("/forgot-password", { replace: true })
+                    // CHANGED: context-aware start page
+                    navigate(baseForgotPath, { replace: true })
                   }
                 >
                   Use a different email

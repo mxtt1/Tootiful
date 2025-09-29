@@ -23,6 +23,8 @@ const Form = ({
   errors,
   showGradeLevel = true,
   showGender = true,
+  /** NEW: slot to render content right under the Email input */
+  renderBelowEmail,
 }) => {
 
   /* State for gender picker modal */
@@ -32,7 +34,6 @@ const Form = ({
     { label: "Male", value: "male" },
     { label: "Female", value: "female" },
   ]);
-
 
   /* State for grade level picker modal */
   const [gradeOpen, setGradeOpen] = useState(false);
@@ -61,7 +62,7 @@ const Form = ({
     setShowDatePicker(false);
     if (selectedDate) {
       setDateValue(selectedDate);
-      // Format date as DD-MM-YYYY string
+      // Format date as YYYY-MM-DD string
       const iso = selectedDate.toISOString().split('T')[0];
       onInputChange('dateOfBirth', iso);
     }
@@ -71,7 +72,6 @@ const Form = ({
   const [image, setImage] = useState(formData.image || null);
 
   /* Function to handle image selection */
-
   const pickImage = async () => {
     // Ask for permission first
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -162,7 +162,7 @@ const Form = ({
       </View>
 
       {/* Email */}
-      <View style={styles.inputContainer}>
+      <View className="email-field" style={styles.inputContainer}>
         <Ionicons name="mail-outline" size={20} style={styles.styleIcon} />
         <TextInput
           style={[styles.input, styles.inputWithIcon, errors.email && styles.inputError]}
@@ -170,10 +170,16 @@ const Form = ({
           value={formData.email}
           onChangeText={(text) => onInputChange("email", text)}
           keyboardType="email-address"
+          autoCapitalize="none"
         />
         {errors.email && (
           <Text style={styles.errorText}>{errors.email}</Text>
         )}
+
+        {/* NEW: render verification row directly under the Email field */}
+        {renderBelowEmail
+          ? (typeof renderBelowEmail === "function" ? renderBelowEmail() : renderBelowEmail)
+          : null}
       </View>
 
       {/* Phone Number */}
@@ -315,10 +321,10 @@ const styles = StyleSheet.create({
     height: 50,
     width: "100%",
     color: "#374151",
-    backgroundColor: "#fff", // Ensure background color matches
-    borderWidth: 0, // No border
-    borderRadius: 12, // Rounded corners
-    shadowColor: "#000", // Add shadow
+    backgroundColor: "#fff",
+    borderWidth: 0,
+    borderRadius: 12,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 4,

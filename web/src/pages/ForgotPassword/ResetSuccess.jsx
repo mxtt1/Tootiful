@@ -2,10 +2,14 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Title, Text, Button, Stack, Image, Box } from "@mantine/core";
 import logo from "../../assets/tooty.png";
 
-export default function ResetSuccess() {
+export default function ResetSuccess({ context }) {
   const navigate = useNavigate();
   const location = useLocation();
   const fromReset = location?.state?.fromReset;
+
+  // NEW: context-aware login destination
+  const isAgency = context === "agency" || window.location.pathname.startsWith("/agency/");
+  const loginPath = isAgency ? "/agency" : "/login";
 
   const title = fromReset ? "Password reset successful" : "Action completed";
   const description = fromReset
@@ -32,7 +36,7 @@ export default function ResetSuccess() {
             radius="md"
             fullWidth
             styles={{ root: { height: 44 } }}
-            onClick={() => navigate("/login")}
+            onClick={() => navigate(loginPath)} // CHANGED
           >
             Go to Login
           </Button>

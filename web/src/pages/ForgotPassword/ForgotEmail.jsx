@@ -23,10 +23,16 @@ function isSuccessResponse(resLike) {
   return isHttpOk || hasSuccessFlag || hasSuccessWords;
 }
 
-export default function ForgotEmail() {
+export default function ForgotEmail({ context }) {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+
+  // === NEW: context-aware paths (works even if no prop is passed) ===
+  const isAgency = context === "agency" || window.location.pathname.startsWith("/agency/");
+  const baseForgotPath = isAgency ? "/agency/forgot-password" : "/forgot-password";
+  const loginPath = isAgency ? "/agency" : "/login";
+  // =================================================================
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -54,8 +60,8 @@ export default function ForgotEmail() {
         // Persist for Verify page
         localStorage.setItem("resetEmail", trimmed);
 
-        // Carry the email in route state too
-        navigate("/forgot-password/verify", { state: { email: trimmed, justSent: true }, replace: true });
+        // === CHANGED: use context-aware path ===
+        navigate(`${baseForgotPath}/verify`, { state: { email: trimmed, justSent: true }, replace: true });
       } else {
         const data = res?.data ?? res ?? {};
         notifications.show({
@@ -72,7 +78,8 @@ export default function ForgotEmail() {
       if (/sent/i.test(msg)) {
         notifications.show({ color: "green", title: "Code sent", message: msg || "Check your inbox for the 6-digit code." });
         localStorage.setItem("resetEmail", trimmed);
-        navigate("/forgot-password/verify", { state: { email: trimmed, justSent: true }, replace: true });
+        // === CHANGED: use context-aware path ===
+        navigate(`${baseForgotPath}/verify`, { state: { email: trimmed, justSent: true }, replace: true });
       } else {
         notifications.show({ color: "red", title: "Server error", message: msg || "Please try again." });
       }
@@ -112,7 +119,8 @@ export default function ForgotEmail() {
 
               <Text size="sm" c="dimmed">
                 Remembered your password?{" "}
-                <Anchor onClick={() => navigate("/login")} component="button" type="button">
+                {/* CHANGED: back to login respects Agency context */}
+                <Anchor onClick={() => navigate(loginPath)} component="button" type="button">
                   Back to login
                 </Anchor>
               </Text>
