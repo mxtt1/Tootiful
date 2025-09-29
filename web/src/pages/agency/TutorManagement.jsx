@@ -37,7 +37,6 @@ function EditTutorModal({ opened, onClose, tutor, onUpdated }) {
             const patchData = {};
             if (form.firstName !== tutor.firstName) patchData.firstName = form.firstName;
             if (form.lastName !== tutor.lastName) patchData.lastName = form.lastName;
-            if (form.email !== tutor.email) patchData.email = form.email;
             if (form.phone !== tutor.phone) patchData.phone = form.phone;
             if ((form.dateOfBirth && (!tutor.dateOfBirth || new Date(tutor.dateOfBirth).toISOString().split("T")[0] !== form.dateOfBirth.toISOString().split("T")[0])) || (!form.dateOfBirth && tutor.dateOfBirth)) {
                 patchData.dateOfBirth = form.dateOfBirth ? form.dateOfBirth.toISOString().split("T")[0] : null;
@@ -75,8 +74,7 @@ function EditTutorModal({ opened, onClose, tutor, onUpdated }) {
                 <TextInput
                     label="Email"
                     value={form.email}
-                    onChange={e => setForm({ ...form, email: e.target.value })}
-                    required
+                    readOnly
                 />
                 <TextInput
                     label="Phone Number"
@@ -150,31 +148,32 @@ export default function TutorManagement() {
 
     // Fetch tutors (with server-side search)
     useEffect(() => {
-        const fetchTutors = async () => {
-            if (!agencyId) return;
-            setLoading(true);
-            setError(null);
-            try {
-                const offset = (page - 1) * limit;
-                const params = {
-                    limit: limit.toString(),
-                    offset: offset.toString(),
-                    search: debouncedSearch
-                };
-                const res = await apiClient.get(`/tutors?agencyId=${agencyId}&${new URLSearchParams(params).toString()}`);
-                const tutorsData = res.data || res.rows || res || [];
-                setTutors(tutorsData);
-                // If backend provides totalCount, set totalPages
-                const totalCount = res.pagination?.total || tutorsData.length;
-                setTotalPages(Math.ceil(totalCount / limit));
-            } catch (err) {
-                setError("Failed to load tutors");
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchTutors();
     }, [agencyId, page, limit, debouncedSearch]);
+
+    const fetchTutors = async () => {
+        if (!agencyId) return;
+        setLoading(true);
+        setError(null);
+        try {
+            const offset = (page - 1) * limit;
+            const params = {
+                limit: limit.toString(),
+                offset: offset.toString(),
+                search: debouncedSearch
+            };
+            const res = await apiClient.get(`/tutors?agencyId=${agencyId}&${new URLSearchParams(params).toString()}`);
+            const tutorsData = res.data || res.rows || res || [];
+            setTutors(tutorsData);
+            // If backend provides totalCount, set totalPages
+            const totalCount = res.pagination?.total || tutorsData.length;
+            setTotalPages(Math.ceil(totalCount / limit));
+        } catch (err) {
+            setError("Failed to load tutors");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Status color logic
     const getStatusColor = (status) => {
@@ -280,14 +279,14 @@ export default function TutorManagement() {
             <TutorCreateForm
                 opened={createModalOpen}
                 onClose={() => setCreateModalOpen(false)}
-                onCreated={() => setPage(1)}
+                onCreated={fetchTutors}
                 agencyId={agencyId}
             />
             <EditTutorModal
                 opened={editModalOpen}
                 onClose={() => setEditModalOpen(false)}
                 tutor={selectedTutor}
-                onUpdated={() => setPage(1)}
+                onUpdated={fetchTutors}
             />
             <Modal
                 opened={deleteModalOpen}
@@ -306,8 +305,9 @@ export default function TutorManagement() {
                             setDeleteModalOpen(false);
                             setTutorToDelete(null);
                             setPage(1);
+                            fetchTutors();
                         } catch (err) {
-                            // handle error
+                            setError("Failed to delete tutor: " + (err.message || ""));
                         } finally {
                             setDeleting(false);
                         }
