@@ -1,27 +1,13 @@
 class ApiClient {
   constructor() {
     this.baseURL = import.meta.env.VITE_API_BASE_URL || "/api";
-    this.accessToken = null;
-    this.loadTokenFromStorage();
 
     if (import.meta.env.VITE_DEBUG === "true") {
       console.log("API Client initialized with baseURL:", this.baseURL);
     }
   }
 
-  // Load access token from localStorage
-  async loadTokenFromStorage() {
-    try {
-      const token = localStorage.getItem("accessToken");
-      if (token) {
-        this.accessToken = token;
-      }
-    } catch (error) {
-      console.error("Failed to load token from storage:", error);
-    }
-  }
-
-  async setAccessToken(token) {
+  /* async setAccessToken(token) {
     this.accessToken = token;
     try {
       localStorage.setItem("accessToken", token);
@@ -37,7 +23,7 @@ class ApiClient {
     } catch (error) {
       console.error("Failed to remove token from storage:", error);
     }
-  }
+  } */
 
   // Core HTTP request
   async request(endpoint, options = {}, isRetry = false) {
@@ -46,10 +32,12 @@ class ApiClient {
       "Content-Type": "application/json",
       ...options.headers,
     };
-    if (this.accessToken) {
-      headers.Authorization = `Bearer ${this.accessToken}`;
-    }
 
+    // Retrieve token from localStorage for each request
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
     const config = { ...options, headers, credentials: "include" };
 
     try {
@@ -66,7 +54,7 @@ class ApiClient {
         try {
           const userObj = JSON.parse(userStr);
           isAgencyUser = userObj?.userType === "agency";
-        } catch {}
+        } catch { }
       }
       if (
         response.status === 401 &&
@@ -143,7 +131,7 @@ class ApiClient {
     return this.request(endpoint, { method: "DELETE", headers });
   }
 
-  // --- Auth methods ---
+  /* --- Auth methods ---
   async login(email, password) {
     const response = await this.post("/auth/login", { email, password });
     if (response.accessToken) {
@@ -163,7 +151,7 @@ class ApiClient {
       await this.clearAccessToken();
       throw error;
     }
-  }
+  } */
 
   async logout() {
     try {

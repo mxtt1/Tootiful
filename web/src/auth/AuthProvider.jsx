@@ -18,13 +18,6 @@ const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Helper for protected pages
-  const AuthGate = ({ children }) => {
-    if (loading) return null;
-    if (!isAuthenticated) return null;
-    return children;
-  };
-
   // Admin account emails:
   // "e1123046@u.nus.edu", "mattlow1504@gmail.com", "e1122690@u.nus.edu","e1155487@u.nus.edu","E1138943@u.nus.edu"
 
@@ -162,7 +155,6 @@ const AuthProvider = ({ children }) => {
     isAgency: user?.userType === 'agency',
     isUser: user?.userType === 'user',
     isAdmin: user?.role === 'admin',
-    AuthGate
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
