@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Button, TextInput, Container, Card, Title, Alert, Text } from '@mantine/core';
+import { Button, TextInput, Container, Card, Title, Alert, Text, FileInput } from '@mantine/core';
+import { IconPhoto } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
+import supabase from '../services/supabaseClient';
 
 export default function Register() {
     const navigate = useNavigate();
@@ -10,7 +12,8 @@ export default function Register() {
         email: '',
         password: '',
         confirmPassword: '',
-        phone: ''
+        phone: '',
+        image: null
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -25,7 +28,7 @@ export default function Register() {
         // Frontend validation
         const frontendErrors = {};
 
-        // Phone number validation (now required)
+        // Phone number validation
         if (!formData.phone || formData.phone.trim() === '') {
             frontendErrors.phone = 'Phone number is required';
         } else if (formData.phone.length !== 8) {
@@ -34,12 +37,26 @@ export default function Register() {
             frontendErrors.phone = 'Phone number must contain only digits';
         }
 
+        // Password validation
         if (formData.password !== formData.confirmPassword) {
             frontendErrors.confirmPassword = 'Passwords do not match';
         }
 
         if (formData.password.length < 6) {
             frontendErrors.password = 'Password must be at least 6 characters long';
+        }
+
+        // MANDATORY IMAGE VALIDATION
+        if (!formData.image) {
+            frontendErrors.image = 'Profile image is required';
+        } else {
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+            if (!allowedTypes.includes(formData.image.type)) {
+                frontendErrors.image = 'Only JPEG, PNG, and WebP images are allowed';
+            }
+            if (formData.image.size > 5 * 1024 * 1024) { // 5MB
+                frontendErrors.image = 'Image size must be less than 5MB';
+            }
         }
 
         if (Object.keys(frontendErrors).length > 0) {
@@ -49,12 +66,71 @@ export default function Register() {
         }
 
         try {
+            let imageUrl = '';
+
+            // Upload image to Supabase Storage first
+            if (formData.image) {
+                try {
+                    // Get file extension
+                    const fileExt = formData.image.name.split('.').pop();
+
+                    // Set content type
+                    let contentType = 'image/png'; // default
+                    if (fileExt === 'jpg' || fileExt === 'jpeg') {
+                        contentType = 'image/jpeg';
+                    } else if (fileExt === 'png') {
+                        contentType = 'image/png';
+                    } else if (fileExt === 'webp') {
+                        contentType = 'image/webp';
+                    }
+
+                    // Create unique filename
+                    const fileName = `agency_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+                    // Convert File to ArrayBuffer for Supabase
+                    const arrayBuffer = await formData.image.arrayBuffer();
+
+                    // Upload to Supabase Storage
+                    const { data, error } = await supabase.storage
+                        .from('avatars') // Make sure this bucket exists in Supabase
+                        .upload(fileName, arrayBuffer, {
+                            cacheControl: '3600',
+                            upsert: false,
+                            contentType: contentType,
+                        });
+
+                    console.log('Supabase upload response:', data, error);
+
+                    if (error) {
+                        throw new Error('Image upload failed: ' + error.message);
+                    }
+
+                    // Get public URL
+                    const { data: urlData } = supabase.storage
+                        .from('avatars')
+                        .getPublicUrl(fileName);
+
+                    imageUrl = urlData.publicUrl;
+                    console.log('Image public URL:', imageUrl);
+
+                } catch (uploadError) {
+                    console.error('Image upload error:', uploadError);
+                    setFieldErrors({ image: 'Failed to upload image. Please try again.' });
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            // Send registration data with image URL to backend
             const payload = {
                 name: formData.name,
                 email: formData.email,
                 password: formData.password,
-                phone: formData.phone // No longer optional
+                phone: formData.phone,
+                image: imageUrl // Send Supabase URL, not file
             };
+
+            console.log('Sending registration payload:', payload);
 
             await apiClient.post('/agencies', payload);
 
@@ -64,6 +140,7 @@ export default function Register() {
                     message: 'Agency registration successful! Please log in to continue.'
                 }
             });
+
         } catch (err) {
             console.error('Registration error:', err);
 
@@ -94,6 +171,8 @@ export default function Register() {
                         setFieldErrors({ password: 'Password must be at least 6 characters long' });
                     } else if (errorMessage.includes('phone') && errorMessage.includes('8')) {
                         setFieldErrors({ phone: 'Phone number must be exactly 8 characters' });
+                    } else if (errorMessage.includes('image') || errorMessage.includes('required')) {
+                        setFieldErrors({ image: 'Profile image is required' });
                     } else {
                         setError(backendError.error);
                     }
@@ -205,18 +284,30 @@ export default function Register() {
                         value={formData.phone}
                         onChange={(e) => handleInputChange('phone', e.target.value)}
                         error={fieldErrors.phone}
-                        required // Now required
-                        mb="xl"
+                        required
+                        mb="md"
                         maxLength={8}
+                    />
+
+                    <FileInput
+                        label="Profile Image"
+                        placeholder="Upload agency profile image"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        value={formData.image}
+                        onChange={(file) => handleInputChange('image', file)}
+                        error={fieldErrors.image}
+                        leftSection={<IconPhoto size={14} />}
+                        required
+                        mb="xl"
                     />
 
                     <Button
                         type="submit"
                         fullWidth
                         loading={loading}
-                        disabled={!formData.name || !formData.email || !formData.password || !formData.confirmPassword || !formData.phone}
+                        disabled={!formData.name || !formData.email || !formData.password || !formData.confirmPassword || !formData.phone || !formData.image}
                     >
-                        Register Agency
+                        {loading ? 'Uploading Image & Creating Agency...' : 'Register Agency'}
                     </Button>
                 </form>
 

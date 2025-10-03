@@ -33,14 +33,20 @@ const Agency = sequelize.define('Agency', {
     type: DataTypes.STRING(15),
     allowNull: true,
     validate: {
-      len: [8,8],
+      len: [8, 8],
     },
+  },
+
+  image: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    comment: "URL of profile image",
   },
   isActive: {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: true,
-  } 
+  }
 }, {
   tableName: 'agencies',
   timestamps: true,
