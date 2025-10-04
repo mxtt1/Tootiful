@@ -59,11 +59,9 @@ export default function Register() {
             await apiClient.post('/agencies', payload);
 
             // Registration successful
-            navigate('/login', {
-                state: {
-                    message: 'Agency registration successful! Please log in to continue.'
-                }
-            });
+            navigate(
+            `/verify-email-pending?email=${encodeURIComponent(formData.email)}&jr=1`
+            );
         } catch (err) {
             console.error('Registration error:', err);
 

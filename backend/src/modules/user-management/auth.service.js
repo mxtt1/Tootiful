@@ -2,8 +2,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { Op } from "sequelize";
-import { User, RefreshToken } from "../../models/index.js";
-import Agency from "../../models/index.js";
+import { User, RefreshToken, Agency } from "../../models/index.js";
 
 export default class AuthService {
   constructor() {

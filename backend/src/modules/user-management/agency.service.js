@@ -1,6 +1,7 @@
 import { Agency, Location, User } from '../../models/index.js';
 import { Op } from 'sequelize';
 import bcrypt from 'bcrypt';
+import { createAndEmailVerificationLinkForAgency } from "../user-management/emailVerification.service.js";
 
 class AgencyService {
     // Route handler methods with complete HTTP response logic
@@ -147,7 +148,7 @@ class AgencyService {
             throw new Error('Agency with this email already exists');
         }
 
-        // Check if email already exists in User table 
+        // Check if email already exists in User table
         const existingUser = await User.findOne({ where: { email: agencyData.email } });
         if (existingUser) {
             throw new Error('Email already exists for a user');
@@ -159,20 +160,32 @@ class AgencyService {
             throw new Error('Agency with this name already exists');
         }
 
-        // Check phone uniqueness (ADD THIS)
+        // Check phone uniqueness
         if (agencyData.phone) {
             const existingPhone = await Agency.findOne({ where: { phone: agencyData.phone } });
             if (existingPhone) {
-                throw new Error('Phone number already exists');
+            throw new Error('Phone number already exists');
             }
         }
 
-
-        return await Agency.create({
+        // creating of agency
+        const agency = await Agency.create({
             ...agencyData,
-            isActive: false // Default to inactive for new agencies
+            isActive: false,
         });
+        // sending of verification email
+        try {
+            const r = await createAndEmailVerificationLinkForAgency(agency);
+            if (!r.ok && r.message) {
+            console.warn("Verification email wasn’t sent (cooldown or soft fail):", r.message);
+            }
+        } catch (err) {
+            console.error("Failed to send verification email:", err);
+        }
+
+        return agency;
     }
+
 
     async getAgencies(options = {}) {
         const { page, limit, active } = options;
