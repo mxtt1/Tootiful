@@ -27,7 +27,7 @@ export default function UserManagement() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [limit, setLimit] = useState(10); // Remove const from limit
   const [error, setError] = useState(null);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -48,7 +48,7 @@ export default function UserManagement() {
     lastName: "",
     email: "",
     isActive: false,
-    isSuspended: false, // ADDED
+    isSuspended: false,
   });
   const [saving, setSaving] = useState(false);
   const [emailError, setEmailError] = useState("");
@@ -68,19 +68,12 @@ export default function UserManagement() {
       setLoading(true);
       setError(null);
       try {
-        const offset = (page - 1) * limit;
-        const params = {
-          limit: limit.toString(),
-          offset: offset.toString(),
-
-        };
-
         let allUsers = [];
 
-        // Fetch students
+        // Fetch ALL students (remove pagination from API calls)
         if (!roleFilter || roleFilter === "Student") {
           try {
-            const studentsRes = await apiClient.get(`/students?${new URLSearchParams(params).toString()}`);
+            const studentsRes = await apiClient.get(`/students`);
             const students = (studentsRes.rows || studentsRes.data || studentsRes || []).map(user => ({
               ...user,
               role: "Student"
@@ -91,10 +84,10 @@ export default function UserManagement() {
           }
         }
 
-        // Fetch tutors
+        // Fetch ALL tutors (remove pagination from API calls)
         if (!roleFilter || roleFilter === "Tutor") {
           try {
-            const tutorsRes = await apiClient.get(`/tutors?${new URLSearchParams(params).toString()}`);
+            const tutorsRes = await apiClient.get(`/tutors`);
             const tutors = (tutorsRes.rows || tutorsRes.data || tutorsRes || []).map(user => ({
               ...user,
               role: "Tutor"
@@ -110,7 +103,7 @@ export default function UserManagement() {
           allUsers = allUsers.filter(user => user.role === roleFilter);
         }
 
-        // UPDATED: Handle isSuspended in mapping
+        // Map users to display format
         const mappedUsers = allUsers.map((user) => ({
           id: user.id,
           fullName: [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username,
@@ -122,13 +115,18 @@ export default function UserManagement() {
           joinedDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "",
         }));
 
-        // ADD LOCAL SEARCH FILTERING HERE:
+        // Apply client-side filtering
         let filteredUsers = mappedUsers;
+
+        // Search filter
         if (debouncedSearch) {
-          filteredUsers = mappedUsers.filter(user =>
-            user.fullName.toLowerCase().includes(debouncedSearch.toLowerCase())
+          filteredUsers = filteredUsers.filter(user =>
+            user.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+            user.email.toLowerCase().includes(debouncedSearch.toLowerCase())
           );
         }
+
+        // Status filter
         if (statusFilter) {
           filteredUsers = filteredUsers.filter(user => {
             switch (statusFilter) {
@@ -144,7 +142,23 @@ export default function UserManagement() {
           });
         }
 
-        setRows(filteredUsers);
+        // Calculate pagination
+        const totalFiltered = filteredUsers.length;
+        const totalPagesCalc = Math.max(1, Math.ceil(totalFiltered / limit));
+
+        // Reset to page 1 if current page is out of bounds
+        if (page > totalPagesCalc) {
+          setPage(1);
+          return;
+        }
+
+        // Apply client-side pagination
+        const startIndex = (page - 1) * limit;
+        const paginatedUsers = filteredUsers.slice(startIndex, startIndex + limit);
+
+        setRows(paginatedUsers);
+        setTotalPages(totalPagesCalc);
+
       } catch (err) {
         console.error("Fetch error:", err);
         setError("Failed to load users");
@@ -172,7 +186,6 @@ export default function UserManagement() {
     }
   };
 
-  // UPDATED: Handle isSuspended in edit form
   const handleEditUser = (userId) => {
     const user = rows.find(u => u.id === userId);
     if (user) {
@@ -200,7 +213,6 @@ export default function UserManagement() {
     return "";
   };
 
-  // UPDATED: Handle isSuspended in save
   const handleSaveUser = async () => {
     const emailValidationError = validateEmail(editForm.email);
     if (emailValidationError) {
@@ -218,7 +230,7 @@ export default function UserManagement() {
         isSuspended: editForm.isSuspended,
       };
 
-      console.log("Sending update data:", updateData); // Debug log
+      console.log("Sending update data:", updateData);
 
       if (editingUser.role === "Student") {
         await apiClient.patch(`/students/${editingUser.id}`, updateData);
@@ -370,6 +382,24 @@ export default function UserManagement() {
               style={{ minWidth: 150 }}
             />
 
+            {/* <Select
+              placeholder="Rows per page"
+              data={[
+                { value: "10", label: "10 / page" },
+                { value: "20", label: "20 / page" },
+                { value: "50", label: "50 / page" },
+                { value: "100", label: "100 / page" },
+              ]}
+              value={limit.toString()}
+              onChange={(value) => {
+                if (value) {
+                  setLimit(Number(value));
+                  setPage(1); // Reset to first page when changing page size
+                }
+              }}
+              style={{ width: 140 }}
+            /> */}
+
             <Button onClick={applyFilters}>Apply Filters</Button>
           </Group>
         </Card>
@@ -436,8 +466,12 @@ export default function UserManagement() {
           )}
         </Card>
 
+        {/* Show pagination and results info */}
         {totalPages > 1 && (
-          <Group justify="center">
+          <Group justify="space-between" align="center">
+            <Text size="sm" color="dimmed">
+              Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, rows.length)} of {rows.length} results
+            </Text>
             <Pagination
               value={page}
               onChange={setPage}
@@ -448,7 +482,7 @@ export default function UserManagement() {
         )}
       </Stack>
 
-      {/* UPDATED Modal with Suspended option */}
+      {/* Rest of your modals remain the same */}
       <Modal
         opened={editModalOpen}
         onClose={() => {
@@ -503,7 +537,6 @@ export default function UserManagement() {
             type="email"
           />
 
-          {/* UPDATED Select with 3 options */}
           <Select
             label="Status"
             placeholder="Select status"
@@ -517,7 +550,7 @@ export default function UserManagement() {
                 editForm.isActive ? "active" : "inactive"
             }
             onChange={(value) => {
-              console.log("Status changed to:", value); // Debug log
+              console.log("Status changed to:", value);
               setEditForm({
                 ...editForm,
                 isActive: value === "active",
