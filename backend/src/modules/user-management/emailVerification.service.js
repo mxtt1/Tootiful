@@ -13,7 +13,7 @@ function makeRandomToken() {
   return crypto.randomBytes(32).toString("hex");
 }
 
-export async function createAndEmailVerificationLink({ user, email }) {
+export async function createAndEmailVerificationLink({ user, email, generatedPassword}) {
   // Invalidate existing unused tokens for this user + target email
   await EmailVerificationToken.update(
     { usedAt: new Date() },
@@ -38,6 +38,7 @@ export async function createAndEmailVerificationLink({ user, email }) {
     name: user.firstName || "there",
     verifyLink,
     ttlMinutes: TOKEN_TTL_MINUTES,
+    generatedPassword: generatedPassword || null,
   });
 
   await sendEmail({ to: email, subject, text, html });

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Icon from "react-native-vector-icons/Feather";
 import {
   View,
   Text,
@@ -17,6 +18,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -109,13 +111,26 @@ export default function LoginScreen() {
         onChangeText={setEmail}
       />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+
+      <View style={{ position: "relative" }}>
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          secureTextEntry={!showPassword}
+          value={password}
+          onChangeText={setPassword}
+        />
+        <TouchableOpacity
+          style={styles.showPasswordIcon}
+          onPress={() => setShowPassword((v) => !v)}
+        >
+          <Icon
+            name={showPassword ? "eye-off" : "eye"}
+            size={22}
+            color="#888"
+          />
+        </TouchableOpacity>
+      </View>
 
       <Text style={{ textAlign: "right", marginTop: 2, marginBottom: 20 }}>
         <Link href="/forgot_password" style={{ color: "#666" }}>
@@ -144,6 +159,13 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+  showPasswordIcon: {
+    position: "absolute",
+    right: 12,
+    top: 12,
+    padding: 4,
+    zIndex: 10,
+  },
   container: {
     flex: 1,
     padding: 24,
