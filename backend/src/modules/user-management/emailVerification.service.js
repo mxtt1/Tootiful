@@ -1,114 +1,188 @@
 import crypto from "crypto";
-import { Op } from "sequelize";
-import { User, EmailVerificationToken } from "../../models/index.js";
+import bcrypt from "bcrypt";
+import { Op, fn, col, where as sqWhere } from "sequelize";
+import { User, Agency, EmailVerificationToken } from "../../models/index.js";
 import { sendEmail } from "../../util/mailer.js";
-import { verifyEmailTemplate } from "../../util/emailTemplates.js";
 
-const TOKEN_TTL_MINUTES = 60;
+const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24h link
+const RESEND_COOLDOWN_MS = 60 * 1000;     // 60s cooldown
+const SALT_ROUNDS = 12;
 
-function hashToken(t) {
-  return crypto.createHash("sha256").update(String(t)).digest("hex");
-}
+const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:3000";
+const WEB_BASE_URL = process.env.WEB_BASE_URL || "http://localhost:5173";
+
+/* ------------------------- helpers ------------------------- */
+
 function makeRandomToken() {
   return crypto.randomBytes(32).toString("hex");
 }
 
-export async function createAndEmailVerificationLink({ user, email, generatedPassword}) {
-  // Invalidate existing unused tokens for this user + target email
+function buildVerifyLink(token) {
+  return `${API_BASE_URL}/api/auth/verify-email?token=${token}`;
+}
+
+async function findAccountByEmail(rawEmail) {
+  const email = (rawEmail ?? "").trim().toLowerCase();
+  const user = await User.findOne({ where: sqWhere(fn("lower", col("email")), email) });
+  if (user) return { type: "user", account: user };
+  const agency = await Agency.findOne({ where: sqWhere(fn("lower", col("email")), email) });
+  if (agency) return { type: "agency", account: agency };
+  return null;
+}
+
+/* --------------- create + email verification link --------------- */
+
+async function sendVerificationEmailForAccount(type, account, targetEmail, generatedPassword) {
+  const accountId = account.id;
+  const accountType = type; // 'user' | 'agency'
+
+  // Invalidate previous pending tokens for the *same* target email
   await EmailVerificationToken.update(
     { usedAt: new Date() },
-    { where: { userId: user.id, emailForVerification: email, usedAt: null } }
+    {
+      where: {
+        userId: accountId,
+        accountType,
+        emailForVerification: targetEmail,
+        usedAt: null,
+      },
+    }
   );
 
-  const token = makeRandomToken();
-  const tokenHash = hashToken(token);
-  const expiresAt = new Date(Date.now() + TOKEN_TTL_MINUTES * 60 * 1000);
-
-  await EmailVerificationToken.create({
-    userId: user.id,
-    tokenHash,
-    emailForVerification: email,
-    expiresAt,
+  // Cooldown by (user_id, account_type)
+  const latest = await EmailVerificationToken.findOne({
+    where: { userId: accountId, accountType },
+    order: [["created_at", "DESC"]],
   });
-
-  const baseUrl = process.env.APP_BASE_URL || "http://localhost:3000";
-  const verifyLink = `${baseUrl}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
-
-  const { subject, text, html } = verifyEmailTemplate({
-    name: user.firstName || "there",
-    verifyLink,
-    ttlMinutes: TOKEN_TTL_MINUTES,
-    generatedPassword: generatedPassword || null,
-  });
-
-  await sendEmail({ to: email, subject, text, html });
-}
-
-export async function verifyEmailToken(rawToken) {
-  const tokenHash = hashToken(rawToken);
-
-  const record = await EmailVerificationToken.findOne({
-    where: {
-      tokenHash,
-      usedAt: null,
-      expiresAt: { [Op.gt]: new Date() },
-    },
-  });
-
-  if (!record) return { ok: false, reason: "invalid_or_expired" };
-
-  const user = await User.findByPk(record.userId);
-  if (!user) return { ok: false, reason: "user_not_found" };
-
-  // If this token is for a pending new email, swap it in
-  if (user.email !== record.emailForVerification) {
-    user.email = record.emailForVerification;
+  if (latest) {
+    const delta = Date.now() - new Date(latest.get("created_at")).getTime();
+    if (delta < RESEND_COOLDOWN_MS) {
+      const secs = Math.ceil((RESEND_COOLDOWN_MS - delta) / 1000);
+      return { ok: false, message: `Please wait ${secs}s before resending.` };
+    }
   }
 
-  user.isActive = true;
-  await user.save();
+  const token = makeRandomToken();
+  const tokenHash = await bcrypt.hash(token, SALT_ROUNDS);
 
-  record.usedAt = new Date();
-  await record.save();
-
-  return { ok: true, userId: user.id, email: user.email };
-}
-
-/**
- * Return the latest pending (unexpired, unused) email_for_verification for a user, if any.
- */
-export async function getPendingEmailForUser(userId) {
-  const latest = await EmailVerificationToken.findOne({
-    where: {
-      userId,
-      usedAt: null,
-      expiresAt: { [Op.gt]: new Date() },
-    },
-    order: [["createdAt", "DESC"]],
+  await EmailVerificationToken.create({
+    userId: accountId,
+    accountType,
+    tokenHash,
+    emailForVerification: targetEmail,
+    expiresAt: new Date(Date.now() + TOKEN_TTL_MS),
+    resentCount: (latest?.resentCount ?? 0) + 1,
   });
-  return latest?.emailForVerification || null;
-}
 
-/**
- * Resend verification to the authenticated user's pending email if exists,
- * otherwise fall back to their current email.
- */
-export async function resendVerificationForUser(userId) {
-  const user = await User.findByPk(userId);
-  if (!user) return { ok: true };          // don't leak existence
-  if (user.isActive) return { ok: true };  // already verified
+  const link = buildVerifyLink(token);
+  const displayName =
+    (account.firstName || account.lastName || account.name)
+      ? `${account.firstName ?? ""} ${account.lastName ?? account.name ?? ""}`.trim()
+      : "there";
 
-  const target = (await getPendingEmailForUser(user.id)) || user.email;
-  await createAndEmailVerificationLink({ user, email: target });
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6">
+      <p>Hi ${displayName},</p>
+      <p>Please verify your email by clicking the link below:</p>
+      <p><a href="${link}" target="_blank" rel="noreferrer">Verify my email</a></p>
+      <p>This link expires in 24 hours.</p>
+      <p>— Tutiful</p>
+    </div>
+  `;
+
+  await sendEmail({
+    to: targetEmail,
+    subject: "Verify your email",
+    text: `Open this link to verify your email: ${link}`,
+    html,
+  });
+
   return { ok: true };
 }
 
-/**
- * Backward-compat wrapper for any existing callers that pass an email.
- * Prefer calling resendVerificationForUser(userId).
- */
+/* ------------------------------ exports ------------------------------ */
+
+/** Call this right after successful *user* registration (if you use it). */
+export async function createAndEmailVerificationLink({ user, email, generatedPassword }) {
+  return sendVerificationEmailForAccount("user", user, email, generatedPassword);
+}
+
+/** Call this right after successful *agency* registration. */
+export async function createAndEmailVerificationLinkForAgency(agency) {
+  return sendVerificationEmailForAccount("agency", agency, agency.email);
+}
+
+/** Public endpoint: resend by email (works for users and agencies). */
 export async function resendVerification(email) {
-  const user = await User.findOne({ where: { email } });
-  if (!user) return { ok: true };
-  return resendVerificationForUser(user.id);
+  const found = await findAccountByEmail(email);
+  // always respond 200 to avoid email enumeration, but still throttle if we can
+  if (!found) return { ok: true };
+
+  // if already verified, just succeed
+  if (found.type === "user" && found.account.isActive) return { ok: true };
+  if (found.type === "agency" && found.account.isActive) return { ok: true };
+
+  return sendVerificationEmailForAccount(found.type, found.account, found.account.email);
+}
+
+/** Verify link handler (token-only is fine, we read type from the DB row). */
+export async function verifyEmailToken(rawToken) {
+  // Find latest unused, unexpired row by tokenHash
+  // (bcrypt compare requires scanning; to avoid that, we stored the bcrypt hash
+  // and must try rows ordered by created_at DESC, but we expect only ~1 live row.)
+  const latest = await EmailVerificationToken.findOne({
+    where: {
+      usedAt: null,
+      expiresAt: { [Op.gt]: new Date() },
+    },
+    order: [["created_at", "DESC"]],
+  });
+  if (!latest) return { ok: false, reason: "invalid_or_expired" };
+
+  // Validate against the most recent first; if mismatched, you could broaden the search.
+  const ok = await bcrypt.compare(rawToken, latest.tokenHash);
+  if (!ok) return { ok: false, reason: "invalid_or_expired" };
+
+  // Activate the right account type
+  if (latest.accountType === "agency") {
+    const agency = await Agency.findByPk(latest.userId);
+    if (!agency) return { ok: false, reason: "not_found" };
+    if (agency.email !== latest.emailForVerification) {
+      agency.email = latest.emailForVerification;
+    }
+    agency.isActive = true;
+    await agency.save();
+  } else {
+    const user = await User.findByPk(latest.userId);
+    if (!user) return { ok: false, reason: "not_found" };
+    if (user.email !== latest.emailForVerification) {
+      user.email = latest.emailForVerification;
+    }
+    user.isActive = true;
+    await user.save();
+  }
+
+  latest.usedAt = new Date();
+  await latest.save();
+
+  return { ok: true };
+}
+
+// Return the latest pending (un-used, un-expired) verification target email for a USER,
+// falling back to the user's current email if no pending token exists.
+export async function getPendingEmailForUser(userId) {
+  const row = await EmailVerificationToken.findOne({
+    where: {
+      userId,
+      accountType: "user",
+      usedAt: { [Op.is]: null },
+      expiresAt: { [Op.gt]: new Date() },
+    },
+    order: [["created_at", "DESC"]],
+  });
+
+  if (row?.emailForVerification) return row.emailForVerification;
+
+  const user = await User.findByPk(userId);
+  return user?.email ?? null;
 }
