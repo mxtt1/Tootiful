@@ -146,6 +146,12 @@ export default class TutorService {
             throw new Error('User with this email already exists');
         }
 
+        //Check if email already exists in Agency table
+        const existingAgency = await Agency.findOne({ where: { email: tutorData.email } });
+        if (existingAgency) {
+            throw new Error('Agency with this email already exists');
+        }
+
         // Create tutor
         return await User.create({ ...tutorData, role: 'tutor' });
     }

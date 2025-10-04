@@ -11,8 +11,8 @@ class StudentService {
     const gradeLevels = Array.isArray(gradeLevel)
       ? gradeLevel
       : gradeLevel
-      ? [gradeLevel]
-      : [];
+        ? [gradeLevel]
+        : [];
     if (gradeLevels.length > 0) {
       const invalidLevels = gradeLevels.filter(
         (level) => !gradeLevelEnum.isValidLevel(level)
@@ -143,6 +143,12 @@ class StudentService {
     });
     if (existingUser) {
       throw new Error("User with this email already exists");
+    }
+
+    // Check if email already exists in Agency table
+    const existingAgency = await Agency.findOne({ where: { email: studentData.email } });
+    if (existingAgency) {
+        throw new Error('Agency with this email already exists');
     }
     return await User.create({ ...studentData, role: "student" });
   }
