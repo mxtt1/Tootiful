@@ -46,6 +46,11 @@ const Agency = sequelize.define('Agency', {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: true,
+  },
+  isSuspended: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
   }
 }, {
   tableName: 'agencies',

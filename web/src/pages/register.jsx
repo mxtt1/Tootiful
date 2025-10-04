@@ -92,7 +92,7 @@ export default function Register() {
 
                     // Upload to Supabase Storage
                     const { data, error } = await supabase.storage
-                        .from('avatars') // Make sure this bucket exists in Supabase
+                        .from('agencyCert') // Make sure this bucket exists in Supabase
                         .upload(fileName, arrayBuffer, {
                             cacheControl: '3600',
                             upsert: false,
@@ -107,7 +107,7 @@ export default function Register() {
 
                     // Get public URL
                     const { data: urlData } = supabase.storage
-                        .from('avatars')
+                        .from('agencyCert')
                         .getPublicUrl(fileName);
 
                     imageUrl = urlData.publicUrl;
