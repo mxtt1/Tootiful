@@ -9,7 +9,7 @@ import authRoutes from "./modules/user-management/auth.routes.js";
 import agencyRoutes from "./modules/user-management/agency.route.js";
 import agencyAdminRoutes from "./modules/user-management/agencyAdmin.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
-
+import "./models/index.js"; 
 
 // Load environment variables
 dotenv.config();
@@ -63,11 +63,6 @@ const startServer = async () => {
     // Test database connection
     await sequelize.authenticate();
     console.log("Database connection has been established successfully.");
-
-    // Sync database models (create tables if they don't exist)
-    /*await sequelize.sync();
-    console.log("Database synchronized successfully.");
-    */
 
     // Start the server
     app.listen(PORT, "0.0.0.0", () => {

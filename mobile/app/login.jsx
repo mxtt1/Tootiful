@@ -76,6 +76,13 @@ export default function LoginScreen() {
       }
     } catch (error) {
       console.error("Login error:", error);
+
+      if (error?.response?.code === "ACCOUNT_INACTIVE" || error?.code === "ACCOUNT_INACTIVE") {
+        router.replace({ pathname: "/verify_email", params: { email } });
+        return;
+      }
+
+
       Alert.alert(
         "Login Failed",
         error.message || "Invalid credentials. Please try again."

@@ -34,9 +34,14 @@ function passwordScore(issues) {
   return Math.round((good / total) * 100);
 }
 
-export default function NewPassword() {
+export default function NewPassword({ context }) {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // === NEW: context-aware paths ===
+  const isAgency = context === "agency" || window.location.pathname.startsWith("/agency/");
+  const baseForgotPath = isAgency ? "/agency/forgot-password" : "/forgot-password";
+  // ================================
 
   const emailFromState = location?.state?.email;
   const tokenFromState = location?.state?.resetToken;
@@ -59,12 +64,13 @@ export default function NewPassword() {
         title: "Session expired",
         message: "Please verify your email again.",
       });
-      navigate("/forgot-password", { replace: true });
+      // CHANGED: go back to the context-aware start page
+      navigate(baseForgotPath, { replace: true });
       return;
     }
     sessionStorage.setItem("fp_email", email);
     sessionStorage.setItem("fp_reset_token", resetToken);
-  }, [email, resetToken, navigate]);
+  }, [email, resetToken, navigate, baseForgotPath]);
 
   const issues = useMemo(() => passwordIssues(email, pwd), [email, pwd]);
   const score = useMemo(() => passwordScore(issues), [issues]);
@@ -77,7 +83,8 @@ export default function NewPassword() {
         title: "Missing token",
         message: "Please restart the reset process.",
       });
-      navigate("/forgot-password", { replace: true });
+      // CHANGED: context-aware
+      navigate(baseForgotPath, { replace: true });
       return;
     }
     if (pwd !== pwd2) {
@@ -121,7 +128,8 @@ export default function NewPassword() {
         message: "You can now log in with your new password.",
       });
 
-      navigate("/forgot-password/success", { replace: true });
+      // CHANGED: context-aware success route
+      navigate(`${baseForgotPath}/success`, { replace: true });
     } catch (err) {
       notifications.show({
         color: "red",

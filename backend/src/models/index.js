@@ -12,6 +12,8 @@ import Location from './location.model.js';
 // Util imports
 import experienceLevelEnum from "../util/enum/experienceLevelEnum.js";
 
+import EmailVerificationToken from "./emailVerification.model.js";
+
 // Tutor-Subject Many-to-Many relationship
 const TutorSubject = sequelize.define(
   "TutorSubject",
@@ -93,4 +95,4 @@ User.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 Agency.hasMany(Location, { foreignKey: 'agencyId', as: 'locations' });
 Location.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 
-export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Location, Sequelize, sequelize };
+export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Location, Sequelize, sequelize, EmailVerificationToken};

@@ -2,6 +2,7 @@ import { User, Subject, TutorSubject } from '../../models/index.js';
 import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
 import bcrypt from 'bcrypt';
+import { createAndEmailVerificationLink } from "./emailVerification.service.js";
 
 export default class TutorService {
     // Route handler methods with complete HTTP response logic
@@ -65,6 +66,10 @@ export default class TutorService {
         const { password, ...tutorResponse } = newTutor.toJSON();
 
         res.status(201).json(tutorResponse);
+
+        // user is created with isActive=false (default). Send verification email.
+        await createAndEmailVerificationLink({ user: newTutor, email: newTutor.email });
+
     }
 
     async handleUpdateTutor(req, res) {
@@ -83,8 +88,17 @@ export default class TutorService {
 
         // Remove password from response
         const { password, ...tutorResponse } = updatedTutor.toJSON();
+        // Check if email was changed
+        const emailChanged =
+        !!(tutorData?.email) && tutorData.email !== updatedTutor.email;
 
-        res.status(200).json(tutorResponse);
+        res.status(200).json({
+        ...tutorResponse,
+        requiresEmailVerification: emailChanged,
+        ...(emailChanged
+            ? { message: "Email updated. A verification link has been sent to your new address." }
+            : {}),
+        });
     }
 
     async handleChangePassword(req, res) {
@@ -240,17 +254,35 @@ export default class TutorService {
     async updateTutor(id, updateData, subjects = null) {
         const transaction = await sequelize.transaction();
         try {
+
+            // Enforce uniqueness only if email is changing
             if (updateData.email) {
-                const existingTutor = await User.findOne({ 
-                    where: { email: updateData.email },
-                    transaction 
-                });
-                if (existingTutor && existingTutor.id !== id) {
-                    throw new Error('Email already exists for another user');
-                }
+            const existing = await User.findOne({
+                where: { email: updateData.email },
+                transaction,
+            });
+            if (existing && existing.id !== id) {
+                throw new Error("Email already exists for another user");
             }
+            }
+
             const tutor = await this.getTutorById(id);
+
+            // If no email change -> normal update
+            if (!updateData.email || updateData.email === tutor.email) {
             await tutor.update(updateData, { transaction });
+            } else {
+                // same email change workflow:
+                // 1) mark inactive and store pending email
+                tutor.isActive = false;
+                tutor.pendingEmail = updateData.email;        
+                await tutor.save({ transaction });
+                // 2) send verify link to NEW email
+                await createAndEmailVerificationLink({ user: tutor, email: updateData.email });
+                // 3) apply all other updates EXCEPT email
+                const { email, ...rest } = updateData;
+                await tutor.update(rest, { transaction });
+            }
 
             // when subjects are updated
             if (subjects !== null) {

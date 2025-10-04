@@ -5,7 +5,6 @@ class AuthService {
   async login(email, password) {
     try {
       const response = await apiClient.login(email, password);
-
       return response; // Only return if success
     } catch (error) {
       console.error("Login failed:", error);
@@ -62,6 +61,27 @@ class AuthService {
       // If refresh fails, user needs to login again
       return false;
     }
+  }
+
+  // // ⬇️ UPDATED: don't send email in body; backend uses auth user + pending token
+  // async resendVerification() {
+  //   const res = await apiClient.request("/auth/resend-verification", {
+  //     method: "POST",
+  //     headers: { "Content-Type": "application/json" },
+  //     body: JSON.stringify({}), // explicit empty body is fine; or omit body entirely if your request helper allows
+  //   });
+  //   return res;
+  // }
+
+  // Resend verification email (public endpoint, no token required)
+  async resendVerification(email) {
+    const res = await apiClient.request("/auth/resend-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }), // backend expects email
+      _skipAuth: true, // 🔑 CHANGE: prevent adding Bearer token
+    });
+    return res;
   }
 }
 

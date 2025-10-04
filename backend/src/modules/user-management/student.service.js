@@ -2,6 +2,7 @@ import { User } from "../../models/index.js";
 import { Op } from "sequelize";
 import bcrypt from "bcrypt";
 import gradeLevelEnum from "../../util/enum/gradeLevelEnum.js";
+import { createAndEmailVerificationLink, getPendingEmailForUser } from "./emailVerification.service.js";
 
 class StudentService {
   // Route handler methods with complete HTTP response logic
@@ -30,12 +31,14 @@ class StudentService {
       gradeLevels,
       agencyId,
     });
+
     // Only return student-relevant fields
     const data = result.rows.map((user) => {
       const { password, role, hourlyRate, aboutMe, education, ...student } =
         user.toJSON();
       return student;
     });
+
     // Only include pagination if page and limit are present
     let pagination = undefined;
     if (page && limit) {
@@ -46,6 +49,7 @@ class StudentService {
         totalPages: Math.ceil(result.count / limit),
       };
     }
+
     res.status(200).json({
       data,
       ...(pagination ? { pagination } : {}),
@@ -55,6 +59,10 @@ class StudentService {
   async handleGetStudentById(req, res) {
     const { id } = req.params;
     const student = await this.getStudentById(id);
+
+    // expose pendingEmail so the app can show the new email immediately => for UI/UX purposes
+    const pendingEmail = await getPendingEmailForUser(student.id);
+
     const {
       password,
       role,
@@ -63,7 +71,11 @@ class StudentService {
       education,
       ...studentResponse
     } = student.toJSON();
-    res.status(200).json(studentResponse);
+
+    res.status(200).json({
+      ...studentResponse,
+      pendingEmail,
+    });
   }
 
   async handleCreateStudent(req, res) {
@@ -77,7 +89,13 @@ class StudentService {
       education,
       ...studentResponse
     } = newStudent.toJSON();
+
     res.status(201).json(studentResponse);
+
+    // user is created with isActive=false (model default), then send verification email
+    createAndEmailVerificationLink({ user: newStudent, email: newStudent.email }).catch((err) =>
+      console.error("Failed to send verification email:", err)
+    );
   }
 
   async handleUpdateStudent(req, res) {
@@ -168,16 +186,30 @@ class StudentService {
   }
 
   async updateStudent(id, updateData) {
-    if (updateData.email) {
-      const existingUser = await User.findOne({
-        where: { email: updateData.email },
-      });
-      if (existingUser && existingUser.id !== id) {
-        throw new Error("Email already exists for another user");
-      }
-    }
     const student = await this.getStudentById(id);
-    return await student.update(updateData);
+
+    // If no email change, behave exactly as before.
+    if (!updateData.email || updateData.email === student.email) {
+      return await student.update(updateData);
+    }
+
+    // Email change: enforce uniqueness first
+    const existingUser = await User.findOne({ where: { email: updateData.email } });
+    if (existingUser && existingUser.id !== id) {
+      throw new Error("Email already exists for another user");
+    }
+
+    // Email change flow:
+    // 1) mark the account inactive
+    student.isActive = false;
+    await student.save();
+
+    // 2) send verification link to the NEW email
+    await createAndEmailVerificationLink({ user: student, email: updateData.email });
+
+    // 3) apply any other updates EXCEPT email
+    const { email, ...rest } = updateData;
+    return await student.update(rest);
   }
 
   async deleteStudent(id) {

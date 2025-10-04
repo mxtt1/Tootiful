@@ -49,3 +49,31 @@ If you didn’t request this, you can ignore this email.
   </div>`;
   return { subject, text, html };
 }
+
+export function verifyEmailTemplate({ name = "there", verifyLink, ttlMinutes = 60 }) {
+  const subject = "Verify your Tutiful email";
+  const text =
+`Hi ${name},
+
+Please verify your email by clicking the link below:
+${verifyLink}
+
+This link expires in ${ttlMinutes} minutes.
+
+— Tutiful`;
+
+  const html = `
+  <div style="font-family:Arial,sans-serif;line-height:1.6">
+    <p>Hi ${name},</p>
+    <p>Please verify your email by clicking the button below:</p>
+    <p>
+      <a href="${verifyLink}" style="display:inline-block;padding:10px 16px;
+         background:#111;color:#fff;text-decoration:none;border-radius:6px">
+        Verify Email
+      </a>
+    </p>
+    <p>This link expires in <b>${ttlMinutes} minutes</b>.</p>
+    <p>— Tutiful</p>
+  </div>`;
+  return { subject, text, html };
+}

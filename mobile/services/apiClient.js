@@ -58,9 +58,13 @@ class ApiClient {
     return !!this.accessToken;
   }
 
-  // Core HTTP request method with automatic token refresh
+  // // Core HTTP request method with automatic token refresh
+  // async request(endpoint, options = {}, isRetry = false) {
+  //   const url = `${this.baseURL}${endpoint}`;
+
   async request(endpoint, options = {}, isRetry = false) {
-    const url = `${this.baseURL}${endpoint}`;
+  const url = `${this.baseURL}${endpoint}`;
+  const skipAuth = !!options._skipAuth; // 🔑 CHANGE: allow public calls
 
     // Build headers
     const headers = {
@@ -69,7 +73,12 @@ class ApiClient {
     };
 
     // Add Authorization header if access token is available
-    if (this.accessToken) {
+    // if (this.accessToken) {
+    //   headers.Authorization = `Bearer ${this.accessToken}`;
+    // }
+
+    // Add Authorization header only if we have token AND not skipping
+    if (!skipAuth && this.accessToken) {
       headers.Authorization = `Bearer ${this.accessToken}`;
     }
 
@@ -85,8 +94,11 @@ class ApiClient {
 
       const response = await fetch(url, config);
 
-      // Handle 401 Unauthorized - try to refresh token
-      if (response.status === 401 && !isRetry && endpoint !== "/auth/refresh") {
+      // // Handle 401 Unauthorized - try to refresh token
+      // if (response.status === 401 && !isRetry && endpoint !== "/auth/refresh") {
+      
+      // Handle 401 Unauthorized - try to refresh token (but not on skipAuth calls)
+      if (!skipAuth && response.status === 401 && !isRetry && endpoint !== "/auth/refresh") {
         console.log("Received 401, attempting token refresh...");
         try {
           await this.refreshToken();
