@@ -5,180 +5,83 @@ import bcrypt from 'bcrypt';
 class AgencyService {
     // Route handler methods with complete HTTP response logic
     async handleGetAllAgencies(req, res) {
-        try {
-            const { page, limit, active } = req.query;
-            const result = await this.getAgencies({ page, limit, active });
-
-            const data = result.rows.map(agency => {
-                const { password, ...agencyResponse } = agency.toJSON();
-                return agencyResponse;
-            });
-
-            let pagination = undefined;
-            if (page && limit) {
-                pagination = {
-                    total: result.count,
-                    page: parseInt(page),
-                    limit: parseInt(limit),
-                    totalPages: Math.ceil(result.count / limit)
-                };
-            }
-
-            res.status(200).json({
-                data,
-                ...(pagination ? { pagination } : {})
-            });
-        } catch (error) {
-            console.error('Get all agencies error:', error);
-            res.status(500).json({ error: error.message });
+        const { page, limit, active } = req.query;
+        const result = await this.getAgencies({ page, limit, active });
+        const data = result.rows.map(agency => {
+            const { password, ...agencyResponse } = agency.toJSON();
+            return agencyResponse;
+        });
+        let pagination = undefined;
+        if (page && limit) {
+            pagination = {
+                total: result.count,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(result.count / limit)
+            };
         }
+        res.status(200).json({
+            data,
+            ...(pagination ? { pagination } : {})
+        });
     }
 
     async handleCreateAgency(req, res) {
-        try {
-            const agencyData = req.body;
-            console.log('Creating agency with data:', agencyData); // Add logging
-
-            const newAgency = await this.createAgency(agencyData);
-            const { password, ...agencyResponse } = newAgency.toJSON();
-
-            console.log('Agency created successfully:', agencyResponse); // Add logging
-            res.status(201).json(agencyResponse);
-        } catch (error) {
-            console.error('Create agency error:', error);
-            res.status(400).json({ error: error.message });
-        }
+        const agencyData = req.body;
+        const newAgency = await this.createAgency(agencyData);
+        const { password, ...agencyResponse } = newAgency.toJSON();
+        res.status(201).json(agencyResponse);
     }
 
     async handleCreateAgencyAdmin(req, res) {
         const { id: agencyId } = req.params; // Agency ID from URL
         const { firstName, lastName, email, password } = req.body;
-        
-        try {
-            // Check if agency exists
-            const agency = await Agency.findByPk(agencyId);
-            if (!agency) {
-                return res.status(404).json({ message: 'Agency not found' });
-            }
+        const newAgencyAdmin = await this.createAgencyAdmin({
+            firstName,
+            lastName,
+            email,
+            password,
+            agencyId,
+        });
 
-            // Check if email already exists
-            const existingUser = await User.findOne({ where: { email } });
-            if (existingUser) {
-                return res.status(400).json({ message: 'Email already exists' });
-            }
-
-            // Hash the password before saving
-            const hashedPassword = await bcrypt.hash(password, 10);
-
-            // Create the agency admin user
-            const agencyAdmin = await User.create({
-                firstName,
-                lastName,
-                email,
-                password, //: hashedPassword, // Store hashed password
-                role: 'agencyAdmin',
-                agencyId: agencyId,
-                isActive: true,
-                isSuspended: false
-            });
-
-            // Return user without password
-            const { password: _, ...userResponse } = agencyAdmin.toJSON();
-            res.status(201).json(userResponse);
-
-        } catch (error) {
-            console.error('Create agency admin error:', error);
-            res.status(500).json({ message: error.message });
-        }
+        const { password: _, ...agencyAdminResponse } = newAgencyAdmin.toJSON();
+        res.status(201).json(agencyAdminResponse);
     }
 
     // DELETE Agency Admin - FIXED
     async handleDeleteAgencyAdmin(req, res) {
         const { id: agencyId, adminId } = req.params;
-        
-        try {
-            // Verify the agency exists
-            const agency = await Agency.findByPk(agencyId);
-            if (!agency) {
-                return res.status(404).json({ message: 'Agency not found' });
-            }
-
-            // Find the agency admin belonging to this agency
-            const agencyAdmin = await User.findOne({
-                where: {
-                    id: adminId,
-                    agencyId: agencyId,
-                    role: 'agencyAdmin'
-                }
-            });
-
-            if (!agencyAdmin) {
-                return res.status(404).json({ message: 'Agency admin not found' });
-            }
-
-            // Perform HARD delete (remove from database)
-            await agencyAdmin.destroy();
-
-            res.status(200).json({ 
-                message: 'Agency admin deleted successfully',
-                deletedAdmin: { id: adminId, email: agencyAdmin.email }
-            });
-
-        } catch (error) {
-            console.error('Delete agency admin error:', error);
-            res.status(500).json({ message: error.message });
-        }
+        await this.deleteAgencyAdmin(adminId, agencyId);
+        res.status(200).json({ message: 'Agency admin deleted successfully', deletedAdmin: { id: adminId } });
     }
 
     async handleGetAgencyAdmins(req, res) {
         const { id: agencyId } = req.params;
         const { limit = 10, offset = 0 } = req.query;
-
-        try {
-            // Verify agency exists
-            const agency = await Agency.findByPk(agencyId);
-            if (!agency) {
-                return res.status(404).json({ message: 'Agency not found' });
-            }
-
-            // Get agency admins with pagination
-            const { count, rows } = await User.findAndCountAll({
-                where: {
-                    agencyId: agencyId,
-                    role: 'agencyAdmin'
-                },
-                attributes: { exclude: ['password'] }, // Don't return password
-                limit: parseInt(limit),
-                offset: parseInt(offset),
-                order: [['createdAt', 'DESC']]
-            });
-
-            res.status(200).json({
-                rows,
-                totalCount: count,
-                limit: parseInt(limit),
-                offset: parseInt(offset)
-            });
-
-        } catch (error) {
-            console.error('Get agency admins error:', error);
-            res.status(500).json({ message: error.message });
-        }
+        const { count, rows } = await User.findAndCountAll({
+            where: {
+                agencyId: agencyId,
+                role: 'agencyAdmin'
+            },
+            attributes: { exclude: ['password'] },
+            limit: parseInt(limit),
+            offset: parseInt(offset),
+            order: [['createdAt', 'DESC']]
+        });
+        res.status(200).json({
+            rows,
+            totalCount: count,
+            limit: parseInt(limit),
+            offset: parseInt(offset)
+        });
     }
-
-
 
     // Add similar try-catch blocks to other handler methods...
     async handleGetAgencyById(req, res) {
-        try {
-            const { id } = req.params;
-            const agency = await this.getAgencyById(id);
-            const { password, ...agencyResponse } = agency.toJSON();
-            res.status(200).json(agencyResponse);
-        } catch (error) {
-            console.error('Get agency by ID error:', error);
-            res.status(404).json({ error: error.message });
-        }
+        const { id } = req.params;
+        const agency = await this.getAgencyById(id);
+        const { password, ...agencyResponse } = agency.toJSON();
+        res.status(200).json(agencyResponse);
     }
 
     async handleUpdateAgency(req, res) {
@@ -212,55 +115,28 @@ class AgencyService {
     }
 
     async handleGetAgencyLocations(req, res) {
-        try {
-            const { id } = req.params;
-            const user = req.user;
-
-            const locations = await this.getAgencyLocations(id);
-            res.status(200).json(locations);
-        } catch (error) {
-            console.error('Get agency locations error:', error);
-            res.status(500).json({ error: error.message });
-        }
+        const { id } = req.params;
+        const locations = await this.getAgencyLocations(id);
+        res.status(200).json(locations);
     }
 
     async handleCreateLocation(req, res) {
-        try {
-            const { id } = req.params;
-            const locationData = req.body;
-            const user = req.user;
-
-            const newLocation = await this.createLocation(id, locationData);
-            res.status(201).json(newLocation);
-        } catch (error) {
-            console.error('Create location error:', error);
-            res.status(400).json({ error: error.message });
-        }
+        const { id } = req.params;
+        const locationData = req.body;
+        const newLocation = await this.createLocation(id, locationData);
+        res.status(201).json(newLocation);
     }
 
     async handleDeleteLocation(req, res) {
-        try {
-            const { agencyId, locationId } = req.params;
-            const user = req.user;
-
-
-            const location = await Location.findOne({
-                where: { 
-                    id: locationId, 
-                    agencyId: agencyId 
-                }
-            });
-
-            if (!location) {
-                return res.status(404).json({ message: 'Location not found' });
-            }
-
-            await location.destroy();
-            res.status(200).json({ message: 'Location deleted successfully' });
-        } catch (error) {
-            console.error('Delete location error:', error);
-            res.status(500).json({ error: error.message });
+        const { agencyId, locationId } = req.params;
+        const location = await Location.findOne({
+            where: { id: locationId, agencyId: agencyId }
+        });
+        if (!location) {
+            return res.status(404).json({ message: 'Location not found' });
         }
+        await location.destroy();
+        res.status(200).json({ message: 'Location deleted successfully' });
     }
 
     // Business logic methods
@@ -269,6 +145,12 @@ class AgencyService {
         const existingAgency = await Agency.findOne({ where: { email: agencyData.email } });
         if (existingAgency) {
             throw new Error('Agency with this email already exists');
+        }
+
+        // Check if email already exists in User table 
+        const existingUser = await User.findOne({ where: { email: agencyData.email } });
+        if (existingUser) {
+            throw new Error('Email already exists for a user');
         }
 
         // Check if name already exists
@@ -363,8 +245,10 @@ class AgencyService {
         if (existingUser) {
             throw new Error('User with this email already exists');
         }
-        if (agencyAdminData.password) {
-            agencyAdminData.password = await bcrypt.hash(agencyAdminData.password, 10);
+        // Check if email already exists in Agency table
+        const existingAgency = await Agency.findOne({ where: { email: agencyAdminData.email } });
+        if (existingAgency) {
+            throw new Error('Email already exists for an agency');
         }
         return await User.create({ ...agencyAdminData, role: 'agencyAdmin' });
     }

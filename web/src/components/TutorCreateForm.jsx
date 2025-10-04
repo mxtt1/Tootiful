@@ -13,11 +13,9 @@ export default function TutorCreateForm({ opened, onClose, onCreated, agencyId }
     email: "",
     phone: "",
     dateOfBirth: null,
-    password: ""
   });
   const [saving, setSaving] = useState(false);
   const [emailError, setEmailError] = useState("");
-  const [passwordError, setPasswordError] = useState("");
   const [phoneError, setPhoneError] = useState("");
   const [dobError, setDobError] = useState("");
   const validatePhone = (phone) => {
@@ -38,6 +36,7 @@ export default function TutorCreateForm({ opened, onClose, onCreated, agencyId }
     return "";
   };
 
+  /*
   const validatePassword = (password) => {
     if (!password) return "Password is required";
     if (password.length < 8) return "Password must be at least 8 characters";
@@ -47,17 +46,16 @@ export default function TutorCreateForm({ opened, onClose, onCreated, agencyId }
     if (!/[!@#$%^&*]/.test(password)) return "Password must contain a special character";
     return "";
   };
+  */
 
   const handleSave = async () => {
     const emailErr = validateEmail(form.email);
     setEmailError(emailErr);
-    const passwordErr = validatePassword(form.password);
-    setPasswordError(passwordErr);
     const phoneErr = validatePhone(form.phone);
     setPhoneError(phoneErr);
     const dobErr = validateDob(form.dateOfBirth);
     setDobError(dobErr);
-    if (emailErr || passwordErr || phoneErr || dobErr) return;
+    if (emailErr || phoneErr || dobErr) return;
     setSaving(true);
     try {
       const tutorData = {
@@ -69,7 +67,7 @@ export default function TutorCreateForm({ opened, onClose, onCreated, agencyId }
       notifications.show({ title: "Success", message: "Tutor created successfully", color: "green" });
       onCreated && onCreated();
       onClose();
-      setForm({ firstName: "", lastName: "", email: "", phone: "", dateOfBirth: null, password: "" });
+      setForm({ firstName: "", lastName: "", email: "", phone: "", dateOfBirth: null });
     } catch (err) {
       notifications.show({ title: "Error", message: err.message || "Failed to create tutor", color: "red" });
     } finally {
@@ -137,21 +135,10 @@ export default function TutorCreateForm({ opened, onClose, onCreated, agencyId }
             />
             {dobError && <div style={{ color: 'var(--tutiful-error)', fontSize: '0.9em', marginTop: 4 }}>{dobError}</div>}
           </div>
-          <TextInput
-            label="Password"
-            type="password"
-            value={form.password}
-            onChange={e => {
-              const value = e.target.value;
-              setForm({ ...form, password: value });
-              setPasswordError(validatePassword(value));
-            }}
-            error={passwordError}
-            required
-          />
+          
           <Group justify="flex-end" mt="md">
             <Button variant="subtle" onClick={onClose} disabled={saving} styles={{ root: { color: 'var(--tutiful-gray-700)' } }}>Cancel</Button>
-            <Button leftSection={<IconEdit size={16} />} styles={{ root: { backgroundColor: 'var(--tutiful-primary)', color: 'white' }, rootHovered: { backgroundColor: 'var(--tutiful-primary-dark)' } }} onClick={handleSave} loading={saving} disabled={!form.firstName || !form.lastName || !form.email || !form.phone || !form.dateOfBirth || emailError !== "" || passwordError !== "" || phoneError !== "" || dobError !== ""}>Create Tutor</Button>
+            <Button leftSection={<IconEdit size={16} />} styles={{ root: { backgroundColor: 'var(--tutiful-primary)', color: 'white' }, rootHovered: { backgroundColor: 'var(--tutiful-primary-dark)' } }} onClick={handleSave} loading={saving} disabled={!form.firstName || !form.lastName || !form.email || !form.phone || !form.dateOfBirth || emailError !== "" || phoneError !== "" || dobError !== ""}>Create Tutor</Button>
           </Group>
         </Stack>
       </Card>

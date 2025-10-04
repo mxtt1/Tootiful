@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Icon from "react-native-vector-icons/Feather";
 import studentService from "../services/studentService.js";
 import tutorService from "../services/tutorService.js";
 import {
@@ -18,6 +19,8 @@ export default function RegisterScreen() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [errors, setErrors] = useState({});
     const router = useRouter();
 
@@ -123,23 +126,47 @@ export default function RegisterScreen() {
             {errors.email && <Text style={styles.error}>{errors.email}</Text>}
 
             {/* Password */}
-            <TextInput
-                style={styles.input}
-                placeholder="Password"
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-            />
+            <View style={{ position: "relative" }}>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Password"
+                    secureTextEntry={!showPassword}
+                    value={password}
+                    onChangeText={setPassword}
+                />
+                <TouchableOpacity
+                    style={styles.showPasswordIcon}
+                    onPress={() => setShowPassword((v) => !v)}
+                >
+                    <Icon
+                        name={showPassword ? "eye-off" : "eye"}
+                        size={22}
+                        color="#888"
+                    />
+                </TouchableOpacity>
+            </View>
             {errors.password && <Text style={styles.error}>{errors.password}</Text>}
 
             {/* Confirm Password */}
-            <TextInput
-                style={styles.input}
-                placeholder="Confirm Password"
-                secureTextEntry
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-            />
+            <View style={{ position: "relative" }}>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Confirm Password"
+                    secureTextEntry={!showConfirmPassword}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                />
+                <TouchableOpacity
+                    style={styles.showPasswordIcon}
+                    onPress={() => setShowConfirmPassword((v) => !v)}
+                >
+                    <Icon
+                        name={showConfirmPassword ? "eye-off" : "eye"}
+                        size={22}
+                        color="#888"
+                    />
+                </TouchableOpacity>
+            </View>
             {errors.confirmPassword && (
                 <Text style={styles.error}>{errors.confirmPassword}</Text>
             )}
@@ -270,5 +297,12 @@ const styles = StyleSheet.create({
         fontSize: 13, 
         marginBottom: 8,
         marginLeft: 5
+    },
+    showPasswordIcon: {
+        position: "absolute",
+        right: 18,
+        top: 14,
+        padding: 4,
+        zIndex: 10,
     },
 });

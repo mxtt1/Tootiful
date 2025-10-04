@@ -1,8 +1,10 @@
-import { User, Subject, TutorSubject } from '../../models/index.js';
+import { User, Subject, TutorSubject, Agency } from '../../models/index.js';
 import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
 import bcrypt from 'bcrypt';
 import { createAndEmailVerificationLink } from "./emailVerification.service.js";
+import generator from 'generate-password';
+
 
 export default class TutorService {
     // Route handler methods with complete HTTP response logic
@@ -60,6 +62,14 @@ export default class TutorService {
 
     async handleCreateTutor(req, res) {
         const tutorData = req.body;
+    
+        // If password not provided, generate a random one, then email it to the tutor
+        let generatedPassword = null;
+        if (!tutorData.password) {
+            generatedPassword = generator.generate({ length: 10, numbers: true });
+            tutorData.password = generatedPassword;
+        }
+
         const newTutor = await this.createTutor(tutorData);
 
         // Remove password from response
@@ -68,7 +78,7 @@ export default class TutorService {
         res.status(201).json(tutorResponse);
 
         // user is created with isActive=false (default). Send verification email.
-        await createAndEmailVerificationLink({ user: newTutor, email: newTutor.email });
+        await createAndEmailVerificationLink({ user: newTutor, email: newTutor.email, generatedPassword: generatedPassword  });
 
     }
 
@@ -135,6 +145,13 @@ export default class TutorService {
         if (existingTutor) {
             throw new Error('User with this email already exists');
         }
+
+        //Check if email already exists in Agency table
+        const existingAgency = await Agency.findOne({ where: { email: tutorData.email } });
+        if (existingAgency) {
+            throw new Error('Agency with this email already exists');
+        }
+
         // Create tutor
         return await User.create({ ...tutorData, role: 'tutor' });
     }

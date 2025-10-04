@@ -50,14 +50,20 @@ If you didn’t request this, you can ignore this email.
   return { subject, text, html };
 }
 
-export function verifyEmailTemplate({ name = "there", verifyLink, ttlMinutes = 60 }) {
+export function verifyEmailTemplate({ name = "there", verifyLink, ttlMinutes = 60, generatedPassword = null }) {
   const subject = "Verify your Tutiful email";
+  let passwordText = "";
+  let passwordHtml = "";
+  if (generatedPassword) {
+    passwordText = `\nYour temporary password is: ${generatedPassword}\nPlease change it after logging in.`;
+    passwordHtml = `<p><b>Your temporary password:</b> <span style='font-size:18px;'>${generatedPassword}</span></p><p>Please change it after logging in.</p>`;
+  }
   const text =
 `Hi ${name},
 
 Please verify your email by clicking the link below:
 ${verifyLink}
-
+${passwordText}
 This link expires in ${ttlMinutes} minutes.
 
 — Tutiful`;
@@ -72,6 +78,7 @@ This link expires in ${ttlMinutes} minutes.
         Verify Email
       </a>
     </p>
+    ${passwordHtml}
     <p>This link expires in <b>${ttlMinutes} minutes</b>.</p>
     <p>— Tutiful</p>
   </div>`;
