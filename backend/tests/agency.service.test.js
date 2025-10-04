@@ -1,9 +1,9 @@
 // ES Module imports
 import bcrypt from 'bcrypt';
-import AgencyService from './agency.service.js';
+import AgencyService from '../src/modules/user-management/agency.service.js';
 
 // Mock dependencies - use regular jest.mock with Babel
-jest.mock('../../models/index.js', () => ({
+jest.mock('../src/models/index.js', () => ({
   Agency: {
     findOne: jest.fn(),
     create: jest.fn(),
@@ -32,7 +32,7 @@ jest.mock('bcrypt', () => ({
 }));
 
 // Import mocked modules - use regular import with Babel
-import { Agency, User, Location } from '../../models/index.js';
+import { Agency, User, Location } from '../src/models/index.js';
 
 describe('AgencyService', () => {
   let agencyService;

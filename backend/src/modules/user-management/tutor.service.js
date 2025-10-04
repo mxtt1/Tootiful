@@ -1,4 +1,4 @@
-import { User, Subject, TutorSubject } from '../../models/index.js';
+import { User, Subject, TutorSubject, Agency } from '../../models/index.js';
 import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
 import bcrypt from 'bcrypt';

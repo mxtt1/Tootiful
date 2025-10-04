@@ -1,4 +1,4 @@
-import { User } from "../../models/index.js";
+import { User, Agency } from "../../models/index.js";
 import { Op } from "sequelize";
 import bcrypt from "bcrypt";
 import gradeLevelEnum from "../../util/enum/gradeLevelEnum.js";
