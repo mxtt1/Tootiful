@@ -404,7 +404,8 @@ export default function AgencyManagement() {
                             onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                             required
                         />
-                        <TextInput
+                        {/* Omit email edits for mental health reasons */}
+                        {/* <TextInput
                             label="Email"
                             value={editForm.email}
                             onChange={(e) => {
@@ -414,7 +415,7 @@ export default function AgencyManagement() {
                             }}
                             error={emailError}
                             required
-                        />
+                        /> */}
                         <TextInput
                             label="Phone"
                             value={editForm.phone}
