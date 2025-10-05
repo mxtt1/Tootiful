@@ -147,22 +147,95 @@ router.get(
     const token = String(req.query?.token || "");
     const result = await verifyEmailToken(token);
 
-    if (!result.ok) {
-      return res
-        .status(400)
-        .send(
-          `<html><body style="font-family:Arial"><h2>Verification failed</h2><p>Link is invalid or expired.</p></body></html>`
-        );
-    }
-
-    // simple confirmation page => edit later once tested
+    const WEB = process.env.WEB_BASE_URL || "http://localhost:5173";
     return res
-      .status(200)
-      .send(
-        `<html><body style="font-family:Arial"><h2>Email verified</h2><p>You can now close this page and login to the app.</p></body></html>`
-      );
+      .status(result.ok ? 200 : 400)
+      .send(renderVerifyHtml({ ok: result.ok, web: WEB }));
   })
 );
+
+/** making the html page nicer without making a new page */
+function renderVerifyHtml({ ok, web }) {
+    const title = ok ? "Email verified" : "Verification failed";
+    const headline = ok ? "Email verified" : "Verification failed";
+    const message = ok
+      ? "Your account is now active. You can close this page and log in."
+      : "This link is invalid or expired.";
+    const primaryHref = ok ? `${web}/login?verified=1` : `${web}/verify-email-pending`;
+    const primaryLabel = ok ? "Go to login" : "Resend link";
+    const secondaryHref = `${web}/landing`;
+    const autoRedirect = ok ? `setTimeout(()=>{location.href='${primaryHref}'}, 3500);` : "";
+
+    return `<!doctype html>
+  <html lang="en">
+  <head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>${title}</title>
+  <style>
+  :root{--indigo:#6366f1;--violet:#7c3aed;--pink:#ec4899;}
+  *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:
+  linear-gradient(135deg,rgba(99,102,241,.12),rgba(124,58,237,.12));}
+  .page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
+  .card{max-width:560px;width:100%;background:#ffffffee;border:1px solid rgba(0,0,0,.06);border-radius:18px;box-shadow:0 18px 40px rgba(0,0,0,.08);overflow:hidden}
+  .bar{height:4px;background:linear-gradient(90deg,var(--indigo),#8b5cf6,var(--pink))}
+  .inner{padding:28px}
+  .iconWrap{display:grid;place-items:center;margin:8px 0 14px}
+  .icon{height:72px;width:72px;border-radius:50%;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--indigo),var(--pink));color:#fff;
+  box-shadow:0 10px 24px rgba(99,102,241,.35)}
+  .h1{margin:6px 0 8px;font-size:28px;line-height:1.2;font-weight:800;color:#111827}
+  .p{margin:0;color:#4b5563}
+  .actions{margin-top:20px;display:flex;gap:12px;flex-wrap:wrap}
+  .btn{padding:10px 16px;border-radius:10px;border:0;cursor:pointer;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+  .btnPrimary{background:var(--indigo);color:#fff;box-shadow:0 8px 18px rgba(99,102,241,.35)}
+  .btnPrimary:hover{filter:brightness(1.05)}
+  .btnGhost{background:transparent;color:#374151}
+  .btnGhost:hover{text-decoration:underline;color:#111827}
+  .note{margin-top:12px;font-size:12px;color:#6b7280}
+  </style>
+  </head>
+  <body>
+  <main class="page">
+    <div class="card">
+      <div class="bar"></div>
+      <div class="inner">
+        <div class="iconWrap">
+          <div class="icon" aria-hidden="true">
+            ${
+              ok
+                ? `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>`
+                : `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>`
+            }
+          </div>
+        </div>
+
+        <h1 class="h1">${headline}</h1>
+        <p class="p">${message}</p>
+
+        <div class="actions">
+          <a class="btn btnPrimary" href="${primaryHref}">
+            ${primaryLabel}
+          </a>
+          <a class="btn btnGhost" href="${secondaryHref}">Back to home</a>
+        </div>
+
+        ${
+          ok
+            ? `<p class="note">Redirecting to login…</p>`
+            : `<p class="note">If the link expired, request a new one from the app.</p>`
+        }
+      </div>
+    </div>
+  </main>
+  <script>${autoRedirect}</script>
+  </body>
+  </html>`;
+  }
 
 // Resend verification -- change to public cause of signup verification –> accepts { email } in body
 router.post(

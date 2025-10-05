@@ -19,6 +19,7 @@ import AgencyDashboard from "./pages/agency/AgencyDashboard";
 import TutorManagement from "./pages/agency/TutorManagement";
 import AgencyProfile from "./pages/agency/agencyProfile";
 import AgencyManagement from "./pages/agency/agencyManagement";
+import VerifyEmailPending from "./pages/VerifyEmailPending";
 import PlatformAdminAgencyManagement from "./pages/admin/agencyManagement";
 
 
@@ -30,6 +31,8 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/aboutUs" element={<AboutUs />} /> {/* ✅ add route */}
       <Route path="/register" element={<Register />} />
+      {/* email verification for Agency */}
+      <Route path="/verify-email-pending" element={<VerifyEmailPending />} />
       {/* Forgot Password (public) */}
       <Route path="/forgot-password" element={<ForgotEmail />} />
       <Route path="/forgot-password/verify" element={<VerifyCode />} />

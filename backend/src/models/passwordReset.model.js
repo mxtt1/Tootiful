@@ -19,7 +19,13 @@ const PasswordResetToken = sequelize.define(
       type: DataTypes.STRING(255),
       allowNull: false,
       field: "code_hash",
-    },
+    },// New field for polymorphic association -> 'user' or 'agency'
+      accountType: {
+        type: DataTypes.STRING(16),
+        allowNull: false,
+        field: "account_type",
+        defaultValue: "user", // 'user' | 'agency'
+  },
     expiresAt: {
       type: DataTypes.DATE,
       allowNull: false,
