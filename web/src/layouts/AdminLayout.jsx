@@ -38,57 +38,62 @@ const AdminLayout = ({ children }) => {
 
   const getMenuItems = () => {
     if (user?.role === 'admin') {
-      return [    
-      {
-        label: "Dashboard",
-        icon: IconDashboard,
-        path: "/admin/dashboard",
-      },
-      {
-        label: "User Management",
-        icon: IconUsers,
-        path: "/admin/users",
-      },
-    ];
-  }
-
-  // agency users (agency entity + agencyAdmin)
-  if (user?.role === "agencyAdmin" || user?.userType === "agency") {
-    const agencyItems = [
-      {
-        label: "Dashboard",
-        icon: IconDashboard,
-        path: "/agency/dashboard",
-      },
-      {
-        label: "Tutor Management",
-        icon: IconUser,
-        path: "/agency/tutors",
-      },
-    ];
-    
-  // Profile only for agencyAdmin
-  if (user?.role === "agencyAdmin") {
-      agencyItems.push({
-        label: "Profile",
-        icon: IconSettings,
-        path: "/agency/profile",
-      });
+      return [
+        {
+          label: "Dashboard",
+          icon: IconDashboard,
+          path: "/admin/dashboard",
+        },
+        {
+          label: "User Management",
+          icon: IconUsers,
+          path: "/admin/users",
+        },
+        {
+          label: "Agency Management",
+          icon: IconBuilding,
+          path: "/admin/agencies",
+        },
+      ];
     }
 
-  // Agency Management only for agency entity
-  if (user?.userType === "agency") {
-      agencyItems.push({
-        label: "Agency Management",
-        icon: IconBuilding,
-        path: "/agency/management",
-      });
-    }
-    return agencyItems;
-  }
+    // agency users (agency entity + agencyAdmin)
+    if (user?.role === "agencyAdmin" || user?.userType === "agency") {
+      const agencyItems = [
+        {
+          label: "Dashboard",
+          icon: IconDashboard,
+          path: "/agency/dashboard",
+        },
+        {
+          label: "Tutor Management",
+          icon: IconUser,
+          path: "/agency/tutors",
+        },
+      ];
 
-  //fallback
-  return [
+      // Profile only for agencyAdmin
+      if (user?.role === "agencyAdmin") {
+        agencyItems.push({
+          label: "Profile",
+          icon: IconSettings,
+          path: "/agency/profile",
+        });
+      }
+
+      // Agency Management only for agency entity
+      if (user?.userType === "agency") {
+        agencyItems.push({
+          label: "Agency Management",
+          icon: IconBuilding,
+          path: "/agency/management",
+        });
+      }
+      return agencyItems;
+    }
+
+    //fallback
+    return [
       {
         label: "Dashboard",
         icon: IconDashboard,
