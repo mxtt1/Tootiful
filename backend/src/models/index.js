@@ -1,3 +1,74 @@
+// Lesson and LessonInstance imports
+import Lesson from './lesson.model.js';
+import LessonInstance from './lessonInstance.model.js';
+
+// StudentLesson join table
+const StudentLesson = sequelize.define('StudentLesson', {
+  studentId: {
+    type: DataTypes.INTEGER,
+    references: { model: User, key: 'id' },
+    onDelete: 'CASCADE',
+    allowNull: false,
+  },
+  lessonId: {
+    type: DataTypes.INTEGER,
+    references: { model: Lesson, key: 'id' },
+    onDelete: 'CASCADE',
+    allowNull: false,
+  },
+  startDate: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    validate: {
+      isDate: true
+    }
+  },
+  endDate: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    validate: {
+      isDate: true,
+      isAfterStartDate(value) {
+        if (this.startDate && value <= this.startDate) {
+          throw new Error('End date must be after start date');
+        }
+      }
+    }
+  }
+}, {
+  tableName: 'student_lesson',
+  timestamps: true
+});
+
+// Associations for lessons
+User.belongsToMany(Lesson, { through: StudentLesson, foreignKey: 'studentId', otherKey: 'lessonId', as: 'lessons' });
+Lesson.belongsToMany(User, { through: StudentLesson, foreignKey: 'lessonId', otherKey: 'studentId', as: 'students' });
+
+// Tutor-Lesson association
+User.hasMany(Lesson, { foreignKey: 'tutorId', as: 'lessons' });
+Lesson.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
+
+// Agency-Lesson association
+Agency.hasMany(Lesson, { foreignKey: 'agencyId', as: 'lessons' });
+Lesson.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
+
+// Subject-Lesson association
+Subject.hasMany(Lesson, { foreignKey: 'subjectId', as: 'lessons' });
+Lesson.belongsTo(Subject, { foreignKey: 'subjectId', as: 'subject' });
+
+// Location-Lesson association
+Lesson.belongsTo(Location, { foreignKey: 'locationId', as: 'location' });
+Location.hasMany(Lesson, { foreignKey: 'locationId', as: 'lessons' });
+
+// Lesson-LessonInstance association
+Lesson.hasMany(LessonInstance, { foreignKey: 'lessonId', as: 'instances' });
+LessonInstance.belongsTo(Lesson, { foreignKey: 'lessonId', as: 'lesson' });
+
+// Tutor-LessonInstance association (for substitutes)
+User.hasMany(LessonInstance, { foreignKey: 'tutorId', as: 'lessonInstances' });
+LessonInstance.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
+
+
 import Sequelize, { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
 
@@ -56,8 +127,8 @@ const TutorSubject = sequelize.define(
       allowNull: true,
       defaultValue: 45,
       validate: {
-        min: 0, 
-        max: 1000 
+        min: 0,
+        max: 1000
       },
       comment: "Hourly rate for this subject",
     },
@@ -92,7 +163,10 @@ User.hasMany(RefreshToken, { foreignKey: 'userId', as: 'refreshTokens' });
 Agency.hasMany(User, { foreignKey: 'agencyId', as: 'tutors' });
 User.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 
+Agency.hasMany(User, { foreignKey: 'agencyId', as: 'agencyAdmins' });
+User.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
+
 Agency.hasMany(Location, { foreignKey: 'agencyId', as: 'locations' });
 Location.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 
-export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Location, Sequelize, sequelize, EmailVerificationToken};
+export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Location, Sequelize, sequelize, EmailVerificationToken, Lesson, LessonInstance, StudentLesson };
