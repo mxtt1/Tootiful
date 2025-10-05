@@ -77,7 +77,6 @@ export default function TutorCreateForm({ opened, onClose, onCreated, agencyId }
 
   return (
     <Modal opened={opened} onClose={onClose} size="md" centered>
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
         <Stack spacing="lg">
           <Title order={3} color="blue.7" mb="xs">Create Tutor</Title>
           <Group grow>
@@ -86,12 +85,14 @@ export default function TutorCreateForm({ opened, onClose, onCreated, agencyId }
               value={form.firstName}
               onChange={e => setForm({ ...form, firstName: e.target.value })}
               required
+              placeholder="Enter First Name"
             />
             <TextInput
               label="Last Name"
               value={form.lastName}
               onChange={e => setForm({ ...form, lastName: e.target.value })}
               required
+              placeholder="Enter Last Name"
             />
           </Group>
           <TextInput
@@ -104,6 +105,7 @@ export default function TutorCreateForm({ opened, onClose, onCreated, agencyId }
             }}
             error={emailError}
             required
+            placeholder="Enter Email"
           />
           <TextInput
             label="Phone Number"
@@ -115,6 +117,7 @@ export default function TutorCreateForm({ opened, onClose, onCreated, agencyId }
             }}
             error={phoneError}
             required
+            placeholder="Enter Phone Number"
           />
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 4, color: 'var(--tutiful-gray-700)', fontWeight: 500 }}>Date of Birth</label>
@@ -141,7 +144,6 @@ export default function TutorCreateForm({ opened, onClose, onCreated, agencyId }
             <Button leftSection={<IconEdit size={16} />} styles={{ root: { backgroundColor: 'var(--tutiful-primary)', color: 'white' }, rootHovered: { backgroundColor: 'var(--tutiful-primary-dark)' } }} onClick={handleSave} loading={saving} disabled={!form.firstName || !form.lastName || !form.email || !form.phone || !form.dateOfBirth || emailError !== "" || phoneError !== "" || dobError !== ""}>Create Tutor</Button>
           </Group>
         </Stack>
-      </Card>
     </Modal>
   );
 }
