@@ -5,7 +5,7 @@ import { User, Agency, EmailVerificationToken } from "../../models/index.js";
 import { sendEmail } from "../../util/mailer.js";
 import { verifyEmailTemplate } from "../../util/emailTemplates.js";
 
-const TOKEN_TTL_MS = 15 * 60 * 1000; // 15m link
+const TOKEN_TTL_MS = 60 * 60 * 1000; // 1hr link
 const RESEND_COOLDOWN_MS = 60 * 1000;     // 60s cooldown
 const SALT_ROUNDS = 12;
 
