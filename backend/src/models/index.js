@@ -41,11 +41,11 @@ const StudentLesson = sequelize.define('StudentLesson', {
 });
 
 // Associations for lessons
-User.belongsToMany(Lesson, { through: StudentLesson, foreignKey: 'studentId', otherKey: 'lessonId', as: 'lessons' });
+User.belongsToMany(Lesson, { through: StudentLesson, foreignKey: 'studentId', otherKey: 'lessonId', as: 'studentLessons' });
 Lesson.belongsToMany(User, { through: StudentLesson, foreignKey: 'lessonId', otherKey: 'studentId', as: 'students' });
 
 // Tutor-Lesson association
-User.hasMany(Lesson, { foreignKey: 'tutorId', as: 'lessons' });
+User.hasMany(Lesson, { foreignKey: 'tutorId', as: 'tutorLessons' });
 Lesson.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
 
 // Agency-Lesson association
@@ -161,7 +161,7 @@ RefreshToken.belongsTo(User, { foreignKey: 'userId', as: 'user', allowNull: fals
 User.hasMany(RefreshToken, { foreignKey: 'userId', as: 'refreshTokens' });
 
 Agency.hasMany(User, { foreignKey: 'agencyId', as: 'tutors' });
-User.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
+User.belongsTo(Agency, { foreignKey: 'agencyId', as: 'tutorAgency' });
 
 Agency.hasMany(User, { foreignKey: 'agencyId', as: 'agencyAdmins' });
 User.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
