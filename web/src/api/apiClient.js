@@ -7,24 +7,6 @@ class ApiClient {
     }
   }
 
-  /* async setAccessToken(token) {
-    this.accessToken = token;
-    try {
-      localStorage.setItem("accessToken", token);
-    } catch (error) {
-      console.error("Failed to save token to storage:", error);
-    }
-  }
-
-  async clearAccessToken() {
-    this.accessToken = null;
-    try {
-      localStorage.removeItem("accessToken");
-    } catch (error) {
-      console.error("Failed to remove token from storage:", error);
-    }
-  } */
-
   // Core HTTP request
   async request(endpoint, options = {}, isRetry = false) {
     const url = `${this.baseURL}${endpoint}`;
@@ -67,7 +49,7 @@ class ApiClient {
           await this.refreshToken();
           return await this.request(endpoint, options, true);
         } catch (refreshError) {
-          await this.clearAccessToken();
+          localStorage.removeItem("accessToken");
           // Let the original error bubble up for handling in AuthProvider/Login.jsx
           throw refreshError;
         }
@@ -129,36 +111,6 @@ class ApiClient {
 
   async delete(endpoint, headers = {}) {
     return this.request(endpoint, { method: "DELETE", headers });
-  }
-
-  /* --- Auth methods ---
-  async login(email, password) {
-    const response = await this.post("/auth/login", { email, password });
-    if (response.accessToken) {
-      await this.setAccessToken(response.accessToken);
-    }
-    return response;
-  }
-
-  async refreshToken() {
-    try {
-      const response = await this.post("/auth/refresh");
-      if (response.accessToken) {
-        await this.setAccessToken(response.accessToken);
-      }
-      return response;
-    } catch (error) {
-      await this.clearAccessToken();
-      throw error;
-    }
-  } */
-
-  async logout() {
-    try {
-      await this.post("/auth/logout");
-    } finally {
-      await this.clearAccessToken();
-    }
   }
 
   /* ---------- Forgot Password flow ---------- */
