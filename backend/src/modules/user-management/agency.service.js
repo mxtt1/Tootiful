@@ -1,7 +1,7 @@
 import { Agency, Location, User } from '../../models/index.js';
 import { Op } from 'sequelize';
 import bcrypt from 'bcrypt';
-import { createAndEmailVerificationLinkForAgency } from "../user-management/emailVerification.service.js";
+import { createAndEmailVerificationLinkForAgency, createAndEmailVerificationLink } from "../user-management/emailVerification.service.js";
 
 class AgencyService {
     // Route handler methods with complete HTTP response logic
@@ -37,16 +37,24 @@ class AgencyService {
     async handleCreateAgencyAdmin(req, res) {
         const { id: agencyId } = req.params; // Agency ID from URL
         const { firstName, lastName, email, password } = req.body;
+
+        if (!password) {
+        return res.status(400).json({ message: "Password is required" });
+        }
         const newAgencyAdmin = await this.createAgencyAdmin({
-            firstName,
-            lastName,
-            email,
-            password,
-            agencyId,
+            firstName, lastName, email, password, agencyId,
         });
 
         const { password: _, ...agencyAdminResponse } = newAgencyAdmin.toJSON();
         res.status(201).json(agencyAdminResponse);
+        
+        // send verification link
+        try {
+        const r = await createAndEmailVerificationLink({ user: newAgencyAdmin, email: newAgencyAdmin.email });
+        if (!r.ok && r.message) console.warn("Admin verification email throttled/soft-fail:", r.message);
+        } catch (err) {
+        console.error("Failed to send admin verification email:", err);
+        }
     }
 
     // DELETE Agency Admin - FIXED
@@ -263,7 +271,11 @@ class AgencyService {
         if (existingAgency) {
             throw new Error('Email already exists for an agency');
         }
-        return await User.create({ ...agencyAdminData, role: 'agencyAdmin' });
+           return await User.create({
+            ...agencyAdminData,
+            role: 'agencyAdmin',
+            isActive: false,          // must verify before login
+        });
     }
     
     async deleteAgencyAdmin(adminId, agencyId) {

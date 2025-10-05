@@ -3,8 +3,9 @@ import bcrypt from "bcrypt";
 import { Op, fn, col, where as sqWhere } from "sequelize";
 import { User, Agency, EmailVerificationToken } from "../../models/index.js";
 import { sendEmail } from "../../util/mailer.js";
+import { verifyEmailTemplate } from "../../util/emailTemplates.js";
 
-const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24h link
+const TOKEN_TTL_MS = 15 * 60 * 1000; // 15m link
 const RESEND_COOLDOWN_MS = 60 * 1000;     // 60s cooldown
 const SALT_ROUNDS = 12;
 
@@ -80,23 +81,14 @@ async function sendVerificationEmailForAccount(type, account, targetEmail, gener
       ? `${account.firstName ?? ""} ${account.lastName ?? account.name ?? ""}`.trim()
       : "there";
 
-  const html = `
-    <div style="font-family:Arial,sans-serif;line-height:1.6">
-      <p>Hi ${displayName},</p>
-      <p>Please verify your email by clicking the link below:</p>
-      <p><a href="${link}" target="_blank" rel="noreferrer">Verify my email</a></p>
-      ${generatedPassword ? `<p>Your temporary password: <b>${generatedPassword}</b></p>` : ""}
-      <p>This link expires in 24 hours.</p>
-      <p>— Tutiful</p>
-    </div>
-  `;
-
-  await sendEmail({
-    to: targetEmail,
-    subject: "Verify your email",
-    text: `Open this link to verify your email: ${link}`,
-    html,
+  const { subject, text, html } = verifyEmailTemplate({
+    name: displayName,
+    verifyLink: link,
+    ttlMinutes: Math.round(TOKEN_TTL_MS / 60000), 
+    generatedPassword: generatedPassword ?? null,
   });
+
+  await sendEmail({ to: targetEmail, subject, text, html });
 
   return { ok: true };
 }

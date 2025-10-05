@@ -32,12 +32,12 @@ export default function AgencyProfile() {
 
     // State for personal details with initial data tracking
     const [personalDetails, setPersonalDetails] = useState({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        role: ""
+    firstName: "", lastName: "", email: "", phone: "", role: "",
+    isActive: true,          // email verified?
     });
+    const COOLDOWN = 60;
+    const [resendLeft, setResendLeft] = useState(0);
+    const [resending, setResending] = useState(false);
     const [initialPersonalData, setInitialPersonalData] = useState({});
 
     // State for agency info with initial data tracking
@@ -64,7 +64,8 @@ export default function AgencyProfile() {
                 lastName: response.lastName || "",
                 email: response.email || "",
                 phone: response.phone || "",
-                role: response.role || ""
+                role: response.role || "",
+                isActive: !!response.isActive,
             };
             
             setPersonalDetails(personalData);
@@ -89,7 +90,7 @@ export default function AgencyProfile() {
                     name: agencyResponse.name || "",
                     email: agencyResponse.email || "",
                     phone: agencyResponse.phone || "",
-                    isActive: agencyResponse.isActive || true,
+                    isActive: agencyResponse.isActive ?? true,
                     locations: locationsResponse || []
                 };
                 
@@ -124,6 +125,13 @@ export default function AgencyProfile() {
         }
     }, [user]);
 
+    useEffect(() => {
+        if (resendLeft <= 0) return;
+        const t = setInterval(() => setResendLeft(s => (s > 0 ? s - 1 : 0)), 1000);
+        return () => clearInterval(t);
+    }, [resendLeft]);
+
+
     // OPTIMIZED: Personal Details Handler - Only send changed fields
     const handlePersonalSave = async () => {
         setSaving(true);
@@ -131,21 +139,19 @@ export default function AgencyProfile() {
 
         try {
             // Create update object with only changed fields
+            const editable = ['firstName', 'lastName', 'email', 'phone'];
             const updateData = {};
-            Object.keys(personalDetails).forEach((key) => {
-                if (personalDetails[key] !== initialPersonalData[key]) {
-                    // Only include phone if it has a value (to avoid validation errors)
+            for (const key of editable) {
+                const newVal = personalDetails[key];
+                const oldVal = initialPersonalData[key];
+                if (newVal !== oldVal) {
                     if (key === 'phone') {
-                        if (personalDetails[key].trim()) {
-                            updateData[key] = personalDetails[key].trim();
-                        } else {
-                            updateData[key] = null; // Send null for empty phone
-                        }
+                    updateData.phone = newVal?.toString().trim() ? newVal.toString().trim() : null;
                     } else {
-                        updateData[key] = personalDetails[key].trim();
+                    updateData[key] = (newVal ?? '').toString().trim();
                     }
                 }
-            });
+            }
 
             // Check if there are any changes
             if (Object.keys(updateData).length === 0) {
@@ -172,16 +178,7 @@ export default function AgencyProfile() {
             });
 
             // Update both current and initial data
-            const updatedPersonalData = {
-                ...personalDetails,
-                firstName: response.firstName || personalDetails.firstName,
-                lastName: response.lastName || personalDetails.lastName,
-                email: response.email || personalDetails.email,
-                phone: response.phone || personalDetails.phone
-            };
-            
-            setPersonalDetails(updatedPersonalData);
-            setInitialPersonalData(updatedPersonalData); // Update initial data
+            await fetchPersonalDetails();
             setPersonalEditMode(false);
             
         } catch (err) {
@@ -368,6 +365,48 @@ export default function AgencyProfile() {
         if (error) setError("");
     };
 
+    const handleResendVerification = async () => {
+    const to = personalDetails.email;
+        try {
+            setResending(true);
+            const res = await apiClient.post(`/auth/resend-verification`, { email: to });
+
+            // If API returns an ok flag, honor it; otherwise fall back to default cooldown
+            if (res?.ok === false && typeof res?.message === 'string') {
+            const m = res.message.match(/(\d+)s/i);
+            if (m) setResendLeft(parseInt(m[1], 10));
+            notifications.show({
+                title: "Please wait",
+                message: res.message,
+                color: "yellow",
+                icon: <IconX size={16} />,
+            });
+            return;
+            }
+
+            // success (or silent success): start default cooldown
+            const retryMs = res?.retryInMs ?? 0;
+            const seconds = Math.max(1, Math.ceil((retryMs || COOLDOWN * 1000) / 1000));
+            setResendLeft(seconds);
+
+            notifications.show({
+            title: "Verification email sent",
+            message: `We sent a link to ${to}.`,
+            color: "green",
+            icon: <IconCheck size={16} />,
+            });
+        } catch (err) {
+            notifications.show({
+            title: "Error",
+            message: err.response?.data?.message || "Unable to resend right now",
+            color: "red",
+            icon: <IconX size={16} />,
+            });
+        } finally {
+            setResending(false);
+        }
+    };
+
     if (loading) {
         return (
             <Card shadow="sm" padding="lg" radius="md" withBorder>
@@ -464,18 +503,44 @@ export default function AgencyProfile() {
                                         <Text size="sm" fw={500} mb={4}>Email Address</Text>
                                         {personalEditMode ? (
                                             <TextInput
-                                                type="email"
-                                                value={personalDetails.email}
-                                                onChange={(e) => handleInputChange('personal', 'email', e.target.value)}
-                                                placeholder="Enter email address"
-                                                required
+                                            type="email"
+                                            value={personalDetails.email}
+                                            onChange={(e) => handleInputChange('personal', 'email', e.target.value)}
+                                            placeholder="Enter email address"
+                                            required
                                             />
                                         ) : (
+                                            <>
                                             <Text size="md" style={{ padding: '8px 0' }}>
                                                 {personalDetails.email || "Not set"}
                                             </Text>
+
+                                            <Group gap="xs" mt={4}>
+                                                {personalDetails.isActive ? (
+                                                <Badge color="green" variant="light" leftSection={<IconCheck size={14} />}>
+                                                    Verified
+                                                </Badge>
+                                                ) : (
+                                                <Badge color="yellow" variant="light" leftSection={<IconX size={14} />}>
+                                                    Verification required
+                                                </Badge>
+                                                )}
+
+                                                {!personalDetails.isActive && (
+                                                <Button
+                                                    size="xs"
+                                                    variant="light"
+                                                    onClick={handleResendVerification}
+                                                    loading={resending}
+                                                    disabled={resendLeft > 0}
+                                                >
+                                                    {resendLeft > 0 ? `Resend in ${resendLeft}s` : "Resend verification email"}
+                                                </Button>
+                                                )}
+                                            </Group>
+                                            </>
                                         )}
-                                    </div>
+                                        </div>
 
                                     <div>
                                         <Text size="sm" fw={500} mb={4}>Phone Number</Text>

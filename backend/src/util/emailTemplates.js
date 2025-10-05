@@ -50,37 +50,58 @@ If you didn’t request this, you can ignore this email.
   return { subject, text, html };
 }
 
-export function verifyEmailTemplate({ name = "there", verifyLink, ttlMinutes = 60, generatedPassword = null }) {
-  const subject = "Verify your Tutiful email";
-  let passwordText = "";
-  let passwordHtml = "";
-  if (generatedPassword) {
-    passwordText = `\nYour temporary password is: ${generatedPassword}\nPlease change it after logging in.`;
-    passwordHtml = `<p><b>Your temporary password:</b> <span style='font-size:18px;'>${generatedPassword}</span></p><p>Please change it after logging in.</p>`;
-  }
-  const text =
-`Hi ${name},
+export function verifyEmailTemplate({
+  name = "there",
+  verifyLink,
+  ttlMinutes = 60,
+  generatedPassword = null, // <-- optional
+}) {
+  const subject = generatedPassword
+    ? "Your Tutiful account — verify & temporary password"
+    : "Verify your email";
 
-Please verify your email by clicking the link below:
-${verifyLink}
-${passwordText}
-This link expires in ${ttlMinutes} minutes.
-
-— Tutiful`;
+  const text = generatedPassword
+    ? [
+        `Hi ${name},`,
+        ``,
+        `Please verify your account: ${verifyLink}`,
+        ``,
+        `Your temporary password: ${generatedPassword}`,
+        ``,
+        `This link expires in ${ttlMinutes} minutes.`,
+        `— Tutiful`,
+      ].join("\n")
+    : [
+        `Hi ${name},`,
+        ``,
+        `Open this link to verify your email: ${verifyLink}`,
+        ``,
+        `This link expires in ${ttlMinutes} minutes.`,
+        `— Tutiful`,
+      ].join("\n");
 
   const html = `
   <div style="font-family:Arial,sans-serif;line-height:1.6">
-    <p>Hi ${name},</p>
-    <p>Please verify your email by clicking the button below:</p>
-    <p>
-      <a href="${verifyLink}" style="display:inline-block;padding:10px 16px;
-         background:#111;color:#fff;text-decoration:none;border-radius:6px">
-        Verify Email
-      </a>
-    </p>
-    ${passwordHtml}
+    <p>Hi ${escapeHtml(name)},</p>
+    <p>Please verify your email by clicking the link below:</p>
+    <p><a href="${verifyLink}" target="_blank" rel="noreferrer">Verify my email</a></p>
+    ${
+      generatedPassword
+        ? `<p>Your temporary password: <b>${escapeHtml(generatedPassword)}</b></p>`
+        : ``
+    }
     <p>This link expires in <b>${ttlMinutes} minutes</b>.</p>
     <p>— Tutiful</p>
   </div>`;
+
   return { subject, text, html };
 }
+
+// simple small helper
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+

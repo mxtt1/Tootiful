@@ -153,7 +153,7 @@ export default class TutorService {
         }
 
         // Create tutor
-        return await User.create({ ...tutorData, role: 'tutor' });
+        return await User.create({ ...tutorData, role: 'tutor', isActive: false });
     }
 
     async getTutors(options = {}) {
