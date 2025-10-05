@@ -20,6 +20,7 @@ import TutorManagement from "./pages/agency/TutorManagement";
 import AgencyProfile from "./pages/agency/agencyProfile";
 import AgencyManagement from "./pages/agency/agencyManagement";
 import VerifyEmailPending from "./pages/VerifyEmailPending";
+import PlatformAdminAgencyManagement from "./pages/admin/agencyManagement";
 
 
 function AppRoutes() {
@@ -51,6 +52,7 @@ function AppRoutes() {
               <Routes>
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="users" element={<User />} />
+                <Route path="agencies" element={<PlatformAdminAgencyManagement />} />
                 <Route index element={<Navigate to="users" replace />} />
               </Routes>
             </AdminLayout>
