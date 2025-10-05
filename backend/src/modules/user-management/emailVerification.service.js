@@ -85,6 +85,7 @@ async function sendVerificationEmailForAccount(type, account, targetEmail, gener
       <p>Hi ${displayName},</p>
       <p>Please verify your email by clicking the link below:</p>
       <p><a href="${link}" target="_blank" rel="noreferrer">Verify my email</a></p>
+      ${generatedPassword ? `<p>Your temporary password: <b>${generatedPassword}</b></p>` : ""}
       <p>This link expires in 24 hours.</p>
       <p>— Tutiful</p>
     </div>
