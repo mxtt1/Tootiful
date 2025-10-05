@@ -230,29 +230,29 @@ export default function TutorManagement() {
                         </Text>
                     ) : (
                         <Table striped highlightOnHover>
-                            <thead>
-                                <tr>
-                                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Full Name</th>
-                                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Email</th>
-                                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Phone</th>
-                                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Status</th>
-                                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Date of Birth</th>
-                                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th>Full Name</Table.Th>
+                                    <Table.Th>Email</Table.Th>
+                                    <Table.Th>Phone</Table.Th>
+                                    <Table.Th>Status</Table.Th>
+                                    <Table.Th>Date of Birth</Table.Th>
+                                    <Table.Th>Actions</Table.Th>
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
                                 {mappedTutors.map((tutor) => (
-                                    <tr key={tutor.id}>
-                                        <td>{`${tutor.firstName} ${tutor.lastName}`.trim()}</td>
-                                        <td>{tutor.email}</td>
-                                        <td>{tutor.phone}</td>
-                                        <td>
+                                    <Table.Tr key={tutor.id}>
+                                        <Table.Td>{`${tutor.firstName} ${tutor.lastName}`.trim()}</Table.Td>
+                                        <Table.Td>{tutor.email}</Table.Td>
+                                        <Table.Td>{tutor.phone}</Table.Td>
+                                        <Table.Td>
                                             <Badge color={getStatusColor(tutor.status)} variant="filled">
                                                 {tutor.status}
                                             </Badge>
-                                        </td>
-                                        <td>{tutor.dateOfBirth ? new Date(tutor.dateOfBirth).toLocaleDateString() : ""}</td>
-                                        <td>
+                                        </Table.Td>
+                                        <Table.Td>{tutor.dateOfBirth ? new Date(tutor.dateOfBirth).toLocaleDateString() : ""}</Table.Td>
+                                        <Table.Td>
                                             <Group spacing="xs">
                                                 <ActionIcon styles={{ root: { backgroundColor: "var(--tutiful-primary-light)" } }} onClick={() => { setSelectedTutor(tutor); setEditModalOpen(true); }}>
                                                     <IconEdit size={16} color="white" />
@@ -261,10 +261,10 @@ export default function TutorManagement() {
                                                     <IconTrash size={16} color="white" />
                                                 </ActionIcon>
                                             </Group>
-                                        </td>
-                                    </tr>
+                                        </Table.Td>
+                                    </Table.Tr>
                                 ))}
-                            </tbody>
+                            </Table.Tbody>
                         </Table>
                     )}
                 </Card>
