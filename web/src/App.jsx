@@ -22,7 +22,6 @@ import AgencyManagement from "./pages/agency/agencyManagement";
 import VerifyEmailPending from "./pages/VerifyEmailPending";
 import PlatformAdminAgencyManagement from "./pages/admin/agencyManagement";
 
-
 function AppRoutes() {
   return (
     <Routes>
@@ -39,10 +38,22 @@ function AppRoutes() {
       <Route path="/forgot-password/new" element={<NewPassword />} />
       <Route path="/forgot-password/success" element={<ResetSuccess />} />
       {/* Agency aliases reusing the same screens with context */}
-      <Route path="/agency/forgot/email" element={<ForgotEmail context="agency" />} />
-      <Route path="/agency/forgot/verify" element={<VerifyCode context="agency" />} />
-      <Route path="/agency/forgot/new-password" element={<NewPassword context="agency" />} />
-      <Route path="/agency/forgot/success" element={<ResetSuccess context="agency" />} />
+      <Route
+        path="/agency/forgot/email"
+        element={<ForgotEmail context="agency" />}
+      />
+      <Route
+        path="/agency/forgot/verify"
+        element={<VerifyCode context="agency" />}
+      />
+      <Route
+        path="/agency/forgot/new-password"
+        element={<NewPassword context="agency" />}
+      />
+      <Route
+        path="/agency/forgot/success"
+        element={<ResetSuccess context="agency" />}
+      />
       {/* Admin */}
       <Route
         path="/admin/*"
@@ -52,26 +63,37 @@ function AppRoutes() {
               <Routes>
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="users" element={<User />} />
-                <Route path="agencies" element={<PlatformAdminAgencyManagement />} />
+                <Route
+                  path="agencies"
+                  element={<PlatformAdminAgencyManagement />}
+                />
                 <Route index element={<Navigate to="users" replace />} />
               </Routes>
             </AdminLayout>
           </ProtectedRoute>
         }
       />
-      {/* Agency (unprotected for testing) */}
       <Route
         path="/agency/*"
         element={
-          <AdminLayout>
-            <Routes>
-              <Route path="dashboard" element={<AgencyDashboard />} />
-              <Route path="tutors" element={<TutorManagement />} />
-              <Route path="management" element={<AgencyManagement />} />
-              <Route path="profile" element={<AgencyProfile />} />
-              <Route index element={<Navigate to="dashboard" replace />} />
-            </Routes>
-          </AdminLayout>
+          <ProtectedRoute
+            requiredRole={[
+              "agencyAdmin",
+              "superAgencyAdmin",
+              "agencyStaff",
+              "agency",
+            ]}
+          >
+            <AdminLayout>
+              <Routes>
+                <Route path="dashboard" element={<AgencyDashboard />} />
+                <Route path="tutors" element={<TutorManagement />} />
+                <Route path="management" element={<AgencyManagement />} />
+                <Route path="profile" element={<AgencyProfile />} />
+                <Route index element={<Navigate to="dashboard" replace />} />
+              </Routes>
+            </AdminLayout>
+          </ProtectedRoute>
         }
       />
       {/* Default + 404 */}

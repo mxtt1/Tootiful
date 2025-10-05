@@ -59,19 +59,25 @@ const AuthProvider = ({ children }) => {
 
       // Try agency login first
       try {
-        response = await apiClient.post("/auth/agency-login", { email, password });
-        console.log('Agency login successful');
+        response = await apiClient.post("/auth/agency-login", {
+          email,
+          password,
+        });
+        console.log("Agency login successful");
       } catch (err) {
-        console.error('Agency login failed:', err);
+        console.error("Agency login failed:", err);
       }
 
       // If agency login failed, try admin login
       if (!response) {
         try {
-          response = await apiClient.post("/auth/login?admin=true", { email, password });
-          console.log('Regular admin login successful');
+          response = await apiClient.post("/auth/login?admin=true", {
+            email,
+            password,
+          });
+          console.log("Regular admin login successful");
         } catch (err) {
-          console.log('Admin login failed:', err);
+          console.log("Admin login failed:", err);
           throw err;
         }
       }
@@ -87,7 +93,8 @@ const AuthProvider = ({ children }) => {
       return { success: true, user: userData };
     } catch (error) {
       console.error("Login failed:", error);
-      let message = error.response?.data?.message || error.message || "Unknown error";
+      let message =
+        error.response?.data?.message || error.message || "Unknown error";
       if (message === "Failed to fetch" || !message) {
         message = "Network error. Please try again.";
       }
@@ -152,9 +159,9 @@ const AuthProvider = ({ children }) => {
     forgotPassword,
     resetPassword,
     checkAuthStatus,
-    isAgency: user?.userType === 'agency',
-    isUser: user?.userType === 'user',
-    isAdmin: user?.role === 'admin',
+    isAgency: user?.userType === "agency",
+    isUser: user?.userType === "user",
+    isAdmin: user?.role === "admin",
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
