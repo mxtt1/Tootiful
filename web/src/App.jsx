@@ -76,14 +76,7 @@ function AppRoutes() {
       <Route
         path="/agency/*"
         element={
-          <ProtectedRoute
-            requiredRole={[
-              "agencyAdmin",
-              "superAgencyAdmin",
-              "agencyStaff",
-              "agency",
-            ]}
-          >
+          <ProtectedRoute requiredRole={["agencyAdmin", "agency"]}>
             <AdminLayout>
               <Routes>
                 <Route path="dashboard" element={<AgencyDashboard />} />
