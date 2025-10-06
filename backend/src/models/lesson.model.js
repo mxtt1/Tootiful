@@ -6,7 +6,7 @@ const Lesson = sequelize.define('Lesson', {
     locationId: { type: DataTypes.UUID, allowNull: false },
     agencyId: { type: DataTypes.UUID, allowNull: false },
     subjectId: { type: DataTypes.UUID, allowNull: false },
-    tutorId: { type: DataTypes.UUID, allowNull: false },
+    tutorId: { type: DataTypes.UUID, allowNull: true }, //set it to null first
     dayOfWeek: {
         type: DataTypes.ENUM('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'),
         allowNull: false,

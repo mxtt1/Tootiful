@@ -17,6 +17,7 @@ import {
   IconMenu2,
   IconBuilding,
   IconSettings,
+  IconCalendar, // Add this line
 } from "@tabler/icons-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
@@ -69,6 +70,11 @@ const AdminLayout = ({ children }) => {
           label: "Tutor Management",
           icon: IconUser,
           path: "/agency/tutors",
+        },
+        {
+          label: "Lesson Management",
+          icon: IconCalendar, // or any appropriate icon
+          path: "/agency/lessons",
         },
       ];
 
