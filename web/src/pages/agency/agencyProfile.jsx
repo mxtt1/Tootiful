@@ -354,7 +354,16 @@ export default function AgencyProfile() {
                 color: "green",
                 icon: <IconCheck size={16} />
             });
-        } catch (err) {
+    } catch (err) {
+        // Handle the "location in use" error specifically
+        if (err.response?.data?.error === 'LOCATION_IN_USE') {
+            notifications.show({
+                title: "Cannot Delete Location",
+                message: "This location is currently being used in lessons and cannot be deleted.",
+                color: "orange",
+                icon: <IconX size={16} />
+            });
+        } else {
             const errorMessage = err.response?.data?.error || "Failed to delete location";
             notifications.show({
                 title: "Error",
@@ -363,7 +372,8 @@ export default function AgencyProfile() {
                 icon: <IconX size={16} />
             });
         }
-    };
+    }
+};
 
     const handleInputChange = (section, field, value) => {
         if (section === 'personal') {
