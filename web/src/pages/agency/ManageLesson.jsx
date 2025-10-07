@@ -452,11 +452,11 @@ export default function ManageLesson() {
     const getTutorName = (tutorId) => {
         if (!tutorId) return 'No Tutor Assigned';
         const tutor = allAgencyTutors.find(t => t.id === tutorId);
-        
+
         // only return tutor details if found in agency tutors
         if (tutor) {
             return `${tutor.firstName} ${tutor.lastName}`;
-        } 
+        }
 
         // if tutor id exists but not in agency, treat as no tutor assigned
         return 'No Tutor Assigned';
@@ -596,11 +596,11 @@ export default function ManageLesson() {
                                                 <Text size="sm" weight={500}>
                                                     {getTutorName(lesson.tutorId)}
                                                 </Text>
-                                                {lesson.tutorId && (
+                                                {/* {lesson.tutorId && (
                                                     <Text size="xs" color="dimmed">
                                                         ID: {lesson.tutorId}
                                                     </Text>
-                                                )}
+                                                )} */}
                                             </div>
                                         </Table.Td>
                                         <Table.Td>
