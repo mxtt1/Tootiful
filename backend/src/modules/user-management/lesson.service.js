@@ -158,6 +158,10 @@ class LessonService {
         throw new Error('Lesson not found');
       }
 
+      if (lesson.currentCap > 0) {
+        throw new Error('Cannot delete lesson with enrolled students');
+      }
+      
       await lesson.destroy();
     } catch (error) {
       throw new Error(`Failed to delete lesson: ${error.message}`);

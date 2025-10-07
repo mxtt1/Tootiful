@@ -387,6 +387,7 @@ export default function ManageLesson() {
             fetchLessons();
         } catch (err) {
             console.error("Delete error:", err);
+
             notifications.show({
                 title: "Error",
                 message: err.response?.data?.message || "Failed to delete lesson",
