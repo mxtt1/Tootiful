@@ -455,16 +455,11 @@ export default function ManageLesson() {
         
         // only return tutor details if found in agency tutors
         if (tutor) {
-            return {
-                display: `${tutor.firstName} ${tutor.lastName} (ID: ${tutorId})`,
-                id: tutorId,
-                firstName: tutor.firstName,
-                lastName: tutor.lastName
-            };
+            return `${tutor.firstName} ${tutor.lastName}`;
         } 
 
         // if tutor id exists but not in agency, treat as no tutor assigned
-        return { name: 'No Tutor Assigned', id: null}
+        return 'No Tutor Assigned';
     };
 
 
