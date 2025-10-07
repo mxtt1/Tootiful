@@ -53,8 +53,10 @@ export default class TutorService {
     async handleGetAvailableTutorsForSubject(req, res) {
         try {
             const { subjectId, agencyId } = req.query;
+            console.log(`Fetching available tutors for subject: ${subjectId}, agency: ${agencyId || 'any'}`);
 
             if (!subjectId) {
+                console.warn('Missing subjectId in request');
                 return res.status(400).json({ 
                     success: false,
                     message: "subjectId is required" 
@@ -62,7 +64,7 @@ export default class TutorService {
             }
 
             const tutors = await this.getAvailableTutorsForSubject(subjectId, agencyId);
-        
+            console.log(`Found ${tutors.length} available tutors for subject ${subjectId}`);
             res.status(200).json({
                 success: true,
                 data: tutors
@@ -282,6 +284,7 @@ export default class TutorService {
     }
 
     async getAvailableTutorsForSubject(subjectId, agencyId = null) {
+        console.log(`Finding available tutors for subject ${subjectId}, agency: ${agencyId || 'any'}`);
         const where = { 
             role: 'tutor', 
             isActive: true,
@@ -292,7 +295,7 @@ export default class TutorService {
             where.agencyId = agencyId;
         }
 
-        return await User.findAll({
+        const tutors = await User.findAll({
             where, 
             include: [
                 {
@@ -306,6 +309,8 @@ export default class TutorService {
             attributes: { exclude: ['password'] },
             order: [['firstName', 'ASC'], ['lastName', 'ASC']]
         });
+        console.log(`Found ${tutors.length} available tutors for subject ${subjectId}`);
+        return tutors;
     }
 
     async getTutorById(id) {

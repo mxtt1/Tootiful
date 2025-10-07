@@ -23,6 +23,12 @@ jest.mock('../src/models/index.js', () => ({
     findAll: jest.fn(),
     create: jest.fn(),
     destroy: jest.fn()
+  },
+  EmailVerificationToken: {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    destroy: jest.fn()
   }
 }));
 
@@ -30,6 +36,15 @@ jest.mock('bcrypt', () => ({
   compare: jest.fn(),
   hash: jest.fn()
 }));
+
+jest.mock('../src/util/mailer.js', () => ({
+  sendEmail: jest.fn().mockResolvedValue(true)
+}));
+
+jest.mock('../src/util/emailTemplates.js', () => ({
+  verifyEmailTemplate: jest.fn().mockReturnValue('Mocked email template')
+}));
+
 
 // Import mocked modules - use regular import with Babel
 import { Agency, User, Location } from '../src/models/index.js';
@@ -224,7 +239,8 @@ describe('AgencyService', () => {
         expect(User.findOne).toHaveBeenCalledTimes(1);
         expect(User.create).toHaveBeenCalledWith({
           ...adminData,
-          role: 'agencyAdmin'
+          role: 'agencyAdmin',
+          isActive: false
         });
         expect(result).toEqual(mockAdmin);
       });
