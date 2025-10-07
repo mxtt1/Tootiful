@@ -37,6 +37,7 @@ export default function ManageLesson() {
     const [totalPages, setTotalPages] = useState(1);
     const [tutors, setTutors] = useState([]);    
     const [fetchingTutors, setFetchingTutors] = useState(false);
+    const [allAgencyTutors, setAllAgencyTutors] = useState([]);
     const { user } = useAuth();
 
     // Filter states
@@ -95,6 +96,27 @@ export default function ManageLesson() {
         filterLessons();
     }, [searchQuery, statusFilter, allLessons]);
 
+    useEffect(() => {
+        const fetchAllAgencyTutors = async () => {
+            try {
+                const agencyId = user?.agencyId || user?.id;
+                if (!agencyId) return;
+
+                console.log("Fetching all agency tutors...");
+                const response = await apiClient.get(`/tutors?agencyId=${agencyId}`);
+                const tutorsData = response.data?.data || response.data || [];
+                console.log(`Found ${tutorsData.length} tutors in agency`);
+                setAllAgencyTutors(tutorsData);
+            } catch (err) {
+                console.error("Failed to fetch agency tutors:", err);
+            }
+        };
+
+        if (user) {
+            fetchAllAgencyTutors();
+        }
+    }, [user]);
+
     // fetch tutors when subject changes
     useEffect(() => {
         if (formData.subjectId) {
@@ -142,15 +164,30 @@ export default function ManageLesson() {
         setFetchingTutors(true);
         try {
             const agencyId = user?.agencyId || user?.id;
+            const url = `/tutors/available-for-subject?subjectId=${subjectId}&agencyId=${agencyId}`;
+            
+            console.log("Fetching tutors with:", {
+                url,
+                subjectId,
+                agencyId,
+                user: user
+            });
 
-            const response = await apiClient.get(`/tutors/available-for-subject?subjectId=${subjectId}&agencyId=${agencyId}`);
-            console.log("Fetched tutors:", response.data.data || response); 
-            setTutors(response.data.data || response || []); // response.data.data because of the success wrapper
+            const response = await apiClient.get(url);
+            
+            console.log("Full API Response:", response);
+            console.log("Response data:", response.data);
+            console.log("Tutors data:", response.data?.data);
 
-            // reset selected tutor when tutors list changes
+            const tutorsData = response.data?.data || response.data || response || [];
+            console.log("Processed tutors data:", tutorsData);
+            
+            setTutors(Array.isArray(tutorsData) ? tutorsData : []);
+
             setFormData(prev => ({ ...prev, tutorId: "" }));
         } catch (err) {
             console.error("Failed to fetch tutors:", err);
+            console.error("Error response:", err.response);
             notifications.show({
                 title: "Warning",
                 message: "Could not load tutors for the selected subject",
@@ -412,10 +449,23 @@ export default function ManageLesson() {
         return location ? location.address : 'Unknown Location';
     };
 
-    const getTutorName = (tutorId) => {
-        if (!tutorId) return 'No Tutor Assigned';
-        const tutor = tutors.find(t => t.id === tutorId);
-        return tutor ? `${tutor.firstName} ${tutor.lastName}` : `Tutor ID: ${tutorId}`;
+    const getTutorDetails = (tutorId) => {
+        if (!tutorId) return { display: 'No Tutor Assigned', id: null };
+        
+        const tutor = allAgencyTutors.find(t => t.id === tutorId);
+        
+        // only return tutor details if found in agency tutors
+        if (tutor) {
+            return {
+                display: `${tutor.firstName} ${tutor.lastName} (ID: ${tutorId})`,
+                id: tutorId,
+                firstName: tutor.firstName,
+                lastName: tutor.lastName
+            };
+        } 
+
+        // if tutor id exists but not in agency, treat as no tutor assigned
+        return { name: 'No Tutor Assigned', id: null}
     };
 
 
@@ -546,7 +596,18 @@ export default function ManageLesson() {
                                         </Table.Td>
                                         <Table.Td> {getLocationName(lesson.locationId)}</Table.Td>
                                         <Table.Td> {getSubjectName(lesson.subjectId)}</Table.Td>
-                                        <Table.Td> {getTutorName(lesson.tutorId)}</Table.Td>
+                                        <Table.Td>     
+                                            <div>
+                                                <Text size="sm" weight={500}>
+                                                    {getTutorDetails(lesson.tutorId).display.split(' (ID:')[0]} {/* Gets just the name part */}
+                                                </Text>
+                                                {lesson.tutorId && (
+                                                    <Text size="xs" color="dimmed">
+                                                        ID: {lesson.tutorId}
+                                                    </Text>
+                                                )}
+                                            </div>
+                                        </Table.Td>
                                         <Table.Td>
                                             <Text>
                                                 {lesson.currentCap || 0} / {lesson.totalCap}
@@ -648,7 +709,7 @@ export default function ManageLesson() {
                                 error={formErrors.locationId}
                                 required
                                 searchable
-                                nothingFound="No locations available"
+                                nothingfound="No locations available"
                             />
                             {/* Add debug info */}
                             {/* <Text size="xs" c="dimmed">
@@ -675,7 +736,7 @@ export default function ManageLesson() {
                                 required={formData.isActive} // Only required when active
                                 disabled={fetchingTutors || tutors.length === 0}
                                 leftSection={fetchingTutors ? <Loader size="sm" /> : <IconUser size={16} />}
-                                nothingFound={
+                                nothingfound={
                                     formData.subjectId 
                                         ? "No tutors available for this subject" 
                                         : "Select a subject first"
