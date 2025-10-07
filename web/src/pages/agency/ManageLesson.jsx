@@ -22,10 +22,9 @@ import {
     Textarea,
 } from "@mantine/core";
 import { TimeInput } from '@mantine/dates';
-import { IconEdit, IconTrash, IconSearch, IconPlus, IconClock } from "@tabler/icons-react";
+import { IconEdit, IconTrash, IconSearch, IconPlus, IconClock, IconUser } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useAuth } from "../../auth/AuthProvider";
-
 
 export default function ManageLesson() {
     const [allLessons, setAllLessons] = useState([]); // For all lessons without pagination, this is purely for search and active filters
@@ -36,6 +35,8 @@ export default function ManageLesson() {
     const [limit, setLimit] = useState(10);
     const [error, setError] = useState(null);
     const [totalPages, setTotalPages] = useState(1);
+    const [tutors, setTutors] = useState([]);    
+    const [fetchingTutors, setFetchingTutors] = useState(false);
     const { user } = useAuth();
 
     // Filter states
@@ -63,6 +64,7 @@ export default function ManageLesson() {
         endTime: "",
         studentRate: "",
         totalCap: "",
+        tutorId: "",
         isActive: true,
     });
     const [formErrors, setFormErrors] = useState({});
@@ -93,6 +95,16 @@ export default function ManageLesson() {
         filterLessons();
     }, [searchQuery, statusFilter, allLessons]);
 
+    // fetch tutors when subject changes
+    useEffect(() => {
+        if (formData.subjectId) {
+            fetchTutorsBySubject(formData.subjectId);
+        } else {
+            setTutors([]);
+            setFormData(prev => ({ ...prev, tutorId: "" }));
+        }
+    }, [formData.subjectId]);
+
     const fetchLessons = async () => {
         setLoading(true);
         setError(null);
@@ -117,6 +129,36 @@ export default function ManageLesson() {
             setError("Failed to load lessons");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchTutorsBySubject = async (subjectId) => {
+        if (!subjectId) {
+            setTutors([]);
+            setFormData(prev => ({ ...prev, tutorId: "" }));
+            return;
+        }
+
+        setFetchingTutors(true);
+        try {
+            const agencyId = user?.agencyId || user?.id;
+
+            const response = await apiClient.get(`/tutors/available-for-subject?subjectId=${subjectId}&agencyId=${agencyId}`);
+            console.log("Fetched tutors:", response.data.data || response); 
+            setTutors(response.data.data || response || []); // response.data.data because of the success wrapper
+
+            // reset selected tutor when tutors list changes
+            setFormData(prev => ({ ...prev, tutorId: "" }));
+        } catch (err) {
+            console.error("Failed to fetch tutors:", err);
+            notifications.show({
+                title: "Warning",
+                message: "Could not load tutors for the selected subject",
+                color: "yellow",
+            });
+            setTutors([]);
+        } finally {
+            setFetchingTutors(false);
         }
     };
 
@@ -199,6 +241,7 @@ export default function ManageLesson() {
             endTime: "",
             studentRate: "",
             totalCap: "",
+            tutorId: "",
             isActive: true,
         });
         setFormErrors({});
@@ -212,6 +255,9 @@ export default function ManageLesson() {
         if (!formData.subjectId) errors.subjectId = "Subject is required";
         if (!formData.dayOfWeek) errors.dayOfWeek = "Day of week is required";
         if (!formData.locationId) errors.locationId = "Location is required"; // Add this
+        if (formData.isActive && !formData.tutorId) {
+            errors.tutorId = "Assigned tutor is required for active lessons";
+        }
         if (!formData.startTime) errors.startTime = "Start time is required";
         if (!formData.endTime) errors.endTime = "End time is required";
         if (!formData.studentRate || formData.studentRate <= 0) errors.studentRate = "Valid student rate is required";
@@ -256,8 +302,13 @@ export default function ManageLesson() {
             endTime: lesson.endTime ? lesson.endTime.substring(0, 5) : "",       // "HH:mm:ss" -> "HH:mm"
             studentRate: lesson.studentRate || "",
             totalCap: lesson.totalCap || "",
+            tutorId: lesson.tutorId || "",
             isActive: lesson.isActive !== false,
         });
+        // if lesson has a subject, fetch tutors for that subject
+        if (lesson.subjectId) {
+            fetchTutorsBySubject(lesson.subjectId);
+        }
         setEditModalOpen(true);
     };
 
@@ -277,7 +328,7 @@ export default function ManageLesson() {
                 // Add some temporary values for required fields
                 locationId: formData.locationId,
                 agencyId: user.agencyId || user?.id,
-                //tutorId: user.id, // Tarsha take note
+                tutorId: formData.tutorId || null, // allow null for inactive lessons
             };
 
             console.log("Submitting payload:", payload);
@@ -360,6 +411,12 @@ export default function ManageLesson() {
         return location ? location.address : 'Unknown Location';
     };
 
+    const getTutorName = (tutorId) => {
+        if (!tutorId) return 'No Tutor Assigned';
+        const tutor = tutors.find(t => t.id === tutorId);
+        return tutor ? `${tutor.firstName} ${tutor.lastName}` : `Tutor ID: ${tutorId}`;
+    };
+
 
     const dayOptions = [
         { value: "monday", label: "Monday" },
@@ -380,6 +437,11 @@ export default function ManageLesson() {
         value: location.id,
         label: location.address
 
+    }));
+
+    const tutorOptions = tutors.map(tutor => ({
+        value: tutor.id,
+        label: `${tutor.firstName} ${tutor.lastName}`
     }));
 
     if (loading && lessons.length === 0) {
@@ -451,6 +513,7 @@ export default function ManageLesson() {
                                     <Table.Th>Day & Time</Table.Th>
                                     <Table.Th>Location</Table.Th>
                                     <Table.Th>Subject</Table.Th>
+                                    <Table.Th>Tutor</Table.Th>
                                     <Table.Th>Capacity</Table.Th>
                                     <Table.Th>Rate</Table.Th>
                                     <Table.Th>Status</Table.Th>
@@ -482,6 +545,7 @@ export default function ManageLesson() {
                                         </Table.Td>
                                         <Table.Td> {getLocationName(lesson.locationId)}</Table.Td>
                                         <Table.Td> {getSubjectName(lesson.subjectId)}</Table.Td>
+                                        <Table.Td> {getTutorName(lesson.tutorId)}</Table.Td>
                                         <Table.Td>
                                             <Text>
                                                 {lesson.currentCap || 0} / {lesson.totalCap}
@@ -589,6 +653,43 @@ export default function ManageLesson() {
                             {/* <Text size="xs" c="dimmed">
                                 Debug: {locationOptions.length} locations available
                             </Text> */}
+                        </Grid.Col>
+
+                        <Grid.Col span={12}>
+                            <Select
+                                label="Tutor"
+                                placeholder={
+                                    fetchingTutors 
+                                        ? "Loading tutors..." 
+                                        : tutors.length === 0 
+                                            ? "Select a subject first" 
+                                            : formData.isActive 
+                                                ? "Select tutor (required for active lessons)"
+                                                : "Select tutor (optional for inactive lessons)"
+                                }
+                                data={tutorOptions}
+                                value={formData.tutorId}
+                                onChange={(value) => setFormData({ ...formData, tutorId: value })}
+                                error={formErrors.tutorId}
+                                required={formData.isActive} // Only required when active
+                                disabled={fetchingTutors || tutors.length === 0}
+                                leftSection={fetchingTutors ? <Loader size="sm" /> : <IconUser size={16} />}
+                                nothingFound={
+                                    formData.subjectId 
+                                        ? "No tutors available for this subject" 
+                                        : "Select a subject first"
+                                }
+                                description={
+                                    formData.isActive 
+                                        ? "Tutor is required for active lessons" 
+                                        : "Tutor is optional for inactive lessons"
+                                }
+                            />
+                            {formData.subjectId && tutors.length === 0 && !fetchingTutors && (
+                                <Text size="sm" color="orange" mt={4}>
+                                    No tutors found for this subject in your agency
+                                </Text>
+                            )}
                         </Grid.Col>
 
                         <Grid.Col span={12}>
