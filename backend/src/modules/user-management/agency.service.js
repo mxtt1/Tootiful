@@ -124,9 +124,21 @@ class AgencyService {
     }
 
     async handleGetAgencyLocations(req, res) {
-        const { id } = req.params;
-        const locations = await this.getAgencyLocations(id);
-        res.status(200).json(locations);
+        try {
+            const { id } = req.params;
+            const locations = await this.getAgencyLocations(id);
+            res.status(200).json({
+                success: true,
+                data: locations, // nest locations in data property
+                total: locations.length
+            });
+        } catch (error) {
+            console.error("Error fetching agency locations:", error);
+            res.status(500).json({
+                success: false,
+                message: error.message
+            });
+        }
     }
 
     async handleCreateLocation(req, res) {

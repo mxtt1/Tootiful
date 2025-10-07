@@ -1,4 +1,4 @@
-import { Lesson, Location, Subject, User } from '../../models/index.js';
+import { Lesson, Subject, User } from '../../models/index.js';
 
 class LessonService {
   async handleGetAllSubjects(req, res) {
@@ -6,37 +6,6 @@ class LessonService {
     res.status(200).json(subjects);
   }
 
-  // In lesson.service.js - fix the handleGetLocationsByAgency method
-  async handleGetLocationsByAgency(req, res) {
-    try {
-      // The user is an agency admin, get their agencyId
-      const agencyId = req.user.agencyId; // This should be the agency they belong to
-
-      console.log("🔍 Agency Admin User:", req.user.email);
-      console.log("🔍 Fetching locations for agencyId:", agencyId);
-
-      const locations = await Location.findAll({
-        where: {
-          agencyId: agencyId
-        },
-        attributes: ['id', 'address', 'agencyId', 'createdAt'],
-        order: [['createdAt', 'DESC']]
-      });
-
-      console.log("📍 Found locations:", locations.length);
-
-      res.status(200).json({
-        success: true,
-        data: locations
-      });
-    } catch (error) {
-      console.error("Error fetching locations:", error);
-      res.status(500).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
 
   // Handler methods for routes
   async handleGetAllLessons(req, res) {
@@ -208,7 +177,6 @@ class LessonService {
     }
   }
 
-  // Remove the duplicate getAllLocationsByAgency method and the unused getAllLocations method
 }
 
 export default LessonService;

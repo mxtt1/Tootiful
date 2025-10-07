@@ -12,11 +12,6 @@ router.get('/subjects', authenticateToken, asyncHandler(async (req, res) => {
   await lessonService.handleGetAllSubjects(req, res);
 }));
 
-// Add this route before the /:id route
-router.get('/locations', authenticateToken, asyncHandler(async (req, res) => {
-  await lessonService.handleGetLocationsByAgency(req, res);
-}));
-
 // GET /api/lessons - Get all lessons
 router.get('/', authenticateToken, asyncHandler(async (req, res) => {
   await lessonService.handleGetAllLessons(req, res);

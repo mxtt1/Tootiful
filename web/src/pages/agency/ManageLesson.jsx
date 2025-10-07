@@ -106,7 +106,7 @@ export default function ManageLesson() {
 
             const response = await apiClient.get(`/lessons/agency/${agencyId}`);
 
-            const lessonsData = response.data || [];
+            const lessonsData = response.data || response || [];
             const totalCount = response.data?.total || lessonsData.length;
 
             setLessons(lessonsData);
@@ -155,7 +155,7 @@ export default function ManageLesson() {
             }
 
             //Use apiclient to fetch locations using agency Id
-            const response = await apiClient.get(`/locations?agencyId=${agencyId}`);
+            const response = await apiClient.get(`/agencies/${agencyId}/locations`);
 
             console.log("Locations response:", response.data);
 
