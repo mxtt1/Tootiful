@@ -9,11 +9,12 @@ const locationService = new LocationService();
 
 // GET /api/locations/all - Get all locations (for debugging)
 router.get('/', asyncHandler(async (req, res) => {
-    await locationService.handleGetAllLocations(req, res);
+    await locationService.handleGetLocationsByAgency(req, res);
+
 }));
 // GET /api/locations - Get locations by agency ID
 router.get('/all', asyncHandler(async (req, res) => {
-    await locationService.handleGetLocationsByAgency(req, res);
+    await locationService.handleGetAllLocations(req, res);
 }));
 
 export default router;

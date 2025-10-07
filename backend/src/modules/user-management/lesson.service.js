@@ -9,7 +9,7 @@ class LessonService {
   // In lesson.service.js - fix the handleGetLocationsByAgency method
   async handleGetLocationsByAgency(req, res) {
     try {
-      // ✅ The user is an agency admin, get their agencyId
+      // The user is an agency admin, get their agencyId
       const agencyId = req.user.agencyId; // This should be the agency they belong to
 
       console.log("🔍 Agency Admin User:", req.user.email);
@@ -30,7 +30,7 @@ class LessonService {
         data: locations
       });
     } catch (error) {
-      console.error("❌ Error fetching locations:", error);
+      console.error("Error fetching locations:", error);
       res.status(500).json({
         success: false,
         message: error.message
@@ -40,20 +40,20 @@ class LessonService {
 
   // Handler methods for routes
   async handleGetAllLessons(req, res) {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const agencyId = req.user.agencyId || req.user.id; // Add agency filtering
-
-    const result = await this.getAllLessons(page, limit, agencyId);
+    const lessons = await this.getAllLessons();
 
     res.status(200).json({
       success: true,
-      data: result.lessons,
-      pagination: {
-        currentPage: result.currentPage,
-        totalPages: result.totalPages,
-        total: result.total
-      }
+      data: lessons,
+    });
+  }
+
+  async handleGetLessonsByAgencyId(req, res) {
+    const { id } = req.params;
+    const lessons = await this.getAllLessonsByAgencyId(id); // Fetch all lessons for the agency
+    res.status(200).json({
+      success: true,
+      data: lessons
     });
   }
 
@@ -98,27 +98,12 @@ class LessonService {
     });
   }
 
-  // Business logic methods (REMOVE DUPLICATE - keep only this one)
-  async getAllLessons(page = 1, limit = 10, agencyId = null) {
+  // getAllLessons without pagination and filtering, this is abit iffy havent really test so take note of these if things goes wrong.
+  async getAllLessons() {
     try {
-      const offset = (page - 1) * limit;
-
-      // Add agency filtering
-      const whereClause = agencyId ? { agencyId } : {};
-
-      const { count, rows } = await Lesson.findAndCountAll({
-        where: whereClause,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        order: [['createdAt', 'DESC']]
+      return await Lesson.findAll({
+        order: [['createdAt', 'DESC']],
       });
-
-      return {
-        lessons: rows,
-        total: count,
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(count / limit)
-      };
     } catch (error) {
       throw new Error(`Failed to fetch lessons: ${error.message}`);
     }
@@ -138,9 +123,20 @@ class LessonService {
     }
   }
 
+  async getAllLessonsByAgencyId(agencyId) {
+    try {
+      return await Lesson.findAll({
+        where: { agencyId },
+        order: [['createdAt', 'DESC']]
+      });
+    } catch (error) {
+      throw new Error(`Failed to fetch lessons by agency ID: ${error.message}`);
+    }
+  }
+
   async createLesson(lessonData) {
     try {
-      console.log("📥 Creating lesson with data:", JSON.stringify(lessonData, null, 2));
+      console.log("Creating lesson with data:", JSON.stringify(lessonData, null, 2));
 
       const lesson = await Lesson.create({
         title: lessonData.title,
@@ -160,7 +156,7 @@ class LessonService {
 
       return lesson;
     } catch (error) {
-      console.error("❌ Lesson creation error:", error);
+      console.error("Lesson creation error:", error);
       throw new Error(`Failed to create lesson: ${error.message}`);
     }
   }

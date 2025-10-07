@@ -26,24 +26,9 @@ import { IconEdit, IconTrash, IconSearch, IconPlus, IconClock } from "@tabler/ic
 import { notifications } from "@mantine/notifications";
 import { useAuth } from "../../auth/AuthProvider";
 
-// // Converts a Date object to "HH:mm:ss" (24-hour)
-// const formatTimeForSQL = (dateObj) => {
-//     if (!(dateObj instanceof Date)) return '';
-//     const hours = String(dateObj.getHours()).padStart(2, "0");
-//     const minutes = String(dateObj.getMinutes()).padStart(2, "0");
-//     return `${hours}:${minutes}:00`;
-// };
-
-// // Converts "HH:mm:ss" string to a Date object for TimeInput
-// const parseTimeFromSQL = (timeString) => {
-//     if (!timeString) return null;
-//     const [hours, minutes] = timeString.split(":");
-//     const date = new Date();
-//     date.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
-//     return date;
-// };
 
 export default function ManageLesson() {
+    const [allLessons, setAllLessons] = useState([]); // For all lessons without pagination, this is purely for search and active filters
     const [lessons, setLessons] = useState([]);
     const [locations, setLocations] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -96,7 +81,7 @@ export default function ManageLesson() {
     // Fetch lessons
     useEffect(() => {
         fetchLessons();
-    }, [page, limit, debouncedSearch, statusFilter]);
+    }, [page, limit]);
 
     // Fetch dropdown data on mount
     useEffect(() => {
@@ -104,23 +89,28 @@ export default function ManageLesson() {
         fetchLocations();
     }, []);
 
+    useEffect(() => {
+        filterLessons();
+    }, [searchQuery, statusFilter, allLessons]);
+
     const fetchLessons = async () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await apiClient.get('/lessons', {
-                params: {
-                    page,
-                    limit,
-                    search: debouncedSearch,
-                    status: statusFilter,
-                }
-            });
+            const agencyId = user?.agencyId || user?.id;
+            if (!agencyId) {
+                console.error("No agency ID found");
+                setError("No agency ID found");
+                return;
+            }
 
-            const lessonsData = response.data?.lessons || response.data || [];
+            const response = await apiClient.get(`/lessons/agency/${agencyId}`);
+
+            const lessonsData = response.data || [];
             const totalCount = response.data?.total || lessonsData.length;
 
             setLessons(lessonsData);
+            setAllLessons(response.data);
             setTotalPages(Math.max(1, Math.ceil(totalCount / limit)));
         } catch (err) {
             console.error("Fetch lessons error:", err);
@@ -128,6 +118,29 @@ export default function ManageLesson() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const filterLessons = () => {
+        let filtered = [...allLessons];
+
+        // Search
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter((lesson) =>
+                lesson.title?.toLowerCase().includes(query) ||
+                lesson.description?.toLowerCase().includes(query)
+            );
+        }
+
+        // Status
+        if (statusFilter === "active") {
+            filtered = filtered.filter((lesson) => lesson.isActive === true);
+        } else if (statusFilter === "inactive") {
+            filtered = filtered.filter((lesson) => lesson.isActive === false);
+        }
+
+        setLessons(filtered);
+        setPage(1);
     };
     // Add fetch locations function
     const fetchLocations = async () => {
@@ -141,10 +154,10 @@ export default function ManageLesson() {
                 return;
             }
 
-            // ✅ FIX: Use query parameter instead of path parameter
+            //Use apiclient to fetch locations using agency Id
             const response = await apiClient.get(`/locations?agencyId=${agencyId}`);
 
-            console.log("📍 Locations response:", response.data);
+            console.log("Locations response:", response.data);
 
             setLocations(response.data);
         } catch (err) {
@@ -195,6 +208,7 @@ export default function ManageLesson() {
         const errors = {};
 
         if (!formData.title.trim()) errors.title = "Title is required";
+        if (formData.title.length < 3) errors.title = "Title must be at least 3 characters long";
         if (!formData.subjectId) errors.subjectId = "Subject is required";
         if (!formData.dayOfWeek) errors.dayOfWeek = "Day of week is required";
         if (!formData.locationId) errors.locationId = "Location is required"; // Add this
@@ -236,6 +250,7 @@ export default function ManageLesson() {
             title: lesson.title || "",
             description: lesson.description || "",
             subjectId: lesson.subjectId || "",
+            locationId: lesson.locationId || "", // Add this
             dayOfWeek: lesson.dayOfWeek || "",
             startTime: lesson.startTime ? lesson.startTime.substring(0, 5) : "", // "HH:mm:ss" -> "HH:mm"
             endTime: lesson.endTime ? lesson.endTime.substring(0, 5) : "",       // "HH:mm:ss" -> "HH:mm"
@@ -335,6 +350,17 @@ export default function ManageLesson() {
         return isActive ? "green" : "gray";
     };
 
+    const getSubjectName = (subjectId) => {
+        const subject = subjects.find(s => s.id === subjectId);
+        return subject ? subject.name : `Subject ID: ${subjectId}`;
+    };
+
+    const getLocationName = (locationId) => {
+        const location = locations.find(l => l.id === locationId);
+        return location ? location.address : 'Unknown Location';
+    };
+
+
     const dayOptions = [
         { value: "monday", label: "Monday" },
         { value: "tuesday", label: "Tuesday" },
@@ -370,7 +396,7 @@ export default function ManageLesson() {
         <Container size="xl" py="xl">
             <Stack spacing="lg">
                 <Group justify="space-between" align="center">
-                    <Title order={2}>Lesson Management (Testing)</Title>
+                    <Title order={2}>Lesson Management</Title>
                     <Button leftSection={<IconPlus size={16} />} onClick={handleCreateLesson}>
                         Create Lesson
                     </Button>
@@ -399,22 +425,6 @@ export default function ManageLesson() {
                             style={{ minWidth: 150 }}
                         />
 
-                        <Select
-                            placeholder="Rows per page"
-                            data={[
-                                { value: "10", label: "10 / page" },
-                                { value: "20", label: "20 / page" },
-                                { value: "50", label: "50 / page" },
-                            ]}
-                            value={limit.toString()}
-                            onChange={(value) => {
-                                if (value) {
-                                    setLimit(Number(value));
-                                    setPage(1);
-                                }
-                            }}
-                            style={{ width: 140 }}
-                        />
                     </Group>
                 </Card>
 
@@ -439,6 +449,7 @@ export default function ManageLesson() {
                                 <Table.Tr>
                                     <Table.Th>Title</Table.Th>
                                     <Table.Th>Day & Time</Table.Th>
+                                    <Table.Th>Location</Table.Th>
                                     <Table.Th>Subject</Table.Th>
                                     <Table.Th>Capacity</Table.Th>
                                     <Table.Th>Rate</Table.Th>
@@ -469,7 +480,8 @@ export default function ManageLesson() {
                                                 </Text>
                                             </div>
                                         </Table.Td>
-                                        <Table.Td>Subject ID: {lesson.subjectId}</Table.Td>
+                                        <Table.Td> {getLocationName(lesson.locationId)}</Table.Td>
+                                        <Table.Td> {getSubjectName(lesson.subjectId)}</Table.Td>
                                         <Table.Td>
                                             <Text>
                                                 {lesson.currentCap || 0} / {lesson.totalCap}
@@ -530,7 +542,7 @@ export default function ManageLesson() {
                     resetFormData();
                     setEditingLesson(null);
                 }}
-                title={editingLesson ? "Edit Lesson" : "Create Lesson (Testing)"}
+                title={editingLesson ? "Edit Lesson" : "Create Lesson"}
                 size="lg"
             >
                 <Stack spacing="md">
@@ -562,10 +574,10 @@ export default function ManageLesson() {
                                 placeholder={
                                     locationOptions.length === 0 ? "No locations found" : "Select location"
                                 }
-                                data={locationOptions} // ✅ CORRECT - Use formatted options
+                                data={locationOptions}
                                 value={formData.locationId}
                                 onChange={(value) => {
-                                    console.log("🟢 Location selected:", value);
+                                    console.log("Location selected:", value);
                                     setFormData({ ...formData, locationId: value });
                                 }}
                                 error={formErrors.locationId}
@@ -574,9 +586,9 @@ export default function ManageLesson() {
                                 nothingFound="No locations available"
                             />
                             {/* Add debug info */}
-                            <Text size="xs" c="dimmed">
+                            {/* <Text size="xs" c="dimmed">
                                 Debug: {locationOptions.length} locations available
-                            </Text>
+                            </Text> */}
                         </Grid.Col>
 
                         <Grid.Col span={12}>

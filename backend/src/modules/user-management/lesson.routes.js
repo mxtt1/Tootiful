@@ -32,6 +32,11 @@ router.post('/', authenticateToken, asyncHandler(async (req, res) => {
   await lessonService.handleCreateLesson(req, res);
 }));
 
+// GET /api/lessons/agency/:id - Get lessons by agency ID
+router.get('/agency/:id', authenticateToken, asyncHandler(async (req, res) => {
+  await lessonService.handleGetLessonsByAgencyId(req, res);
+}));
+
 // PATCH /api/lessons/:id - Update lesson
 router.patch('/:id', authenticateToken, asyncHandler(async (req, res) => {
   await lessonService.handleUpdateLesson(req, res);
