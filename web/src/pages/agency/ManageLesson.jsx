@@ -35,7 +35,7 @@ export default function ManageLesson() {
     const [limit, setLimit] = useState(10);
     const [error, setError] = useState(null);
     const [totalPages, setTotalPages] = useState(1);
-    const [tutors, setTutors] = useState([]);    
+    const [tutors, setTutors] = useState([]);
     const [fetchingTutors, setFetchingTutors] = useState(false);
     const [allAgencyTutors, setAllAgencyTutors] = useState([]);
     const { user } = useAuth();
@@ -165,7 +165,7 @@ export default function ManageLesson() {
         try {
             const agencyId = user?.agencyId || user?.id;
             const url = `/tutors/available-for-subject?subjectId=${subjectId}&agencyId=${agencyId}`;
-            
+
             console.log("Fetching tutors with:", {
                 url,
                 subjectId,
@@ -174,14 +174,14 @@ export default function ManageLesson() {
             });
 
             const response = await apiClient.get(url);
-            
+
             console.log("Full API Response:", response);
             console.log("Response data:", response.data);
             console.log("Tutors data:", response.data?.data);
 
             const tutorsData = response.data?.data || response.data || response || [];
             console.log("Processed tutors data:", tutorsData);
-            
+
             setTutors(Array.isArray(tutorsData) ? tutorsData : []);
 
             setFormData(prev => ({ ...prev, tutorId: "" }));
@@ -441,7 +441,7 @@ export default function ManageLesson() {
 
     const getSubjectName = (subjectId) => {
         const subject = subjects.find(s => s.id === subjectId);
-        return subject ? subject.name : `Subject ID: ${subjectId}`;
+        return subject ? `${subject.name} (${subject.gradeLevel})` : `Subject ID: ${subjectId}`;
     };
 
     const getLocationName = (locationId) => {
@@ -451,9 +451,9 @@ export default function ManageLesson() {
 
     const getTutorDetails = (tutorId) => {
         if (!tutorId) return { display: 'No Tutor Assigned', id: null };
-        
+
         const tutor = allAgencyTutors.find(t => t.id === tutorId);
-        
+
         // only return tutor details if found in agency tutors
         if (tutor) {
             return {
@@ -462,10 +462,10 @@ export default function ManageLesson() {
                 firstName: tutor.firstName,
                 lastName: tutor.lastName
             };
-        } 
+        }
 
         // if tutor id exists but not in agency, treat as no tutor assigned
-        return { name: 'No Tutor Assigned', id: null}
+        return { name: 'No Tutor Assigned', id: null }
     };
 
 
@@ -479,9 +479,10 @@ export default function ManageLesson() {
         { value: "sunday", label: "Sunday" },
     ];
 
+    // Update the subjectOptions mapping to include grade level
     const subjectOptions = subjects.map(subject => ({
         value: subject.id,
-        label: subject.name
+        label: `${subject.name} (${subject.gradeLevel})` // Add grade level in brackets
     }));
 
     const locationOptions = locations.map(location => ({
@@ -596,7 +597,7 @@ export default function ManageLesson() {
                                         </Table.Td>
                                         <Table.Td> {getLocationName(lesson.locationId)}</Table.Td>
                                         <Table.Td> {getSubjectName(lesson.subjectId)}</Table.Td>
-                                        <Table.Td>     
+                                        <Table.Td>
                                             <div>
                                                 <Text size="sm" weight={500}>
                                                     {getTutorDetails(lesson.tutorId).display.split(' (ID:')[0]} {/* Gets just the name part */}
@@ -721,11 +722,11 @@ export default function ManageLesson() {
                             <Select
                                 label="Tutor"
                                 placeholder={
-                                    fetchingTutors 
-                                        ? "Loading tutors..." 
-                                        : tutors.length === 0 
-                                            ? "Select a subject first" 
-                                            : formData.isActive 
+                                    fetchingTutors
+                                        ? "Loading tutors..."
+                                        : tutors.length === 0
+                                            ? "Select a subject first"
+                                            : formData.isActive
                                                 ? "Select tutor (required for active lessons)"
                                                 : "Select tutor (optional for inactive lessons)"
                                 }
@@ -737,13 +738,13 @@ export default function ManageLesson() {
                                 disabled={fetchingTutors || tutors.length === 0}
                                 leftSection={fetchingTutors ? <Loader size="sm" /> : <IconUser size={16} />}
                                 nothingfound={
-                                    formData.subjectId 
-                                        ? "No tutors available for this subject" 
+                                    formData.subjectId
+                                        ? "No tutors available for this subject"
                                         : "Select a subject first"
                                 }
                                 description={
-                                    formData.isActive 
-                                        ? "Tutor is required for active lessons" 
+                                    formData.isActive
+                                        ? "Tutor is required for active lessons"
                                         : "Tutor is optional for inactive lessons"
                                 }
                             />

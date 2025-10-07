@@ -33,7 +33,7 @@ class LessonService {
   }
 
   async handleGetLessonById(req, res) {
-    const { id } = req.params;    
+    const { id } = req.params;
     console.log(`Fetching lessons by ID: ${id}`);
     const lesson = await this.getLessonById(id);
     console.log(`Retrieved lesson: ${lesson.title}`);
@@ -210,13 +210,13 @@ class LessonService {
       console.log('Fetching all active subjects');
       const subjects = await Subject.findAll({
         where: { isActive: true },
-        attributes: ['id', 'name', 'description', 'category'],
+        attributes: ['id', 'name', 'description', 'gradeLevel', 'category'],
         order: [['category', 'ASC'], ['name', 'ASC']]
       });
       console.log(`Retrieved ${subjects.length} active subjects`);
       return subjects;
     } catch (error) {
-        console.error('Error fetching subjects:', error.message);
+      console.error('Error fetching subjects:', error.message);
       throw new Error(`Error fetching subjects: ${error.message}`);
     }
   }
