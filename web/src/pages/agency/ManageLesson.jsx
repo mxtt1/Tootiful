@@ -120,7 +120,10 @@ export default function ManageLesson() {
     // fetch tutors when subject changes
     useEffect(() => {
         if (formData.subjectId) {
-            fetchTutorsBySubject(formData.subjectId);
+            // Always clear tutor when subject changes in edit mode
+            // Only preserve tutor when opening the modal initially
+            const isInitialLoad = editingLesson && editingLesson.subjectId === formData.subjectId;
+            fetchTutorsBySubject(formData.subjectId, !isInitialLoad);
         } else {
             setTutors([]);
             setFormData(prev => ({ ...prev, tutorId: "" }));
@@ -154,7 +157,7 @@ export default function ManageLesson() {
         }
     };
 
-    const fetchTutorsBySubject = async (subjectId) => {
+    const fetchTutorsBySubject = async (subjectId, shouldClearTutor = true) => {
         if (!subjectId) {
             setTutors([]);
             setFormData(prev => ({ ...prev, tutorId: "" }));
@@ -166,28 +169,31 @@ export default function ManageLesson() {
             const agencyId = user?.agencyId || user?.id;
             const url = `/tutors/available-for-subject?subjectId=${subjectId}&agencyId=${agencyId}`;
 
-            console.log("Fetching tutors with:", {
-                url,
-                subjectId,
-                agencyId,
-                user: user
-            });
-
             const response = await apiClient.get(url);
-
-            console.log("Full API Response:", response);
-            console.log("Response data:", response.data);
-            console.log("Tutors data:", response.data?.data);
-
             const tutorsData = response.data?.data || response.data || response || [];
-            console.log("Processed tutors data:", tutorsData);
 
+            // Always set the tutors to what the API returns
             setTutors(Array.isArray(tutorsData) ? tutorsData : []);
 
-            setFormData(prev => ({ ...prev, tutorId: "" }));
+            // Only clear tutor if subject changes
+            if (shouldClearTutor) {
+                setFormData(prev => ({ ...prev, tutorId: "" }));
+            }
+            // If we're NOT clearing tutor, ensure the current tutor exists in the new list
+            else if (formData.tutorId) {
+                const tutorExists = tutorsData.some(t => t.id === formData.tutorId);
+                if (!tutorExists) {
+                    // If current tutor is not in the new subject's tutors, clear it
+                    setFormData(prev => ({ ...prev, tutorId: "" }));
+                    notifications.show({
+                        title: "Note",
+                        message: "Current tutor is not available for this subject",
+                        color: "yellow",
+                    });
+                }
+            }
         } catch (err) {
             console.error("Failed to fetch tutors:", err);
-            console.error("Error response:", err.response);
             notifications.show({
                 title: "Warning",
                 message: "Could not load tutors for the selected subject",
@@ -198,7 +204,6 @@ export default function ManageLesson() {
             setFetchingTutors(false);
         }
     };
-
     const filterLessons = () => {
         let filtered = [...allLessons];
 
@@ -329,6 +334,20 @@ export default function ManageLesson() {
             return date;
         };
 
+        // immediately add the current tutor to the tutors list if they exist
+        if (lesson.tutorId) {
+            const currentTutor = allAgencyTutors.find(t => t.id === lesson.tutorId);
+            if (currentTutor) {
+                setTutors(prev => {
+                    // Only add if not already in the list
+                    if (!prev.some(t => t.id === lesson.tutorId)) {
+                        return [...prev, currentTutor];
+                    }
+                    return prev;
+                });
+            }
+        }
+
         setFormData({
             title: lesson.title || "",
             description: lesson.description || "",
@@ -343,8 +362,9 @@ export default function ManageLesson() {
             isActive: lesson.isActive !== false,
         });
         // if lesson has a subject, fetch tutors for that subject
+        // dont clear tutorId when opening modal
         if (lesson.subjectId) {
-            fetchTutorsBySubject(lesson.subjectId);
+            fetchTutorsBySubject(lesson.subjectId, false);
         }
         setEditModalOpen(true);
     };
