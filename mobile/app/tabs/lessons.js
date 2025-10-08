@@ -17,6 +17,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { jwtDecode } from "jwt-decode";
 import lessonService from "../../services/lessonService";
 import authService from "../../services/authService";
+import apiClient from "../../services/apiClient";
 import { lessonsStyles as styles } from "../styles/lessonsStyles";
 
 export default function LessonsScreen() {
@@ -141,28 +142,38 @@ export default function LessonsScreen() {
         return;
       }
 
-      // Get user info from JWT token
-      const token = authService.getCurrentToken();
+      // Get user info from JWT token - ensure token is loaded from storage
+      await apiClient.loadTokenFromStorage();
+      const token = await authService.getCurrentToken();
       if (!token) {
         Alert.alert("Error", "Please log in to enroll in lessons");
         return;
       }
 
+      // Decode JWT token
+      let userId, userType;
       try {
         const payload = jwtDecode(token);
-        const userId = payload.userId;
-        const userType = payload.userType;
+        userId = payload.userId;
+        userType = payload.userType;
+      } catch (decodeError) {
+        console.error("❌ Token decode error:", decodeError);
+        Alert.alert("Error", "Session expired. Please log in again.");
+        return;
+      }
 
-        console.log(
-          `🎓 Enrolling ${userType} in lesson: ${selectedLesson.title}`
-        );
+      console.log(
+        `🎓 Enrolling ${userType} in lesson: ${selectedLesson.title}`
+      );
 
-        // Ensure only students can enroll
-        if (userType !== "student") {
-          Alert.alert("Error", "Only students can enroll in lessons");
-          return;
-        }
+      // Ensure only students can enroll
+      if (userType !== "student") {
+        Alert.alert("Error", "Only students can enroll in lessons");
+        return;
+      }
 
+      // Make enrollment API call
+      try {
         await lessonService.enrollStudentInLesson(userId, selectedLesson.id);
 
         Alert.alert(
@@ -173,18 +184,35 @@ export default function LessonsScreen() {
 
         // Refresh lessons to update capacity
         fetchLessons();
-      } catch (decodeError) {
-        console.error("❌ Token decode error:", decodeError);
-        Alert.alert("Error", "Session expired. Please log in again.");
-        return;
+      } catch (enrollmentError) {
+        console.error("❌ Enrollment error:", enrollmentError);
+        const errorMessage =
+          enrollmentError.response?.data?.message ||
+          enrollmentError.message ||
+          "Failed to enroll in lesson";
+
+        // Map backend error messages to user-friendly alerts
+        if (errorMessage.toLowerCase().includes("already enrolled")) {
+          Alert.alert(
+            "Enrollment Error",
+            "You are already enrolled in this lesson."
+          );
+        } else if (errorMessage.toLowerCase().includes("time clash")) {
+          Alert.alert(
+            "Enrollment Error",
+            "This lesson clashes with another lesson you are enrolled in."
+          );
+        } else if (errorMessage.toLowerCase().includes("grade level")) {
+          Alert.alert(
+            "Enrollment Error",
+            "This lesson is not for your grade level."
+          );
+        } else if (errorMessage.toLowerCase().includes("lesson is full")) {
+          Alert.alert("Enrollment Error", "This lesson is already full.");
+        } else {
+          Alert.alert("Error", errorMessage);
+        }
       }
-    } catch (error) {
-      console.error("❌ Enrollment error:", error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to enroll in lesson";
-      Alert.alert("Error", errorMessage);
     } finally {
       setEnrolling(false);
     }

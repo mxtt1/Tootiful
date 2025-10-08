@@ -556,6 +556,18 @@ class LessonService {
         throw new Error("Student is already enrolled in this lesson");
       }
 
+      // Check grade level compatibility
+      const subject = await Subject.findByPk(lesson.subjectId, { transaction });
+      if (
+        student.gradeLevel &&
+        subject.gradeLevel &&
+        student.gradeLevel !== subject.gradeLevel
+      ) {
+        throw new Error(
+          "Student grade level does not match the lesson's grade level requirement"
+        );
+      }
+
       // Check for time clash
       const currentLessons = await student.getStudentLessons({
         joinTableAttributes: ["startDate", "endDate"],
