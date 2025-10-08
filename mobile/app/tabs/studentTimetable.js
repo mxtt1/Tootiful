@@ -189,10 +189,12 @@ export default function StudentTimetable() {
                         {selectedLesson && (
                             <>
                                 <Text style={styles.modalTitle}>{selectedLesson.title}</Text>
-                                <Text>Location: {selectedLesson.location}</Text>
+                                <Text>Subject: {selectedLesson.subject.gradeLevel} {selectedLesson.subject.name}</Text>
+                                <Text>Location: {selectedLesson.location.address}</Text>
                                 <Text>Time: {selectedLesson.startTime} - {selectedLesson.endTime}</Text>
                                 <Text>Day: {selectedLesson.dayOfWeek}</Text>
-                                <Text>Tutor: {selectedLesson.tutorName}</Text>
+                                <Text>Tutor: {selectedLesson.tutor.firstName} {selectedLesson.tutor.lastName}</Text>
+                                <Text>Agency: {selectedLesson.agency.name}</Text>
                                 <TouchableOpacity style={styles.closeBtn} onPress={() => setSelectedLesson(null)}>
                                     <Ionicons name="close" size={24} color="#8B5CF6" />
                                 </TouchableOpacity>

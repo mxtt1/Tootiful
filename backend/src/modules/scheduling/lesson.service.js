@@ -464,9 +464,34 @@ class LessonService {
     }
 
     const today = new Date().setHours(0, 0, 0, 0);
+    // Common include for all lesson info
+    const lessonInclude = [
+      {
+        model: Subject,
+        as: "subject",
+        attributes: ["id", "name", "gradeLevel", "category", "description"],
+      },
+      {
+        model: Location,
+        as: "location",
+        attributes: ["id", "address"],
+      },
+      {
+        model: Agency,
+        as: "agency",
+        attributes: ["id", "name"],
+      },
+      {
+        model: User,
+        as: "tutor",
+        attributes: ["id", "firstName", "lastName"],
+        required: false,
+      },
+    ];
 
     if (ongoing) {
-      return student.getStudentLessons({
+      return await student.getStudentLessons({
+        include: lessonInclude,
         through: {
           where: {
             startDate: { [Op.lte]: today },
@@ -475,7 +500,9 @@ class LessonService {
         },
       });
     } else {
-      return student.getStudentLessons();
+      return await student.getStudentLessons({
+        include: lessonInclude,
+      });
     }
   }
 
