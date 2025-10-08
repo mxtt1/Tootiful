@@ -463,7 +463,7 @@ class LessonService {
       throw new Error("Student not found");
     }
 
-    const today = new Date().setHours(0, 0, 0, 0);
+    const today = new Date().setUTCHours(0, 0, 0, 0);
     // Common include for all lesson info
     const lessonInclude = [
       {
