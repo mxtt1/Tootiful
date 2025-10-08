@@ -1,4 +1,6 @@
-import { Lesson, Subject, User } from '../../models/index.js';
+import { Lesson, Subject, User, StudentLesson } from '../../models/index.js';
+import { Op } from 'sequelize';
+import sequelize from '../../config/database.js';
 
 class LessonService {
   async handleGetAllSubjects(req, res) {
@@ -77,6 +79,27 @@ class LessonService {
     res.status(200).json({
       success: true,
       message: 'Lesson deleted successfully'
+    });
+  }
+
+  async handleGetAllLessonsByStudentId(req, res) {
+    const { ongoing } = req.query;
+    const { id: studentId } = req.params;
+    const response = await this.getAllLessonsByStudentId(studentId, ongoing);
+    res.status(200).json({
+      success: true,
+      data: response
+    });
+  }
+
+  async handleEnrolStudentInLesson(req, res) {
+    const { id: studentId } = req.params;
+    const { lessonId } = req.body; // Expect lessonId in request body
+    const result = await this.enrolStudentInLesson(studentId, lessonId);
+    res.status(201).json({
+      success: true,
+      message: 'Student enrolled in lesson successfully',
+      data: result
     });
   }
 
@@ -201,6 +224,109 @@ class LessonService {
     } catch (error) {
       console.error(`Failed to delete lesson ${lessonId}:`, error.message);
       throw new Error(`Failed to delete lesson: ${error.message}`);
+    }
+  }
+
+  async getAllLessonsByStudentId(studentId, ongoing) {
+    const student = await User.findByPk(studentId);
+    if (!student || student.role !== 'student') {
+      throw new Error('Student not found');
+    }
+
+    const today = new Date().setHours(0, 0, 0, 0);
+
+    if (ongoing) {
+      return student.getStudentLessons({
+        through: {
+          where: {
+            startDate: { [Op.lte]: today },
+            endDate: { [Op.gte]: today }
+          }
+        }
+      });
+    } else {
+      return student.getStudentLessons();
+    }
+  }
+
+  async enrolStudentInLesson(studentId, lessonId) {
+    const transaction = await sequelize.transaction();
+    try {
+      // Fetch student and lesson then check if they exist
+      const student = await User.findByPk(studentId, { transaction });
+      const lesson = await Lesson.findByPk(lessonId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE
+      });
+
+      if (!student || student.role !== 'student') {
+        throw new Error('Student not found');
+      }
+      if (!lesson) {
+        throw new Error('Lesson not found');
+      }
+
+      // Set start and end dates for enrollment
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const endDate = new Date(today);
+      endDate.setMonth(endDate.getMonth() + 1);
+
+      // Check if lesson is full (count active enrollments)
+      const currentCapacity = await StudentLesson.count({
+        where: {
+          lessonId,
+          startDate: { [Op.lte]: today },
+          endDate: { [Op.gte]: today }
+        },
+        transaction
+      });
+      if (currentCapacity >= lesson.totalCap) {
+        throw new Error('Lesson is full');
+      }
+
+      // Check if already enrolled
+      const existing = await StudentLesson.findOne({
+        where: { studentId, lessonId },
+        transaction
+      });
+      if (existing) {
+        throw new Error('Student is already enrolled in this lesson');
+      }
+
+      // Check for time clash
+      const currentLessons = await student.getStudentLessons({
+        joinTableAttributes: ['startDate', 'endDate'],
+        through: {
+          where: {
+            startDate: { [Op.lte]: today },
+            endDate: { [Op.gte]: today }
+          }
+        },
+        transaction
+      });
+      for (const otherLesson of currentLessons) {
+        if (
+          otherLesson.dayOfWeek === lesson.dayOfWeek &&
+          ((lesson.startTime < otherLesson.endTime && lesson.endTime > otherLesson.startTime))
+        ) {
+          throw new Error('Lesson time clashes with another lesson student is currently enrolled in');
+        }
+      }
+
+      // Enrol student and update lesson's currentCap
+      await student.addStudentLesson(lesson, {
+        through: { startDate: today, endDate: endDate },
+        transaction
+      });
+      lesson.currentCap = currentCapacity + 1;
+      await lesson.save({ transaction });
+
+      await transaction.commit();
+      return { studentId, lessonId };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
     }
   }
 

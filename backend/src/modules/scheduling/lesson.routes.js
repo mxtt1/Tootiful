@@ -42,4 +42,14 @@ router.delete('/:id', authenticateToken, asyncHandler(async (req, res) => {
   await lessonService.handleDeleteLesson(req, res);
 }));
 
+// GET /api/lessons/students/:id - Get all lessons for a specific student
+router.get('/students/:id', asyncHandler(async (req, res) => {
+  await lessonService.handleGetAllLessonsByStudentId(req, res);
+}));
+
+// POST /api/lessons/students/:id - Enrol a student in a lesson
+router.post('/students/:id', asyncHandler(async (req, res) => {
+  await lessonService.handleEnrolStudentInLesson(req, res);
+}));
+
 export default router;
