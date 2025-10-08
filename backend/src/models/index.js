@@ -6,12 +6,14 @@ import LessonInstance from './lessonInstance.model.js';
 const StudentLesson = sequelize.define('StudentLesson', {
   studentId: {
     type: DataTypes.INTEGER,
+    primaryKey: true,
     references: { model: User, key: 'id' },
     onDelete: 'CASCADE',
     allowNull: false,
   },
   lessonId: {
     type: DataTypes.INTEGER,
+    primaryKey: true,
     references: { model: Lesson, key: 'id' },
     onDelete: 'CASCADE',
     allowNull: false,
@@ -91,6 +93,7 @@ const TutorSubject = sequelize.define(
   {
     tutorId: {
       type: DataTypes.UUID,
+      primaryKey: true,
       references: {
         model: User,
         key: "id",
@@ -99,6 +102,7 @@ const TutorSubject = sequelize.define(
     },
     subjectId: {
       type: DataTypes.UUID,
+      primaryKey: true,
       references: {
         model: Subject,
         key: "id",
