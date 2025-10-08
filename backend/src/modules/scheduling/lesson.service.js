@@ -525,9 +525,9 @@ class LessonService {
 
       // Set start and end dates for enrollment
       const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      today.setUTCHours(0, 0, 0, 0);
       const endDate = new Date(today);
-      endDate.setMonth(endDate.getMonth() + 1);
+      endDate.setUTCMonth(endDate.getUTCMonth() + 1);
 
       // Check if lesson is full (count active enrollments)
       const currentCapacity = await StudentLesson.count({
@@ -544,7 +544,12 @@ class LessonService {
 
       // Check if already enrolled
       const existing = await StudentLesson.findOne({
-        where: { studentId, lessonId },
+        where: {
+          studentId,
+          lessonId,
+          startDate: { [Op.lte]: today },
+          endDate: { [Op.gte]: today },
+        },
         transaction,
       });
       if (existing) {
