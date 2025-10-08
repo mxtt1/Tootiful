@@ -10,6 +10,9 @@ const tutorService = new TutorService();
 // GET /api/tutors - Get all tutors with optional filters
 router.get('/', authenticateToken, asyncHandler(tutorService.handleGetAllTutors.bind(tutorService)));
 
+// GET /api/tutors/available-for-subject = Get all available tutors for a specific subject of that agency
+router.get('/available-for-subject', authenticateToken, asyncHandler(tutorService.handleGetAvailableTutorsForSubject.bind(tutorService)));
+
 // GET /api/tutors/:id - Get tutor by ID
 router.get('/:id', authenticateToken, asyncHandler(tutorService.handleGetTutorById.bind(tutorService)));
 

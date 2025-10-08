@@ -1,4 +1,4 @@
-import { Agency, Location, User } from '../../models/index.js';
+import { Agency, Location, User, Lesson } from '../../models/index.js';
 import { Op } from 'sequelize';
 import bcrypt from 'bcrypt';
 import { createAndEmailVerificationLinkForAgency, createAndEmailVerificationLink } from "../user-management/emailVerification.service.js";
@@ -124,9 +124,21 @@ class AgencyService {
     }
 
     async handleGetAgencyLocations(req, res) {
-        const { id } = req.params;
-        const locations = await this.getAgencyLocations(id);
-        res.status(200).json(locations);
+        try {
+            const { id } = req.params;
+            const locations = await this.getAgencyLocations(id);
+            res.status(200).json({
+                success: true,
+                data: locations, // nest locations in data property
+                total: locations.length
+            });
+        } catch (error) {
+            console.error("Error fetching agency locations:", error);
+            res.status(500).json({
+                success: false,
+                message: error.message
+            });
+        }
     }
 
     async handleCreateLocation(req, res) {
@@ -138,6 +150,23 @@ class AgencyService {
 
     async handleDeleteLocation(req, res) {
         const { agencyId, locationId } = req.params;
+        //check if location is used in any lessons
+        const lessonsUsingLocation = await Lesson.findAll({
+            where: { 
+                locationId: locationId, 
+                agencyId: agencyId
+            }, 
+            limit: 1 // We only need to know if at least one lesson uses it
+        });
+
+        if (lessonsUsingLocation.length > 0) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Cannot delete location as it is associated with existing lessons',
+                error: 'LOCATION_IN_USE' 
+            });
+        }
+        // but if no lessons use it, then proceed to delete
         const location = await Location.findOne({
             where: { id: locationId, agencyId: agencyId }
         });

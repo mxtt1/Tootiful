@@ -8,8 +8,9 @@ import tutorRoutes from "./modules/user-management/tutor.routes.js";
 import authRoutes from "./modules/user-management/auth.routes.js";
 import agencyRoutes from "./modules/user-management/agency.route.js";
 import agencyAdminRoutes from "./modules/user-management/agencyAdmin.routes.js";
+import lessonRoutes from './modules/user-management/lesson.routes.js';
 import { errorHandler } from "./middleware/errorHandler.js";
-import "./models/index.js"; 
+import "./models/index.js";
 
 // Load environment variables
 dotenv.config();
@@ -33,6 +34,7 @@ app.use(
       "X-Requested-With",
       "Content-Type",
       "Accept",
+      "params",//allow params holder
       "Authorization",
     ],
   })
@@ -41,9 +43,11 @@ app.use(
 // Routes
 app.use("/api/students", studentRoutes);
 app.use("/api/tutors", tutorRoutes);
+app.use("/api/lessons", lessonRoutes); //implement lesson routes
 app.use("/api/agencies", agencyRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/agency-admins", agencyAdminRoutes);
+
 
 // Global Error Handler Middleware
 app.use(errorHandler);

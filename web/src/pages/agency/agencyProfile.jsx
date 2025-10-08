@@ -86,12 +86,20 @@ export default function AgencyProfile() {
                 // Fetch locations of that agency
                 const locationsResponse = await apiClient.get(`/agencies/${user.agencyId}/locations`);
 
+                let locationsArray = [];
+                if (Array.isArray(locationsResponse)) {
+                    locationsArray = locationsResponse;
+                } else if (Array.isArray(locationsResponse.data)) {
+                    locationsArray = locationsResponse.data;
+                } else {
+                    locationsArray = [];
+                }
                 const agencyData = {
-                    name: agencyResponse.name || "",
-                    email: agencyResponse.email || "",
-                    phone: agencyResponse.phone || "",
-                    isActive: agencyResponse.isActive ?? true,
-                    locations: locationsResponse || []
+                    name: agencyResponse.data?.name || "",
+                    email: agencyResponse.data?.email || "",
+                    phone: agencyResponse.data?.phone || "",
+                    isActive: agencyResponse.data?.isActive ?? true,
+                    locations: locationsArray
                 };
                 
                 setAgencyInfo(agencyData);
@@ -285,7 +293,6 @@ export default function AgencyProfile() {
         setError("");
     };
 
-    // Location Handlers (unchanged)
     const handleAddLocation = async () => {
         if (!newLocation.address.trim()) {
             notifications.show({
@@ -303,9 +310,11 @@ export default function AgencyProfile() {
                 address: newLocation.address.trim()
             });
 
+            const newLocationObj = response.data || response;
+
             setAgencyInfo(prev => ({
                 ...prev,
-                locations: [...prev.locations, response]
+                locations: [...prev.locations, newLocationObj]
             }));
 
             setNewLocation({ address: "" });
@@ -345,7 +354,16 @@ export default function AgencyProfile() {
                 color: "green",
                 icon: <IconCheck size={16} />
             });
-        } catch (err) {
+    } catch (err) {
+        // Handle the "location in use" error specifically
+        if (err.response?.data?.error === 'LOCATION_IN_USE') {
+            notifications.show({
+                title: "Cannot Delete Location",
+                message: "This location is currently being used in lessons and cannot be deleted.",
+                color: "orange",
+                icon: <IconX size={16} />
+            });
+        } else {
             const errorMessage = err.response?.data?.error || "Failed to delete location";
             notifications.show({
                 title: "Error",
@@ -354,7 +372,8 @@ export default function AgencyProfile() {
                 icon: <IconX size={16} />
             });
         }
-    };
+    }
+};
 
     const handleInputChange = (section, field, value) => {
         if (section === 'personal') {

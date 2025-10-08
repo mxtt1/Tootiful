@@ -50,6 +50,34 @@ export default class TutorService {
         });
     }
 
+    async handleGetAvailableTutorsForSubject(req, res) {
+        try {
+            const { subjectId, agencyId } = req.query;
+            console.log(`Fetching available tutors for subject: ${subjectId}, agency: ${agencyId || 'any'}`);
+
+            if (!subjectId) {
+                console.warn('Missing subjectId in request');
+                return res.status(400).json({ 
+                    success: false,
+                    message: "subjectId is required" 
+                });
+            }
+
+            const tutors = await this.getAvailableTutorsForSubject(subjectId, agencyId);
+            console.log(`Found ${tutors.length} available tutors for subject ${subjectId}`);
+            res.status(200).json({
+                success: true,
+                data: tutors
+            });
+        } catch (error) {
+            console.error("Error fetching available tutors for subject:", error);
+            res.status(500).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
     async handleGetTutorById(req, res) {
         const { id } = req.params;
         const tutor = await this.getTutorById(id);
@@ -165,9 +193,10 @@ export default class TutorService {
             maxRate,
             subjects = [],
             agencyId,
-            search
+            search, 
         } = options;
         const where = { role: 'tutor' };
+
         // Server-side search logic
         if (search) {
             where[Op.or] = [
@@ -225,6 +254,7 @@ export default class TutorService {
         // filter by subjects
         if (subjects.length > 0) {
             const subjectWhere = {};
+            //filter by subject names 
             if (subjects.length === 1) {
                 subjectWhere.name = {
                     [Op.iLike]: `%${subjects[0]}%`
@@ -234,6 +264,8 @@ export default class TutorService {
                     [Op.in]: subjects
                 };
             }
+
+            
             include[0].where = subjectWhere;
             include[0].required = true;
         }
@@ -249,6 +281,36 @@ export default class TutorService {
             queryOptions.offset = (parseInt(page) - 1) * parseInt(limit);
         }
         return await User.findAndCountAll(queryOptions);
+    }
+
+    async getAvailableTutorsForSubject(subjectId, agencyId = null) {
+        console.log(`Finding available tutors for subject ${subjectId}, agency: ${agencyId || 'any'}`);
+        const where = { 
+            role: 'tutor', 
+            isActive: true,
+            isSuspended: false
+        };
+
+        if (agencyId) {
+            where.agencyId = agencyId;
+        }
+
+        const tutors = await User.findAll({
+            where, 
+            include: [
+                {
+                    model: Subject,
+                    as: 'subjects',
+                    where: { id: subjectId }, // Filter by subject ID
+                    through: { attributes: ['experienceLevel', 'hourlyRate'] },
+                    required: true // INNER JOIN - only tutors who teach this subject
+                }
+            ],
+            attributes: { exclude: ['password'] },
+            order: [['firstName', 'ASC'], ['lastName', 'ASC']]
+        });
+        console.log(`Found ${tutors.length} available tutors for subject ${subjectId}`);
+        return tutors;
     }
 
     async getTutorById(id) {
