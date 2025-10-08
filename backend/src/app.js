@@ -8,7 +8,7 @@ import tutorRoutes from "./modules/user-management/tutor.routes.js";
 import authRoutes from "./modules/user-management/auth.routes.js";
 import agencyRoutes from "./modules/user-management/agency.route.js";
 import agencyAdminRoutes from "./modules/user-management/agencyAdmin.routes.js";
-import lessonRoutes from './modules/user-management/lesson.routes.js';
+import lessonRoutes from './modules/scheduling/lesson.routes.js';
 import { errorHandler } from "./middleware/errorHandler.js";
 import "./models/index.js";
 
