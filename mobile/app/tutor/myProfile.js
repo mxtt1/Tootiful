@@ -10,13 +10,70 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
 import React from "react";
 import { myProfileStyles as styles } from "../styles/myProfileStyles";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
 import { jwtDecode } from "jwt-decode";
+
+const DAY_ORDER = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+];
+
+const DAY_RANK = DAY_ORDER.reduce((accumulator, day, index) => {
+  accumulator[day] = index;
+  return accumulator;
+}, {});
+
+const formatDayLabel = (value) => {
+  if (!value || typeof value !== "string") {
+    return "Schedule TBD";
+  }
+  const lower = value.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+};
+
+const formatTimeLabel = (value) => {
+  if (!value || typeof value !== "string") {
+    return "TBD";
+  }
+
+  const [hoursRaw, minutesRaw] = value.split(":");
+  const hours = parseInt(hoursRaw, 10);
+  if (Number.isNaN(hours)) {
+    return "TBD";
+  }
+
+  const minutes = (minutesRaw || "00").padStart(2, "0");
+  const period = hours >= 12 ? "PM" : "AM";
+  const normalizedHours = ((hours + 11) % 12) + 1;
+
+  return `${normalizedHours}:${minutes} ${period}`;
+};
+
+const formatTimeRangeLabel = (start, end) => {
+  const startLabel = formatTimeLabel(start);
+  const endLabel = formatTimeLabel(end);
+
+  if (startLabel === "TBD" && endLabel === "TBD") {
+    return "Time TBD";
+  }
+  if (startLabel === "TBD") {
+    return `Ends ${endLabel}`;
+  }
+  if (endLabel === "TBD") {
+    return `Starts ${startLabel}`;
+  }
+  return `${startLabel} - ${endLabel}`;
+};
 
 export default function TutorProfileScreen() {
   const router = useRouter();
@@ -80,6 +137,9 @@ export default function TutorProfileScreen() {
             if (userData) {
               const finalUser = {
                 ...userData,
+                tutorLessons: Array.isArray(userData?.tutorLessons)
+                  ? userData.tutorLessons
+                  : [],
                 userType: userTypeFromToken,
               };
               console.log("✅ Setting tutor data:", finalUser);
@@ -142,6 +202,32 @@ export default function TutorProfileScreen() {
       Alert.alert("Error", "Failed to logout. Please try again.");
     }
   };
+  const tutorLessons = currentUser?.tutorLessons;
+  const sortedAssignedLessons = useMemo(() => {
+    if (!Array.isArray(tutorLessons)) {
+      return [];
+    }
+    return [...tutorLessons].sort((lessonA, lessonB) => {
+      const dayA =
+        DAY_RANK[
+          lessonA?.dayOfWeek && typeof lessonA.dayOfWeek === "string"
+            ? lessonA.dayOfWeek.toLowerCase()
+            : ""
+        ] ?? 99;
+      const dayB =
+        DAY_RANK[
+          lessonB?.dayOfWeek && typeof lessonB.dayOfWeek === "string"
+            ? lessonB.dayOfWeek.toLowerCase()
+            : ""
+        ] ?? 99;
+      if (dayA !== dayB) {
+        return dayA - dayB;
+      }
+      const startA = lessonA?.startTime || "";
+      const startB = lessonB?.startTime || "";
+      return startA.localeCompare(startB);
+    });
+  }, [tutorLessons]);
 
   // Show loading state
   if (loading) {
@@ -288,6 +374,94 @@ export default function TutorProfileScreen() {
             <View style={styles.subjectItem}>
               <Text style={styles.subjectName}>No subjects assigned</Text>
               <Text style={styles.subjectLevel}>Contact admin</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Assigned lessons */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Assigned Lessons</Text>
+          {sortedAssignedLessons.length > 0 ? (
+            sortedAssignedLessons.map((lesson, index) => {
+              const subjectName = lesson?.subject?.name || "Subject TBD";
+              const dayLabel = formatDayLabel(lesson?.dayOfWeek);
+              const timeLabel = formatTimeRangeLabel(
+                lesson?.startTime,
+                lesson?.endTime
+              );
+              const scheduleLine =
+                dayLabel === "Schedule TBD" && timeLabel === "Time TBD"
+                  ? "Schedule TBD"
+                  : `${dayLabel} - ${timeLabel}`;
+              const locationLine = lesson?.location?.address
+                ? lesson.location.address
+                : "Location TBD";
+              const studentCount = `${lesson?.currentCap ?? 0}/${
+                lesson?.totalCap ?? 0
+              } students`;
+              const isActive = lesson?.isActive !== false;
+
+              return (
+                <View
+                  key={lesson?.id || `${lesson?.title || "lesson"}-${index}`}
+                  style={[
+                    styles.lessonItem,
+                    index === sortedAssignedLessons.length - 1
+                      ? styles.lessonItemLast
+                      : null,
+                  ]}
+                >
+                  <View style={styles.lessonHeader}>
+                    <Text style={styles.lessonTitle} numberOfLines={1}>
+                      {lesson?.title || "Lesson"}
+                    </Text>
+                    <View
+                      style={[
+                        styles.lessonStatusBadge,
+                        isActive
+                          ? styles.lessonStatusBadgeActive
+                          : styles.lessonStatusBadgeInactive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.lessonStatusText,
+                          isActive
+                            ? styles.lessonStatusTextActive
+                            : styles.lessonStatusTextInactive,
+                        ]}
+                      >
+                        {isActive ? "Confirmed" : "Unconfirmed"}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.lessonSubject} numberOfLines={1}>
+                    {subjectName}
+                  </Text>
+                  <Text style={styles.lessonSchedule} numberOfLines={1}>
+                    {scheduleLine}
+                  </Text>
+                  <Text style={styles.lessonMeta} numberOfLines={1}>
+                    {locationLine}
+                  </Text>
+                  <Text style={styles.lessonMeta}>{studentCount}</Text>
+                </View>
+              );
+            })
+          ) : (
+            <View style={styles.lessonEmptyContainer}>
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color="#9CA3AF"
+                style={styles.lessonEmptyIcon}
+              />
+              <Text style={styles.lessonEmptyTitle}>
+                No lessons assigned yet
+              </Text>
+              <Text style={styles.lessonEmptySubtitle}>
+                Check back later or contact your agency admin for updates.
+              </Text>
             </View>
           )}
         </View>

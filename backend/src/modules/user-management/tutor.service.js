@@ -1,4 +1,4 @@
-import { User, Subject, TutorSubject, Agency } from '../../models/index.js';
+import { User, Subject, TutorSubject, Agency, Lesson, Location } from '../../models/index.js';
 import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
 import bcrypt from 'bcrypt';
@@ -321,6 +321,44 @@ export default class TutorService {
                     model: Subject,
                     as: 'subjects',
                     through: { attributes: ['experienceLevel', 'hourlyRate'] }
+                },
+                {
+                    model: Lesson,
+                    as: 'tutorLessons',
+                    attributes: [
+                        'id',
+                        'title',
+                        'description',
+                        'dayOfWeek',
+                        'startTime',
+                        'endTime',
+                        'isActive',
+                        'studentRate',
+                        'totalCap',
+                        'currentCap',
+                        'subjectId',
+                        'agencyId',
+                        'locationId',
+                        'createdAt',
+                        'updatedAt'
+                    ],
+                    include: [
+                        {
+                            model: Subject,
+                            as: 'subject',
+                            attributes: ['id', 'name', 'gradeLevel', 'category']
+                        },
+                        {
+                            model: Agency,
+                            as: 'agency',
+                            attributes: ['id', 'name']
+                        },
+                        {
+                            model: Location,
+                            as: 'location',
+                            attributes: ['id', 'address', 'agencyId']
+                        }
+                    ]
                 }
             ]
         });

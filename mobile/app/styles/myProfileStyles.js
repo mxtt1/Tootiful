@@ -156,6 +156,88 @@ export const myProfileStyles = StyleSheet.create({
     color: "#10B981",
     fontWeight: "600",
   },
+  lessonItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  lessonItemLast: {
+    borderBottomWidth: 0,
+    paddingBottom: 0,
+  },
+  lessonHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  lessonTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+    marginRight: 12,
+  },
+  lessonStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  lessonStatusBadgeActive: {
+    backgroundColor: "#DCFCE7",
+  },
+  lessonStatusBadgeInactive: {
+    backgroundColor: "#FEE2E2",
+  },
+  lessonStatusText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  lessonStatusTextActive: {
+    color: "#047857",
+  },
+  lessonStatusTextInactive: {
+    color: "#B91C1C",
+  },
+  lessonSubject: {
+    fontSize: 15,
+    color: "#4B5563",
+    marginBottom: 4,
+  },
+  lessonSchedule: {
+    fontSize: 14,
+    color: "#4B5563",
+    marginBottom: 4,
+  },
+  lessonMeta: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  lessonEmptyContainer: {
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  lessonEmptyIcon: {
+    marginBottom: 8,
+  },
+  lessonEmptyTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#4B5563",
+    marginBottom: 4,
+  },
+  lessonEmptySubtitle: {
+    fontSize: 13,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 18,
+  },
   menuContainer: {
     backgroundColor: "#FFFFFF",
     marginHorizontal: 20,
