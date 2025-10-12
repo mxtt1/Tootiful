@@ -73,6 +73,10 @@ export default function ManageLesson() {
     // Dropdown data - only subjects for now
     const [subjects, setSubjects] = useState([]);
 
+    // checking for tutorConflicts.
+    const [tutorConflicts, setTutorConflicts] = useState([]);
+    const [checkingAvailability, setCheckingAvailability] = useState(false);
+
     // Debounced search
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -129,6 +133,40 @@ export default function ManageLesson() {
             setFormData(prev => ({ ...prev, tutorId: "" }));
         }
     }, [formData.subjectId]);
+
+    // Add this useEffect to check for conflicts when relevant form data changes
+    useEffect(() => {
+        const { tutorId, dayOfWeek, startTime, endTime } = formData;
+
+        if (tutorId && dayOfWeek && startTime && endTime) {
+            setCheckingAvailability(true);
+
+            // Small delay to avoid checking on every keystroke
+            const timer = setTimeout(() => {
+                const isAvailable = checkTutorAvailability(tutorId, dayOfWeek, startTime, endTime);
+
+                if (!isAvailable) {
+                    setFormErrors(prev => ({
+                        ...prev,
+                        tutorId: `Tutor has scheduling conflicts. See details below.`
+                    }));
+                } else {
+                    // Clear tutor error if no conflicts
+                    setFormErrors(prev => {
+                        const { tutorId, ...rest } = prev;
+                        return rest;
+                    });
+                }
+
+                setCheckingAvailability(false);
+            }, 300);
+
+            return () => clearTimeout(timer);
+        } else {
+            setTutorConflicts([]);
+            setCheckingAvailability(false);
+        }
+    }, [formData.tutorId, formData.dayOfWeek, formData.startTime, formData.endTime, allLessons, editingLesson]);
 
     const fetchLessons = async () => {
         setLoading(true);
@@ -254,7 +292,47 @@ export default function ManageLesson() {
         }
     };
 
+    // Add this function to check for tutor conflicts
+    const checkTutorAvailability = (tutorId, dayOfWeek, startTime, endTime) => {
+        if (!tutorId || !dayOfWeek || !startTime || !endTime) {
+            setTutorConflicts([]);
+            return true;
+        }
 
+        // Filter lessons for the same tutor on the same day
+        const conflictingLessons = allLessons.filter(lesson => {
+            // Skip current lesson when editing
+            if (editingLesson && lesson.id === editingLesson.id) {
+                return false;
+            }
+
+            // Check if same tutor, same day, and lesson is active
+            if (lesson.tutorId !== tutorId ||
+                lesson.dayOfWeek?.toLowerCase() !== dayOfWeek.toLowerCase() ||
+                !lesson.isActive) {
+                return false;
+            }
+
+            // Check for time overlap
+            const newStart = new Date(`1970-01-01T${startTime}`);
+            const newEnd = new Date(`1970-01-01T${endTime}`);
+            const existingStart = new Date(`1970-01-01T${lesson.startTime}`);
+            const existingEnd = new Date(`1970-01-01T${lesson.endTime}`);
+
+            // Times overlap if: new start < existing end AND new end > existing start
+            return newStart < existingEnd && newEnd > existingStart;
+        });
+
+        const conflicts = conflictingLessons.map(lesson => ({
+            id: lesson.id,
+            title: lesson.title,
+            timeSlot: `${lesson.startTime?.substring(0, 5)} - ${lesson.endTime?.substring(0, 5)}`,
+            day: lesson.dayOfWeek
+        }));
+
+        setTutorConflicts(conflicts);
+        return conflicts.length === 0;
+    };
 
     // Simplified to only fetch subjects
     const fetchSubjects = async () => {
@@ -287,6 +365,8 @@ export default function ManageLesson() {
             isActive: true,
         });
         setFormErrors({});
+        setTutorConflicts([]); // ✅ ADD: Clear conflicts
+        setCheckingAvailability(false); // ✅ ADD: Reset checking state
     };
 
     const validateForm = () => {
@@ -304,6 +384,10 @@ export default function ManageLesson() {
         if (!formData.endTime) errors.endTime = "End time is required";
         if (!formData.studentRate || formData.studentRate <= 0) errors.studentRate = "Valid student rate is required";
         if (!formData.totalCap || formData.totalCap <= 0) errors.totalCap = "Valid total capacity is required";
+
+        if (tutorConflicts.length > 0) {
+            errors.tutorId = "Tutor has scheduling conflicts. Please resolve before saving.";
+        }
 
         if (formData.startTime && formData.endTime) {
             const start = new Date(`1970-01-01T${formData.startTime}`);
@@ -762,6 +846,30 @@ export default function ManageLesson() {
                                         : "Tutor is optional for inactive lessons"
                                 }
                             />
+                            {tutorConflicts.length > 0 && (
+                                <Alert color="red" mt="xs" title="⚠️ Scheduling Conflicts Detected">
+                                    <Text size="sm" mb="xs">
+                                        This tutor is already assigned to the following lessons on {formData.dayOfWeek}:
+                                    </Text>
+                                    <Stack spacing="xs">
+                                        {tutorConflicts.map((conflict, index) => (
+                                            <div key={index} style={{
+                                                padding: "8px",
+                                                backgroundColor: "#ffe6e6",
+                                                borderRadius: "4px",
+                                                border: "1px solid #ffcccc"
+                                            }}>
+                                                <Text size="sm" weight={500}>
+                                                    📚 {conflict.title}
+                                                </Text>
+                                                <Text size="xs" color="dimmed">
+                                                    🕐 {conflict.timeSlot}
+                                                </Text>
+                                            </div>
+                                        ))}
+                                    </Stack>
+                                </Alert>
+                            )}
                             {formData.subjectId && tutors.length === 0 && !fetchingTutors && (
                                 <Text size="sm" color="orange" mt={4}>
                                     No tutors found for this subject in your agency
