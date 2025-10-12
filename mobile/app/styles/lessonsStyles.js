@@ -4,7 +4,7 @@ export const lessonsStyles = StyleSheet.create({
   // Match your existing safeArea and container patterns
   safeArea: {
     flex: 1,
-    backgroundColor: "#F9FAFB", // Match tutorsStyles background
+    backgroundColor: "#F9FAFB",
   },
   container: {
     flex: 1,
@@ -20,10 +20,10 @@ export const lessonsStyles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: "#6B7280", // Match your gray color
+    color: "#6B7280",
   },
 
-  // Header (similar to your existing patterns)
+  // Header
   header: {
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 20,
@@ -34,7 +34,7 @@ export const lessonsStyles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#1F2937", // Match your text colors
+    color: "#1F2937",
   },
   headerSubtitle: {
     fontSize: 14,
@@ -42,7 +42,7 @@ export const lessonsStyles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // Search (match tutorsStyles search pattern)
+  // Search
   searchContainer: {
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 20,
@@ -79,7 +79,7 @@ export const lessonsStyles = StyleSheet.create({
     marginRight: 10,
   },
   filterChipActive: {
-    backgroundColor: "#8B5CF6", // Your primary purple
+    backgroundColor: "#8B5CF6", // primary purple
   },
   filterText: {
     fontSize: 14,
@@ -96,7 +96,7 @@ export const lessonsStyles = StyleSheet.create({
     paddingHorizontal: 20,
   },
 
-  // Lesson Card (match tutorCard styling)
+  // Lesson Card
   lessonCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
@@ -122,7 +122,7 @@ export const lessonsStyles = StyleSheet.create({
     marginRight: 10,
   },
   priceContainer: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#F59E0B",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
@@ -251,6 +251,9 @@ export const lessonsStyles = StyleSheet.create({
   enrollButtonDisabled: {
     backgroundColor: "#9CA3AF",
   },
+  unenrollButton: {
+    backgroundColor: "#EF4444",
+  },
   enrollButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
@@ -261,5 +264,78 @@ export const lessonsStyles = StyleSheet.create({
     fontSize: 16,
     color: "#EF4444",
     fontWeight: "500",
+  },
+
+  // Dropdown Filters
+  dropdownsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  dropdownContainer: {
+    width: "48%",
+    marginBottom: 12,
+    position: "relative",
+    zIndex: 1,
+  },
+  dropdownButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  dropdownButtonActive: {
+    backgroundColor: "#EDE9FE",
+    borderColor: "#8B5CF6",
+  },
+  dropdownButtonText: {
+    fontSize: 14,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  dropdownButtonTextActive: {
+    color: "#8B5CF6",
+    fontWeight: "600",
+  },
+  dropdownMenu: {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    right: 0,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    marginTop: 4,
+    maxHeight: 200,
+    zIndex: 1000,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  dropdownItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    color: "#374151",
+  },
+  dropdownItemTextActive: {
+    color: "#8B5CF6",
+    fontWeight: "600",
   },
 });

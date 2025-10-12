@@ -183,11 +183,17 @@ class ApiClient {
   }
 
   // DELETE request
-  async delete(endpoint, headers = {}) {
-    return this.request(endpoint, {
+  async delete(endpoint, data = null, headers = {}) {
+    const config = {
       method: "DELETE",
       headers,
-    });
+    };
+
+    if (data) {
+      config.body = JSON.stringify(data);
+    }
+
+    return this.request(endpoint, config);
   }
 
   // Authentication methods

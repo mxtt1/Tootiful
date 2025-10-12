@@ -110,6 +110,26 @@ class LessonService {
     });
   }
 
+  async handleCheckEnrollmentStatus(req, res) {
+    const { lessonId, studentId } = req.params;
+    const result = await this.checkEnrollmentStatus(studentId, lessonId);
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  }
+
+  async handleUnenrolStudentFromLesson(req, res) {
+    const { id: studentId } = req.params;
+    const { lessonId } = req.body; // Expect lessonId in request body
+    const result = await this.unenrolStudentFromLesson(studentId, lessonId);
+    res.status(200).json({
+      success: true,
+      message: "Student unenrolled from lesson successfully",
+      data: result,
+    });
+  }
+
   // getAllLessons with related data for better frontend filtering and display
   async getAllLessons() {
     try {
@@ -597,6 +617,94 @@ class LessonService {
         transaction,
       });
       lesson.currentCap = currentCapacity + 1;
+      await lesson.save({ transaction });
+
+      await transaction.commit();
+      return { studentId, lessonId };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  async checkEnrollmentStatus(studentId, lessonId) {
+    try {
+      // Check if student exists
+      const student = await User.findByPk(studentId);
+      if (!student || student.role !== "student") {
+        throw new Error("Student not found");
+      }
+
+      // Check if lesson exists
+      const lesson = await Lesson.findByPk(lessonId);
+      if (!lesson) {
+        throw new Error("Lesson not found");
+      }
+
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+
+      // Check if student is currently enrolled in this lesson
+      const enrollment = await StudentLesson.findOne({
+        where: {
+          studentId,
+          lessonId,
+          startDate: { [Op.lte]: today },
+          [Op.or]: [{ endDate: { [Op.gte]: today } }, { endDate: null }],
+        },
+      });
+
+      return {
+        isEnrolled: !!enrollment,
+        enrollmentDate: enrollment ? enrollment.startDate : null,
+      };
+    } catch (error) {
+      console.error(
+        `Failed to check enrollment status for student ${studentId} in lesson ${lessonId}:`,
+        error.message
+      );
+      throw new Error(`Failed to check enrollment status: ${error.message}`);
+    }
+  }
+
+  async unenrolStudentFromLesson(studentId, lessonId) {
+    const transaction = await sequelize.transaction();
+    try {
+      // Fetch student and lesson then check if they exist
+      const student = await User.findByPk(studentId, { transaction });
+      const lesson = await Lesson.findByPk(lessonId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (!student || student.role !== "student") {
+        throw new Error("Student not found");
+      }
+      if (!lesson) {
+        throw new Error("Lesson not found");
+      }
+
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+
+      // Check if student is currently enrolled in this lesson
+      const enrollment = await StudentLesson.findOne({
+        where: {
+          studentId,
+          lessonId,
+          startDate: { [Op.lte]: today },
+          endDate: { [Op.gte]: today },
+        },
+        transaction,
+      });
+
+      if (!enrollment) {
+        throw new Error("Student is not enrolled in this lesson");
+      }
+
+      // Remove enrollment and update lesson's currentCap
+      await enrollment.destroy({ transaction });
+      lesson.currentCap = Math.max(0, lesson.currentCap - 1);
       await lesson.save({ transaction });
 
       await transaction.commit();

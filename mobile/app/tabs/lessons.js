@@ -5,15 +5,15 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
   ActivityIndicator,
   RefreshControl,
   Alert,
   Modal,
+  TouchableWithoutFeedback,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { jwtDecode } from "jwt-decode";
 import lessonService from "../../services/lessonService";
 import authService from "../../services/authService";
@@ -29,14 +29,30 @@ export default function LessonsScreen() {
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
+  const [isEnrolled, setIsEnrolled] = useState(false);
+  const [checkingEnrollment, setCheckingEnrollment] = useState(false);
   const [error, setError] = useState(null);
+
+  // Filter options
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [availableLocations, setAvailableLocations] = useState([]);
+  const [availableDays, setAvailableDays] = useState([]);
+
+  // Filter dropdown states
+  const [dropdownVisible, setDropdownVisible] = useState({
+    subject: false,
+    dayOfWeek: false,
+    location: false,
+    timeOfDay: false,
+  });
 
   // Filter states
   const [filters, setFilters] = useState({
     dayOfWeek: "all",
     priceRange: "all",
-    availableOnly: true,
     timeOfDay: "all",
+    subject: "all",
+    location: "all",
   });
 
   // Load lessons when screen is focused
@@ -64,6 +80,7 @@ export default function LessonsScreen() {
 
       const lessonsData = response.data || response || [];
       setLessons(lessonsData);
+      extractFilterOptions(lessonsData);
     } catch (error) {
       console.error("❌ Error fetching lessons:", error);
       setError(error.message || "Failed to load lessons");
@@ -96,10 +113,17 @@ export default function LessonsScreen() {
       );
     }
 
-    // Available spots filter
-    if (filters.availableOnly) {
+    // Subject filter
+    if (filters.subject !== "all") {
       filtered = filtered.filter(
-        (lesson) => lesson.currentCap < lesson.totalCap
+        (lesson) => lesson.subjectName === filters.subject
+      );
+    }
+
+    // Location filter
+    if (filters.location !== "all") {
+      filtered = filtered.filter(
+        (lesson) => lesson.agencyName === filters.location
       );
     }
 
@@ -130,6 +154,169 @@ export default function LessonsScreen() {
     }
 
     setFilteredLessons(filtered);
+  };
+
+  const checkEnrollmentStatus = async (lessonId) => {
+    try {
+      setCheckingEnrollment(true);
+
+      // Check if user is authenticated
+      if (!authService.isAuthenticated()) {
+        setIsEnrolled(false);
+        return;
+      }
+
+      // Get user info from JWT token
+      await apiClient.loadTokenFromStorage();
+      const token = await authService.getCurrentToken();
+      if (!token) {
+        setIsEnrolled(false);
+        return;
+      }
+
+      // Decode JWT token to get user ID
+      let userId;
+      try {
+        const payload = jwtDecode(token);
+        userId = payload.userId;
+      } catch (decodeError) {
+        console.error("❌ Token decode error:", decodeError);
+        setIsEnrolled(false);
+        return;
+      }
+
+      // Check enrollment status via API
+      const response = await lessonService.checkEnrollmentStatus(
+        userId,
+        lessonId
+      );
+      setIsEnrolled(response.isEnrolled || false);
+    } catch (error) {
+      console.error("❌ Error checking enrollment status:", error);
+      setIsEnrolled(false);
+    } finally {
+      setCheckingEnrollment(false);
+    }
+  };
+
+  const extractFilterOptions = (lessonsData) => {
+    // Extract unique subjects
+    const subjects = [
+      ...new Set(lessonsData.map((lesson) => lesson.subjectName)),
+    ].filter(Boolean);
+    setAvailableSubjects(subjects);
+
+    // Extract unique locations/agencies
+    const locations = [
+      ...new Set(lessonsData.map((lesson) => lesson.agencyName)),
+    ].filter(Boolean);
+    setAvailableLocations(locations);
+
+    // Extract unique days of week
+    const days = [
+      ...new Set(lessonsData.map((lesson) => lesson.dayOfWeek)),
+    ].filter(Boolean);
+    setAvailableDays(days);
+  };
+
+  const toggleDropdown = (category) => {
+    setDropdownVisible((prev) => ({
+      subject: false,
+      dayOfWeek: false,
+      location: false,
+      timeOfDay: false,
+      [category]: !prev[category],
+    }));
+  };
+
+  const selectFilter = (category, value) => {
+    setFilters((prev) => ({
+      ...prev,
+      [category]: prev[category] === value ? "all" : value,
+    }));
+    setDropdownVisible((prev) => ({
+      ...prev,
+      [category]: false,
+    }));
+  };
+
+  const closeAllDropdowns = () => {
+    setDropdownVisible({
+      subject: false,
+      dayOfWeek: false,
+      location: false,
+      timeOfDay: false,
+    });
+  };
+
+  const handleUnenrollment = async () => {
+    try {
+      setEnrolling(true);
+
+      // Check if user is authenticated
+      if (!authService.isAuthenticated()) {
+        Alert.alert("Error", "Please log in to unenroll from lessons");
+        return;
+      }
+
+      // Get user info from JWT token
+      await apiClient.loadTokenFromStorage();
+      const token = await authService.getCurrentToken();
+      if (!token) {
+        Alert.alert("Error", "Please log in to unenroll from lessons");
+        return;
+      }
+
+      // Decode JWT token
+      let userId, userType;
+      try {
+        const payload = jwtDecode(token);
+        userId = payload.userId;
+        userType = payload.userType;
+      } catch (decodeError) {
+        console.error("❌ Token decode error:", decodeError);
+        Alert.alert("Error", "Session expired. Please log in again.");
+        return;
+      }
+
+      console.log(
+        `📚 Unenrolling ${userType} from lesson: ${selectedLesson.title}`
+      );
+
+      // Ensure only students can unenroll
+      if (userType !== "student") {
+        Alert.alert("Error", "Only students can unenroll from lessons");
+        return;
+      }
+
+      // Make unenrollment API call
+      try {
+        await lessonService.unenrollStudentFromLesson(
+          userId,
+          selectedLesson.id
+        );
+
+        Alert.alert(
+          "Success",
+          "You have successfully unenrolled from this lesson!",
+          [{ text: "OK", onPress: () => setModalVisible(false) }]
+        );
+
+        // Refresh lessons and enrollment status
+        fetchLessons();
+        setIsEnrolled(false);
+      } catch (unenrollmentError) {
+        console.error("❌ Unenrollment error:", unenrollmentError);
+        const errorMessage =
+          unenrollmentError.response?.data?.message ||
+          unenrollmentError.message ||
+          "Failed to unenroll from lesson";
+
+        Alert.alert("Error", errorMessage);
+      }
+    } finally {
+      setEnrolling(false);
+    }
   };
 
   const handleEnrollment = async () => {
@@ -231,13 +418,6 @@ export default function LessonsScreen() {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  const getAvailabilityColor = (lesson) => {
-    const availability = lesson.totalCap - lesson.currentCap;
-    if (availability === 0) return "#ff4444";
-    if (availability <= 2) return "#ff8800";
-    return "#00aa00";
-  };
-
   const renderLesson = (lesson) => (
     <TouchableOpacity
       key={lesson.id}
@@ -245,6 +425,7 @@ export default function LessonsScreen() {
       onPress={() => {
         setSelectedLesson(lesson);
         setModalVisible(true);
+        checkEnrollmentStatus(lesson.id);
       }}
     >
       <View style={styles.lessonHeader}>
@@ -282,12 +463,6 @@ export default function LessonsScreen() {
           <Text style={styles.infoText}>
             {lesson.currentCap}/{lesson.totalCap} students
           </Text>
-          <View
-            style={[
-              styles.availabilityDot,
-              { backgroundColor: getAvailabilityColor(lesson) },
-            ]}
-          />
         </View>
       </View>
     </TouchableOpacity>
@@ -305,256 +480,450 @@ export default function LessonsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Available Lessons</Text>
-        <Text style={styles.headerSubtitle}>
-          {filteredLessons.length} lesson
-          {filteredLessons.length !== 1 ? "s" : ""} found
-        </Text>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color="#9CA3AF" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search lessons, subjects, locations..."
-            value={searchText}
-            onChangeText={setSearchText}
-            placeholderTextColor="#9CA3AF"
-          />
+    <TouchableWithoutFeedback onPress={closeAllDropdowns}>
+      <SafeAreaView style={styles.safeArea}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Available Lessons</Text>
+          <Text style={styles.headerSubtitle}>
+            {filteredLessons.length} lesson
+            {filteredLessons.length !== 1 ? "s" : ""} found
+          </Text>
         </View>
-      </View>
 
-      {/* Quick Filters */}
-      <View style={styles.filtersContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              filters.availableOnly && styles.filterChipActive,
-            ]}
-            onPress={() =>
-              setFilters({ ...filters, availableOnly: !filters.availableOnly })
-            }
-          >
-            <Text
-              style={[
-                styles.filterText,
-                filters.availableOnly && styles.filterTextActive,
-              ]}
-            >
-              Available Only
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              filters.timeOfDay === "morning" && styles.filterChipActive,
-            ]}
-            onPress={() =>
-              setFilters({
-                ...filters,
-                timeOfDay: filters.timeOfDay === "morning" ? "all" : "morning",
-              })
-            }
-          >
-            <Text
-              style={[
-                styles.filterText,
-                filters.timeOfDay === "morning" && styles.filterTextActive,
-              ]}
-            >
-              Morning
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              filters.timeOfDay === "afternoon" && styles.filterChipActive,
-            ]}
-            onPress={() =>
-              setFilters({
-                ...filters,
-                timeOfDay:
-                  filters.timeOfDay === "afternoon" ? "all" : "afternoon",
-              })
-            }
-          >
-            <Text
-              style={[
-                styles.filterText,
-                filters.timeOfDay === "afternoon" && styles.filterTextActive,
-              ]}
-            >
-              Afternoon
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              filters.timeOfDay === "evening" && styles.filterChipActive,
-            ]}
-            onPress={() =>
-              setFilters({
-                ...filters,
-                timeOfDay: filters.timeOfDay === "evening" ? "all" : "evening",
-              })
-            }
-          >
-            <Text
-              style={[
-                styles.filterText,
-                filters.timeOfDay === "evening" && styles.filterTextActive,
-              ]}
-            >
-              Evening
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-
-      {/* Lessons List */}
-      <ScrollView
-        style={styles.lessonsList}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {filteredLessons.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="book-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyText}>No lessons found</Text>
-            <Text style={styles.emptySubtext}>
-              Try adjusting your search or filters
-            </Text>
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchInputContainer}>
+            <Ionicons name="search" size={20} color="#9CA3AF" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search lessons, subjects, locations..."
+              value={searchText}
+              onChangeText={setSearchText}
+              placeholderTextColor="#9CA3AF"
+            />
           </View>
-        ) : (
-          filteredLessons.map(renderLesson)
-        )}
-      </ScrollView>
+        </View>
 
-      {/* Lesson Details Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            {selectedLesson && (
-              <>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>{selectedLesson.title}</Text>
+        {/* Filter Dropdowns */}
+        <View style={styles.filtersContainer}>
+          <View style={styles.dropdownsRow}>
+            {/* Subject Dropdown */}
+            <View style={styles.dropdownContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.dropdownButton,
+                  filters.subject !== "all" && styles.dropdownButtonActive,
+                ]}
+                onPress={() => toggleDropdown("subject")}
+              >
+                <Text
+                  style={[
+                    styles.dropdownButtonText,
+                    filters.subject !== "all" &&
+                      styles.dropdownButtonTextActive,
+                  ]}
+                >
+                  {filters.subject !== "all" ? filters.subject : "Subject"}
+                </Text>
+                <Ionicons
+                  name={dropdownVisible.subject ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color={filters.subject !== "all" ? "#8B5CF6" : "#666"}
+                />
+              </TouchableOpacity>
+              {dropdownVisible.subject && (
+                <View style={styles.dropdownMenu}>
                   <TouchableOpacity
-                    onPress={() => setModalVisible(false)}
-                    style={styles.closeButton}
+                    style={styles.dropdownItem}
+                    onPress={() => selectFilter("subject", "all")}
                   >
-                    <Ionicons name="close" size={24} color="#666" />
-                  </TouchableOpacity>
-                </View>
-
-                <ScrollView style={styles.modalBody}>
-                  <View style={styles.detailSection}>
-                    <Text style={styles.sectionTitle}>Subject Details</Text>
-                    <Text style={styles.detailText}>
-                      {selectedLesson.subjectName} -{" "}
-                      {selectedLesson.subjectGradeLevel}
-                    </Text>
-                    {selectedLesson.subjectDescription && (
-                      <Text style={styles.description}>
-                        {selectedLesson.subjectDescription}
-                      </Text>
-                    )}
-                  </View>
-
-                  <View style={styles.detailSection}>
-                    <Text style={styles.sectionTitle}>Schedule</Text>
-                    <Text style={styles.detailText}>
-                      {selectedLesson.dayOfWeek} at{" "}
-                      {formatTime(selectedLesson.startTime)} -{" "}
-                      {formatTime(selectedLesson.endTime)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.detailSection}>
-                    <Text style={styles.sectionTitle}>Location</Text>
-                    <Text style={styles.detailText}>
-                      {selectedLesson.locationAddress}
-                    </Text>
-                    <Text style={styles.agencyText}>
-                      Organized by {selectedLesson.agencyName}
-                    </Text>
-                  </View>
-
-                  {selectedLesson.tutorFullName && (
-                    <View style={styles.detailSection}>
-                      <Text style={styles.sectionTitle}>Instructor</Text>
-                      <Text style={styles.detailText}>
-                        {selectedLesson.tutorFullName}
-                      </Text>
-                    </View>
-                  )}
-
-                  <View style={styles.detailSection}>
-                    <Text style={styles.sectionTitle}>Class Information</Text>
-                    <Text style={styles.detailText}>
-                      Price: ${selectedLesson.studentRate} per session
-                    </Text>
-                    <Text style={styles.detailText}>
-                      Capacity: {selectedLesson.currentCap}/
-                      {selectedLesson.totalCap} students
-                    </Text>
-                    <Text style={styles.detailText}>
-                      Available spots:{" "}
-                      {selectedLesson.totalCap - selectedLesson.currentCap}
-                    </Text>
-                  </View>
-
-                  {selectedLesson.description && (
-                    <View style={styles.detailSection}>
-                      <Text style={styles.sectionTitle}>Description</Text>
-                      <Text style={styles.description}>
-                        {selectedLesson.description}
-                      </Text>
-                    </View>
-                  )}
-                </ScrollView>
-
-                <View style={styles.modalFooter}>
-                  {selectedLesson.currentCap >= selectedLesson.totalCap ? (
-                    <Text style={styles.fullText}>This lesson is full</Text>
-                  ) : (
-                    <TouchableOpacity
+                    <Text
                       style={[
-                        styles.enrollButton,
-                        enrolling && styles.enrollButtonDisabled,
+                        styles.dropdownItemText,
+                        filters.subject === "all" &&
+                          styles.dropdownItemTextActive,
                       ]}
-                      onPress={handleEnrollment}
-                      disabled={enrolling}
                     >
-                      {enrolling ? (
-                        <ActivityIndicator color="#fff" />
-                      ) : (
-                        <Text style={styles.enrollButtonText}>
-                          Enroll in this Lesson
+                      All Subjects
+                    </Text>
+                  </TouchableOpacity>
+                  {availableSubjects.map((subject) => (
+                    <TouchableOpacity
+                      key={subject}
+                      style={styles.dropdownItem}
+                      onPress={() => selectFilter("subject", subject)}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownItemText,
+                          filters.subject === subject &&
+                            styles.dropdownItemTextActive,
+                        ]}
+                      >
+                        {subject}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Day of Week Dropdown */}
+            <View style={styles.dropdownContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.dropdownButton,
+                  filters.dayOfWeek !== "all" && styles.dropdownButtonActive,
+                ]}
+                onPress={() => toggleDropdown("dayOfWeek")}
+              >
+                <Text
+                  style={[
+                    styles.dropdownButtonText,
+                    filters.dayOfWeek !== "all" &&
+                      styles.dropdownButtonTextActive,
+                  ]}
+                >
+                  {filters.dayOfWeek !== "all" ? filters.dayOfWeek : "Day"}
+                </Text>
+                <Ionicons
+                  name={
+                    dropdownVisible.dayOfWeek ? "chevron-up" : "chevron-down"
+                  }
+                  size={16}
+                  color={filters.dayOfWeek !== "all" ? "#8B5CF6" : "#666"}
+                />
+              </TouchableOpacity>
+              {dropdownVisible.dayOfWeek && (
+                <View style={styles.dropdownMenu}>
+                  <TouchableOpacity
+                    style={styles.dropdownItem}
+                    onPress={() => selectFilter("dayOfWeek", "all")}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        filters.dayOfWeek === "all" &&
+                          styles.dropdownItemTextActive,
+                      ]}
+                    >
+                      All Days
+                    </Text>
+                  </TouchableOpacity>
+                  {availableDays.map((day) => (
+                    <TouchableOpacity
+                      key={day}
+                      style={styles.dropdownItem}
+                      onPress={() => selectFilter("dayOfWeek", day)}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownItemText,
+                          filters.dayOfWeek === day &&
+                            styles.dropdownItemTextActive,
+                        ]}
+                      >
+                        {day}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Location Dropdown */}
+            <View style={styles.dropdownContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.dropdownButton,
+                  filters.location !== "all" && styles.dropdownButtonActive,
+                ]}
+                onPress={() => toggleDropdown("location")}
+              >
+                <Text
+                  style={[
+                    styles.dropdownButtonText,
+                    filters.location !== "all" &&
+                      styles.dropdownButtonTextActive,
+                  ]}
+                >
+                  {filters.location !== "all" ? filters.location : "Location"}
+                </Text>
+                <Ionicons
+                  name={
+                    dropdownVisible.location ? "chevron-up" : "chevron-down"
+                  }
+                  size={16}
+                  color={filters.location !== "all" ? "#8B5CF6" : "#666"}
+                />
+              </TouchableOpacity>
+              {dropdownVisible.location && (
+                <View style={styles.dropdownMenu}>
+                  <TouchableOpacity
+                    style={styles.dropdownItem}
+                    onPress={() => selectFilter("location", "all")}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        filters.location === "all" &&
+                          styles.dropdownItemTextActive,
+                      ]}
+                    >
+                      All Locations
+                    </Text>
+                  </TouchableOpacity>
+                  {availableLocations.map((location) => (
+                    <TouchableOpacity
+                      key={location}
+                      style={styles.dropdownItem}
+                      onPress={() => selectFilter("location", location)}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownItemText,
+                          filters.location === location &&
+                            styles.dropdownItemTextActive,
+                        ]}
+                      >
+                        {location}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Time of Day Dropdown */}
+            <View style={styles.dropdownContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.dropdownButton,
+                  filters.timeOfDay !== "all" && styles.dropdownButtonActive,
+                ]}
+                onPress={() => toggleDropdown("timeOfDay")}
+              >
+                <Text
+                  style={[
+                    styles.dropdownButtonText,
+                    filters.timeOfDay !== "all" &&
+                      styles.dropdownButtonTextActive,
+                  ]}
+                >
+                  {filters.timeOfDay !== "all" ? filters.timeOfDay : "Time"}
+                </Text>
+                <Ionicons
+                  name={
+                    dropdownVisible.timeOfDay ? "chevron-up" : "chevron-down"
+                  }
+                  size={16}
+                  color={filters.timeOfDay !== "all" ? "#8B5CF6" : "#666"}
+                />
+              </TouchableOpacity>
+              {dropdownVisible.timeOfDay && (
+                <View style={styles.dropdownMenu}>
+                  <TouchableOpacity
+                    style={styles.dropdownItem}
+                    onPress={() => selectFilter("timeOfDay", "all")}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        filters.timeOfDay === "all" &&
+                          styles.dropdownItemTextActive,
+                      ]}
+                    >
+                      All Times
+                    </Text>
+                  </TouchableOpacity>
+                  {["morning", "afternoon", "evening"].map((time) => (
+                    <TouchableOpacity
+                      key={time}
+                      style={styles.dropdownItem}
+                      onPress={() => selectFilter("timeOfDay", time)}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownItemText,
+                          filters.timeOfDay === time &&
+                            styles.dropdownItemTextActive,
+                        ]}
+                      >
+                        {time.charAt(0).toUpperCase() + time.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+
+        {/* Lessons List */}
+        <ScrollView
+          style={styles.lessonsList}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {filteredLessons.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="book-outline" size={64} color="#ccc" />
+              <Text style={styles.emptyText}>No lessons found</Text>
+              <Text style={styles.emptySubtext}>
+                Try adjusting your search or filters
+              </Text>
+            </View>
+          ) : (
+            filteredLessons.map(renderLesson)
+          )}
+        </ScrollView>
+
+        {/* Lesson Details Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {selectedLesson && (
+                <>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>
+                      {selectedLesson.title}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setModalVisible(false)}
+                      style={styles.closeButton}
+                    >
+                      <Ionicons name="close" size={24} color="#666" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView style={styles.modalBody}>
+                    <View style={styles.detailSection}>
+                      <Text style={styles.sectionTitle}>Subject Details</Text>
+                      <Text style={styles.detailText}>
+                        {selectedLesson.subjectName} -{" "}
+                        {selectedLesson.subjectGradeLevel}
+                      </Text>
+                      {selectedLesson.subjectDescription && (
+                        <Text style={styles.description}>
+                          {selectedLesson.subjectDescription}
                         </Text>
                       )}
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </>
-            )}
+                    </View>
+
+                    <View style={styles.detailSection}>
+                      <Text style={styles.sectionTitle}>Schedule</Text>
+                      <Text style={styles.detailText}>
+                        {selectedLesson.dayOfWeek} at{" "}
+                        {formatTime(selectedLesson.startTime)} -{" "}
+                        {formatTime(selectedLesson.endTime)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailSection}>
+                      <Text style={styles.sectionTitle}>Location</Text>
+                      <Text style={styles.detailText}>
+                        {selectedLesson.locationAddress}
+                      </Text>
+                      <Text style={styles.agencyText}>
+                        Organized by {selectedLesson.agencyName}
+                      </Text>
+                    </View>
+
+                    {selectedLesson.tutorFullName && (
+                      <View style={styles.detailSection}>
+                        <Text style={styles.sectionTitle}>Instructor</Text>
+                        <Text style={styles.detailText}>
+                          {selectedLesson.tutorFullName}
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={styles.detailSection}>
+                      <Text style={styles.sectionTitle}>Class Information</Text>
+                      <Text style={styles.detailText}>
+                        Price: ${selectedLesson.studentRate} per session
+                      </Text>
+                      <Text style={styles.detailText}>
+                        Capacity: {selectedLesson.currentCap}/
+                        {selectedLesson.totalCap} students
+                      </Text>
+                      <Text style={styles.detailText}>
+                        Available spots:{" "}
+                        {selectedLesson.totalCap - selectedLesson.currentCap}
+                      </Text>
+                    </View>
+
+                    {selectedLesson.description && (
+                      <View style={styles.detailSection}>
+                        <Text style={styles.sectionTitle}>Description</Text>
+                        <Text style={styles.description}>
+                          {selectedLesson.description}
+                        </Text>
+                      </View>
+                    )}
+                  </ScrollView>
+
+                  <View style={styles.modalFooter}>
+                    {checkingEnrollment ? (
+                      <View style={styles.loadingContainer}>
+                        <ActivityIndicator color="#8B5CF6" />
+                        <Text style={styles.loadingText}>
+                          Checking enrollment...
+                        </Text>
+                      </View>
+                    ) : selectedLesson.currentCap >= selectedLesson.totalCap &&
+                      !isEnrolled ? (
+                      <Text style={styles.fullText}>This lesson is full</Text>
+                    ) : isEnrolled ? (
+                      <TouchableOpacity
+                        style={[
+                          styles.enrollButton,
+                          styles.unenrollButton,
+                          enrolling && styles.enrollButtonDisabled,
+                        ]}
+                        onPress={handleUnenrollment}
+                        disabled={enrolling}
+                      >
+                        {enrolling ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <Text style={styles.enrollButtonText}>
+                            Unenroll from this Lesson
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity
+                        style={[
+                          styles.enrollButton,
+                          enrolling && styles.enrollButtonDisabled,
+                        ]}
+                        onPress={handleEnrollment}
+                        disabled={enrolling}
+                      >
+                        {enrolling ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <Text style={styles.enrollButtonText}>
+                            Enroll in this Lesson
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </>
+              )}
+            </View>
           </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+        </Modal>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
