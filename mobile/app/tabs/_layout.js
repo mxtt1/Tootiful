@@ -42,6 +42,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="lessons"
+        options={{
+          title: "Lessons",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "book" : "book-outline"}
+              size={24}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="tutors"
         options={{
           title: "Tutors",
@@ -60,6 +73,15 @@ export default function TabLayout() {
           title: "Edit Profile",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="create-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="studentTimetable"
+        options={{
+          title: "Enrolled Lessons",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" size={size} color={color} />
           ),
         }}
       />

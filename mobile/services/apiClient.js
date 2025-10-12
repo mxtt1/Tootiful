@@ -63,8 +63,8 @@ class ApiClient {
   //   const url = `${this.baseURL}${endpoint}`;
 
   async request(endpoint, options = {}, isRetry = false) {
-  const url = `${this.baseURL}${endpoint}`;
-  const skipAuth = !!options._skipAuth; // 🔑 CHANGE: allow public calls
+    const url = `${this.baseURL}${endpoint}`;
+    const skipAuth = !!options._skipAuth; // 🔑 CHANGE: allow public calls
 
     // Build headers
     const headers = {
@@ -89,16 +89,20 @@ class ApiClient {
     };
 
     try {
-      console.log("Making request to:", url);
-      console.log("Headers:", JSON.stringify(headers, null, 2));
+      console.log("📡", endpoint);
 
       const response = await fetch(url, config);
 
       // // Handle 401 Unauthorized - try to refresh token
       // if (response.status === 401 && !isRetry && endpoint !== "/auth/refresh") {
-      
+
       // Handle 401 Unauthorized - try to refresh token (but not on skipAuth calls)
-      if (!skipAuth && response.status === 401 && !isRetry && endpoint !== "/auth/refresh") {
+      if (
+        !skipAuth &&
+        response.status === 401 &&
+        !isRetry &&
+        endpoint !== "/auth/refresh"
+      ) {
         console.log("Received 401, attempting token refresh...");
         try {
           await this.refreshToken();
@@ -179,11 +183,17 @@ class ApiClient {
   }
 
   // DELETE request
-  async delete(endpoint, headers = {}) {
-    return this.request(endpoint, {
+  async delete(endpoint, data = null, headers = {}) {
+    const config = {
       method: "DELETE",
       headers,
-    });
+    };
+
+    if (data) {
+      config.body = JSON.stringify(data);
+    }
+
+    return this.request(endpoint, config);
   }
 
   // Authentication methods
