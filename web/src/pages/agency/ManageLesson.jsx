@@ -53,6 +53,7 @@ export default function ManageLesson() {
     const [lessonToDelete, setLessonToDelete] = useState(null);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [restrictedEdit, setRestrictedEdit] = useState(false);
 
     // Form data - simplified for testing
     const [formData, setFormData] = useState({
@@ -67,6 +68,7 @@ export default function ManageLesson() {
         totalCap: "",
         tutorId: "",
         isActive: true,
+        lessonType: "", // Default to Sem 1
     });
     const [formErrors, setFormErrors] = useState({});
 
@@ -88,7 +90,7 @@ export default function ManageLesson() {
     // Fetch lessons
     useEffect(() => {
         fetchLessons();
-    }, [page, limit]);
+    }, []);
 
     // Fetch dropdown data on mount
     useEffect(() => {
@@ -185,7 +187,7 @@ export default function ManageLesson() {
             const totalCount = response.data?.total || lessonsData.length;
 
             setLessons(lessonsData);
-            setAllLessons(response.data);
+            setAllLessons(lessonsData);
             setTotalPages(Math.max(1, Math.ceil(totalCount / limit)));
         } catch (err) {
             console.error("Fetch lessons error:", err);
@@ -363,6 +365,7 @@ export default function ManageLesson() {
             totalCap: "",
             tutorId: "",
             isActive: true,
+            lessonType: "",
         });
         setFormErrors({});
         setTutorConflicts([]); // ✅ ADD: Clear conflicts
@@ -377,6 +380,7 @@ export default function ManageLesson() {
         if (!formData.subjectId) errors.subjectId = "Subject is required";
         if (!formData.dayOfWeek) errors.dayOfWeek = "Day of week is required";
         if (!formData.locationId) errors.locationId = "Location is required"; // Add this
+        if (!formData.lessonType) errors.lessonType = "Lesson type is required"; // Add this
         if (formData.isActive && !formData.tutorId) {
             errors.tutorId = "Assigned tutor is required for active lessons";
         }
@@ -408,15 +412,16 @@ export default function ManageLesson() {
 
     const handleEditLesson = (lesson) => {
         setEditingLesson(lesson);
+        setRestrictedEdit(lesson.currentCap > 0);
 
-        // Helper function to convert time string to Date object
-        const parseTimeString = (timeStr) => {
-            if (!timeStr) return null;
-            const [hours, minutes] = timeStr.split(':');
-            const date = new Date();
-            date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-            return date;
-        };
+        // // Helper function to convert time string to Date object
+        // const parseTimeString = (timeStr) => {
+        //     if (!timeStr) return null;
+        //     const [hours, minutes] = timeStr.split(':');
+        //     const date = new Date();
+        //     date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        //     return date;
+        // };
 
         // immediately add the current tutor to the tutors list if they exist
         if (lesson.tutorId) {
@@ -444,6 +449,7 @@ export default function ManageLesson() {
             totalCap: lesson.totalCap || "",
             tutorId: lesson.tutorId || "",
             isActive: lesson.isActive !== false,
+            lessonType: lesson.lessonType || "",
         });
         // if lesson has a subject, fetch tutors for that subject
         // dont clear tutorId when opening modal
@@ -470,6 +476,7 @@ export default function ManageLesson() {
                 locationId: formData.locationId,
                 agencyId: user.agencyId || user?.id,
                 tutorId: formData.tutorId || null, // allow null for inactive lessons
+                // lessonType: formData.lessonType || "Sem 1",
             };
 
             console.log("Submitting payload:", payload);
@@ -577,6 +584,11 @@ export default function ManageLesson() {
         { value: "sunday", label: "Sunday" },
     ];
 
+    const lessonType = [
+        { value: "Sem 1", label: "Semester 1" },
+        { value: "Sem 2", label: "Semester 2" },
+    ];
+
     // Update the subjectOptions mapping to include grade level
     const subjectOptions = subjects.map(subject => ({
         value: subject.id,
@@ -603,6 +615,10 @@ export default function ManageLesson() {
             </Container>
         );
     }
+
+    const startIdx = (page - 1) * limit;
+    const endIdx = startIdx + limit;
+    const paginatedLessons = lessons.slice(startIdx, endIdx);
 
     return (
         <Container size="xl" py="xl">
@@ -663,6 +679,7 @@ export default function ManageLesson() {
                                     <Table.Th>Day & Time</Table.Th>
                                     <Table.Th>Location</Table.Th>
                                     <Table.Th>Subject</Table.Th>
+                                    <Table.Th>Type</Table.Th>
                                     <Table.Th>Tutor</Table.Th>
                                     <Table.Th>Capacity</Table.Th>
                                     <Table.Th>Rate</Table.Th>
@@ -671,7 +688,7 @@ export default function ManageLesson() {
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
-                                {lessons.map((lesson) => (
+                                {paginatedLessons.map((lesson) => (
                                     <Table.Tr key={lesson.id}>
                                         <Table.Td>
                                             <div>
@@ -695,6 +712,7 @@ export default function ManageLesson() {
                                         </Table.Td>
                                         <Table.Td> {getLocationName(lesson.locationId)}</Table.Td>
                                         <Table.Td> {getSubjectName(lesson.subjectId)}</Table.Td>
+                                        <Table.Td>{lesson.lessonType || 'N/A'}</Table.Td>
                                         <Table.Td>
                                             <div>
                                                 <Text size="sm" weight={500}>
@@ -746,7 +764,7 @@ export default function ManageLesson() {
                 {totalPages > 1 && (
                     <Group justify="space-between" align="center">
                         <Text size="sm" color="dimmed">
-                            Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, lessons.length)} results
+                            Showing {startIdx + 1} to {Math.min(endIdx, lessons.length)} of {lessons.length} results
                         </Text>
                         <Pagination
                             value={page}
@@ -780,6 +798,7 @@ export default function ManageLesson() {
                                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                 error={formErrors.title}
                                 required
+                                disabled={restrictedEdit}
                             />
                         </Grid.Col>
 
@@ -790,6 +809,7 @@ export default function ManageLesson() {
                                 value={formData.description}
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                 rows={3}
+                                disabled={restrictedEdit}
                             />
                         </Grid.Col>
 
@@ -809,6 +829,7 @@ export default function ManageLesson() {
                                 required
                                 searchable
                                 nothingfound="No locations available"
+                                disabled={restrictedEdit}
                             />
                             {/* Add debug info */}
                             {/* <Text size="xs" c="dimmed">
@@ -887,6 +908,7 @@ export default function ManageLesson() {
                                 error={formErrors.subjectId}
                                 required
                                 searchable
+                                disabled={restrictedEdit}
                             />
                         </Grid.Col>
 
@@ -899,6 +921,7 @@ export default function ManageLesson() {
                                 onChange={(value) => setFormData({ ...formData, dayOfWeek: value })}
                                 error={formErrors.dayOfWeek}
                                 required
+                                disabled={restrictedEdit}
                             />
                         </Grid.Col>
 
@@ -915,6 +938,7 @@ export default function ManageLesson() {
                                 }}
                                 error={formErrors.startTime}
                                 required
+                                disabled={restrictedEdit}
                             />
                         </Grid.Col>
 
@@ -930,6 +954,21 @@ export default function ManageLesson() {
                                 }}
                                 error={formErrors.endTime}
                                 required
+                                disabled={restrictedEdit}
+                            />
+                        </Grid.Col>
+
+
+                        <Grid.Col span={4}>
+                            <Select
+                                label="Lesson Type"
+                                placeholder="Select Lesson Type"
+                                data={lessonType}
+                                value={formData.lessonType}
+                                onChange={(value) => setFormData({ ...formData, lessonType: value })}
+                                error={formErrors.lessonType}
+                                required
+                                disabled={restrictedEdit}
                             />
                         </Grid.Col>
 
@@ -944,6 +983,7 @@ export default function ManageLesson() {
                                 min={0}
                                 precision={2}
                                 prefix="$"
+                                disabled={restrictedEdit}
                             />
                         </Grid.Col>
 
@@ -956,6 +996,7 @@ export default function ManageLesson() {
                                 error={formErrors.totalCap}
                                 required
                                 min={1}
+                                disabled={restrictedEdit}
                             />
                         </Grid.Col>
 
@@ -969,6 +1010,7 @@ export default function ManageLesson() {
                                 value={formData.isActive ? "true" : "false"}
                                 onChange={(value) => setFormData({ ...formData, isActive: value === "true" })}
                                 required
+                                disabled={restrictedEdit}
                             />
                         </Grid.Col>
                     </Grid>

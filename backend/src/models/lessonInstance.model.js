@@ -25,7 +25,15 @@ const LessonInstance = sequelize.define('LessonInstance', {
     }
 }, {
     tableName: 'lesson_instances',
-    timestamps: true
+    timestamps: true,
+    indexs: [{
+        fields: ['lessonId', 'date'],
+        unique: true // Prevent duplicate instances for same lesson on same date
+    },
+    {
+        fields: ['tutorId', 'date'] // Fast tutor schedule lookups
+    }
+    ]
 });
 
 export default LessonInstance;

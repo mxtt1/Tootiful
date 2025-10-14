@@ -180,6 +180,7 @@ class LessonService {
           isActive: lessonData.isActive,
           createdAt: lessonData.createdAt,
           updatedAt: lessonData.updatedAt,
+          lessonType: lessonData.lessonType,
 
           // Flattened subject fields
           subjectId: lessonData.subject?.id || null,
@@ -262,6 +263,7 @@ class LessonService {
         endTime: lessonData.endTime,
         studentRate: lessonData.studentRate,
         totalCap: lessonData.totalCap,
+        lessonType: lessonData.lessonType,
         currentCap: lessonData.currentCap,
         isActive: lessonData.isActive,
         createdAt: lessonData.createdAt,
@@ -352,6 +354,7 @@ class LessonService {
           isActive: lessonData.isActive,
           createdAt: lessonData.createdAt,
           updatedAt: lessonData.updatedAt,
+          lessonType: lessonData.lessonType,
 
           // Flattened subject fields
           subjectId: lessonData.subject?.id || null,
@@ -412,6 +415,8 @@ class LessonService {
         totalCap: parseInt(lessonData.totalCap),
         currentCap: 0,
         isActive: lessonData.isActive !== false,
+        lessonType: lessonData.lessonType
+
       });
 
       console.log(
