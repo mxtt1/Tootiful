@@ -7,8 +7,8 @@ const TutorPayment = sequelize.define('TutorPayment', {
         primaryKey: true,
         defaultValue: DataTypes.UUIDV4,
     },
-
-    lessonInstanceId: {
+//previousl lessonInstance Id
+    attendanceId: {
         type: DataTypes.UUID,
         allowNull: false,
     },
