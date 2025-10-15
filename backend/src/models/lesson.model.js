@@ -57,6 +57,15 @@ const Lesson = sequelize.define('Lesson', {
             min: 0
         }
     },
+
+    tutorRate: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        validate: {
+            min: 0
+        }
+    },
+    
     totalCap: {
         type: DataTypes.INTEGER,
         allowNull: false,
