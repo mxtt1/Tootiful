@@ -22,6 +22,7 @@
     "express": "^5.1.0",
     "generate-password": "^1.7.1",
     "jsonwebtoken": "^9.0.2",
+    "module": "^1.2.5",
     "mysql2": "^3.14.4",
     "nodemailer": "^7.0.6",
     "nodemon": "^3.1.10",

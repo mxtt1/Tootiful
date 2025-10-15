@@ -1,7 +1,7 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
 
-const LessonInstance = sequelize.define('LessonInstance', {
+const Attendance = sequelize.define('Attendance', {
     id: {
         type: DataTypes.UUID,
         primaryKey: true,
@@ -24,8 +24,16 @@ const LessonInstance = sequelize.define('LessonInstance', {
         }
     }
 }, {
-    tableName: 'lesson_instances',
-    timestamps: true
+    tableName: 'attendance',
+    timestamps: true,
+    indexs: [{
+        fields: ['lessonId', 'date'],
+        unique: true // Prevent duplicate instances for same lesson on same date
+    },
+    {
+        fields: ['tutorId', 'date'] // Fast tutor schedule lookups
+    }
+    ]
 });
 
-export default LessonInstance;
+export default Attendance;

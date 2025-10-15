@@ -43,6 +43,13 @@ const Lesson = sequelize.define('Lesson', {
     description: {
         type: DataTypes.STRING,
     },
+    lessonType: {
+        type: DataTypes.ENUM('Sem 1', 'Sem 2'),
+        allowNull: false,
+        validate: {
+            isIn: [['Sem 1', 'Sem 2']]
+        }
+    },
     studentRate: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
