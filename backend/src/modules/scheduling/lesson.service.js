@@ -268,6 +268,7 @@ class LessonService {
         isActive: lessonData.isActive,
         createdAt: lessonData.createdAt,
         updatedAt: lessonData.updatedAt,
+        tutorRate: lessonData.tutorRate,
 
         // Flattened subject fields
         subjectId: lessonData.subject?.id || null,
@@ -355,6 +356,7 @@ class LessonService {
           createdAt: lessonData.createdAt,
           updatedAt: lessonData.updatedAt,
           lessonType: lessonData.lessonType,
+          tutorRate: lessonData.tutorRate,
 
           // Flattened subject fields
           subjectId: lessonData.subject?.id || null,

@@ -65,6 +65,7 @@ export default function ManageLesson() {
         startTime: "",
         endTime: "",
         studentRate: "",
+        tutorRate: "",
         totalCap: "",
         tutorId: "",
         isActive: true,
@@ -368,8 +369,8 @@ export default function ManageLesson() {
             lessonType: "",
         });
         setFormErrors({});
-        setTutorConflicts([]); // ✅ ADD: Clear conflicts
-        setCheckingAvailability(false); // ✅ ADD: Reset checking state
+        setTutorConflicts([]); // ADD: Clear conflicts
+        setCheckingAvailability(false); // ADD: Reset checking state
     };
 
     const validateForm = () => {
@@ -387,6 +388,7 @@ export default function ManageLesson() {
         if (!formData.startTime) errors.startTime = "Start time is required";
         if (!formData.endTime) errors.endTime = "End time is required";
         if (!formData.studentRate || formData.studentRate <= 0) errors.studentRate = "Valid student rate is required";
+        if (!formData.tutorRate || formData.tutorRate <= 0) errors.tutorRate = "Valid tutor rate is required";
         if (!formData.totalCap || formData.totalCap <= 0) errors.totalCap = "Valid total capacity is required";
 
         if (tutorConflicts.length > 0) {
@@ -446,6 +448,7 @@ export default function ManageLesson() {
             startTime: lesson.startTime ? lesson.startTime.substring(0, 5) : "", // "HH:mm:ss" -> "HH:mm"
             endTime: lesson.endTime ? lesson.endTime.substring(0, 5) : "",       // "HH:mm:ss" -> "HH:mm"
             studentRate: lesson.studentRate || "",
+            tutorRate: lesson.tutorRate || "",
             totalCap: lesson.totalCap || "",
             tutorId: lesson.tutorId || "",
             isActive: lesson.isActive !== false,
@@ -471,6 +474,7 @@ export default function ManageLesson() {
                 startTime: formData.startTime,  // This should already be in "HH:mm:ss" format
                 endTime: formData.endTime,      // This should already be in "HH:mm:ss" format
                 studentRate: parseFloat(formData.studentRate),
+                tutorRate: parseFloat(formData.tutorRate),
                 totalCap: parseInt(formData.totalCap),
                 // Add some temporary values for required fields
                 locationId: formData.locationId,
@@ -682,7 +686,8 @@ export default function ManageLesson() {
                                     <Table.Th>Type</Table.Th>
                                     <Table.Th>Tutor</Table.Th>
                                     <Table.Th>Capacity</Table.Th>
-                                    <Table.Th>Rate</Table.Th>
+                                    <Table.Th>Student Rate</Table.Th>
+                                    <Table.Th>Tutor Rate</Table.Th>
                                     <Table.Th>Status</Table.Th>
                                     <Table.Th>Actions</Table.Th>
                                 </Table.Tr>
@@ -731,6 +736,7 @@ export default function ManageLesson() {
                                             </Text>
                                         </Table.Td>
                                         <Table.Td>${lesson.studentRate}</Table.Td>
+                                        <Table.Td>${lesson.tutorRate}</Table.Td>
                                         <Table.Td>
                                             <Badge color={getStatusColor(lesson.isActive)} variant="filled">
                                                 {lesson.isActive ? "Active" : "Inactive"}
@@ -979,6 +985,21 @@ export default function ManageLesson() {
                                 value={formData.studentRate}
                                 onChange={(value) => setFormData({ ...formData, studentRate: value })}
                                 error={formErrors.studentRate}
+                                required
+                                min={0}
+                                precision={2}
+                                prefix="$"
+                                disabled={restrictedEdit}
+                            />
+                        </Grid.Col>
+
+                        <Grid.Col span={6}>
+                            <NumberInput
+                                label="Tutor Rate (Monthly)"
+                                placeholder="Enter rate"
+                                value={formData.tutorRate}
+                                onChange={(value) => setFormData({ ...formData, tutorRate: value })}
+                                error={formErrors.tutorRate}
                                 required
                                 min={0}
                                 precision={2}
