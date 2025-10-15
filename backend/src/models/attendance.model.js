@@ -26,14 +26,7 @@ const Attendance = sequelize.define('Attendance', {
 }, {
     tableName: 'attendance',
     timestamps: true,
-    indexs: [{
-        fields: ['lessonId', 'date'],
-        unique: true // Prevent duplicate instances for same lesson on same date
-    },
-    {
-        fields: ['tutorId', 'date'] // Fast tutor schedule lookups
-    }
-    ]
+
 });
 
 export default Attendance;
