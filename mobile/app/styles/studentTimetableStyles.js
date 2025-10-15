@@ -81,24 +81,51 @@ export const studentTimetableStyles = StyleSheet.create({
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: "rgba(0,0,0,0.3)",
+        backgroundColor: "rgba(0,0,0,0.5)",
         justifyContent: "center",
         alignItems: "center"
     },
     modalContent: {
         backgroundColor: "#FFF",
         borderRadius: 12,
-        padding: 24,
-        width: 300,
-        alignItems: "center"
+        width: "85%",
+        maxWidth: 400,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5
+    },
+    modalHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: "#E5E7EB"
     },
     modalTitle: {
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: "bold",
-        color: "#8B5CF6",
-        marginBottom: 10
+        color: "#1F2937",
+        flex: 1,
+        marginRight: 10
+    },
+    modalBody: {
+        padding: 20,
+        gap: 16
+    },
+    infoRow: {
+        flexDirection: "row",
+        alignItems: "center"
+    },
+    infoText: {
+        fontSize: 15,
+        color: "#374151",
+        marginLeft: 12,
+        flex: 1
     },
     closeBtn: {
-        marginTop: 20
+        padding: 4
     }
 });

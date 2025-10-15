@@ -1,26 +1,27 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, use } from "react";
 import {
   View,
   Text,
   ActivityIndicator,
   TouchableOpacity,
   Modal,
-  StyleSheet,
   ScrollView,
   RefreshControl,
 } from "react-native";
 import apiClient from "../../services/apiClient";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
+import authService from "../../services/authService";
+import lessonService from "../../services/lessonService";
 import { jwtDecode } from "jwt-decode";
 import {
-  studentTimetableStyles as styles,
-  HOUR_BLOCK_HEIGHT,
+  studentTimetableStyles as styles
 } from "../styles/studentTimetableStyles.js";
 
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 const START_HOUR = 8;
-const END_HOUR = 21;
+const END_HOUR = 22;
 
 export default function StudentTimetable() {
   const [lessons, setLessons] = useState([]);
@@ -28,21 +29,6 @@ export default function StudentTimetable() {
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [studentId, setStudentId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Get studentId from token on mount
-  useEffect(() => {
-    async function getStudentId() {
-      const token = await AsyncStorage.getItem("accessToken");
-      if (token) {
-        const payload = jwtDecode(token);
-        const id = payload.userId;
-        setStudentId(id);
-      } else {
-        setStudentId(null);
-      }
-    }
-    getStudentId();
-  }, []);
 
   // Helper to normalize dayOfWeek from API to grid format
   const normalizeDay = (day) => {
@@ -68,17 +54,25 @@ export default function StudentTimetable() {
 
   // Fetch lessons from API
   const fetchLessons = async () => {
-    if (!studentId) return;
-    setLoading(true);
-    setRefreshing(true);
+    // Get the authenticated user's ID
+    let userId = null;
+    if (studentId === null && authService.isAuthenticated()) {
+      const token = authService.getCurrentToken();
+      if (token) {
+        try {
+          const decoded = jwtDecode(token);
+          userId = decoded.userId;
+        } catch (error) {
+          console.error("Error decoding token:", error);
+        }
+      }
+    }
+    setStudentId(userId);
+
     try {
-      const res = await apiClient.get(
-        `/lessons/students/${studentId}?ongoing=true`
-      );
-      // Debug log response
-      console.log("Fetched lessons:", res.data);
+      const res = await lessonService.getStudentLessons(studentId !== null ? studentId : userId, true);
       // Normalize dayOfWeek for each lesson
-      const lessonsNormalized = res.data.map((lesson) => ({
+      const lessonsNormalized = res.map((lesson) => ({
         ...lesson,
         dayOfWeek: normalizeDay(lesson.dayOfWeek),
       }));
@@ -94,7 +88,14 @@ export default function StudentTimetable() {
   // Fetch lessons when studentId is set
   useEffect(() => {
     fetchLessons();
-  }, [studentId]);
+  }, []);
+
+  // Refresh data when user returns to this tab
+  useFocusEffect(
+    useCallback(() => {
+      fetchLessons();
+    }, [])
+  );
 
   // Build timetable grid: rows = days, columns = hours
   const renderGrid = () => {
@@ -107,12 +108,13 @@ export default function StudentTimetable() {
       );
     }
 
-    return DAYS.map((day, dayIdx) => {
+    return DAYS.map((day) => {
       // For each day, render a row
       return (
         <View key={day} style={styles.dayRow}>
           <Text style={styles.dayLabel}>{day}</Text>
           <View style={styles.dayRowGrid}>
+
             {/* Render lesson blocks for this day, positioned and sized proportionally */}
             {lessons
               .filter((l) => l.dayOfWeek === day)
@@ -155,6 +157,7 @@ export default function StudentTimetable() {
                   </TouchableOpacity>
                 );
               })}
+
             {/* Render hour grid lines */}
             {Array.from({ length: END_HOUR - START_HOUR + 1 }).map((_, i) => (
               <View
@@ -177,7 +180,7 @@ export default function StudentTimetable() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.header}>Weekly Timetable</Text>
       {loading ? (
         <ActivityIndicator size="large" color="#8B5CF6" />
@@ -199,9 +202,8 @@ export default function StudentTimetable() {
                 <Text style={styles.dayLabel}></Text>
                 {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => (
                   <View key={i + START_HOUR} style={styles.colHeader}>
-                    <Text style={styles.timeLabel}>{`${
-                      i + START_HOUR
-                    }:00`}</Text>
+                    <Text style={styles.timeLabel}>{`${i + START_HOUR
+                      }:00`}</Text>
                   </View>
                 ))}
               </View>
@@ -217,34 +219,61 @@ export default function StudentTimetable() {
           <View style={styles.modalContent}>
             {selectedLesson && (
               <>
-                <Text style={styles.modalTitle}>{selectedLesson.title}</Text>
-                <Text>
-                  Subject: {selectedLesson.subject.gradeLevel}{" "}
-                  {selectedLesson.subject.name}
-                </Text>
-                <Text>Location: {selectedLesson.location.address}</Text>
-                <Text>
-                  Time: {selectedLesson.startTime} - {selectedLesson.endTime}
-                </Text>
-                <Text>Day: {selectedLesson.dayOfWeek}</Text>
-                <Text>
-                  Tutor:{" "}
-                  {selectedLesson.tutor
-                    ? `${selectedLesson.tutor.firstName} ${selectedLesson.tutor.lastName}`
-                    : "Not assigned"}
-                </Text>
-                <Text>Agency: {selectedLesson.agency.name}</Text>
-                <TouchableOpacity
-                  style={styles.closeBtn}
-                  onPress={() => setSelectedLesson(null)}
-                >
-                  <Ionicons name="close" size={24} color="#8B5CF6" />
-                </TouchableOpacity>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>{selectedLesson.title}</Text>
+                  <TouchableOpacity
+                    style={styles.closeBtn}
+                    onPress={() => setSelectedLesson(null)}
+                  >
+                    <Ionicons name="close" size={24} color="#666" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.modalBody}>
+                  <View style={styles.infoRow}>
+                    <Ionicons name="book-outline" size={20} color="#666" />
+                    <Text style={styles.infoText}>
+                      {selectedLesson.subject.gradeLevel}{" "}
+                      {selectedLesson.subject.name}
+                    </Text>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <Ionicons name="location-outline" size={20} color="#666" />
+                    <Text style={styles.infoText}>
+                      {selectedLesson.location.address}
+                    </Text>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <Ionicons name="time-outline" size={20} color="#666" />
+                    <Text style={styles.infoText}>
+                      {selectedLesson.dayOfWeek} {selectedLesson.startTime} -{" "}
+                      {selectedLesson.endTime}
+                    </Text>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <Ionicons name="person-outline" size={20} color="#666" />
+                    <Text style={styles.infoText}>
+                      {selectedLesson.tutor
+                        ? `${selectedLesson.tutor.firstName} ${selectedLesson.tutor.lastName}`
+                        : "Not assigned"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <Ionicons name="business-outline" size={20} color="#666" />
+                    <Text style={styles.infoText}>
+                      {selectedLesson.agency.name}
+                    </Text>
+                  </View>
+                </View>
               </>
             )}
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
