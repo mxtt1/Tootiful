@@ -18,6 +18,7 @@ import {
   IconBuilding,
   IconSettings,
   IconCalendar, // Add this line
+  IconCurrencyDollar, // Add this line
 } from "@tabler/icons-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
@@ -76,6 +77,11 @@ const AdminLayout = ({ children }) => {
           icon: IconCalendar, // or any appropriate icon
           path: "/agency/lessons",
         },
+        {
+          label: "Tutor Payments",
+          icon: IconCurrencyDollar, // or any appropriate icon
+          path: "/agency/tutor-payments",
+        }
       ];
 
       // Profile only for agencyAdmin
