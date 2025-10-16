@@ -9,6 +9,7 @@ import authRoutes from "./modules/user-management/auth.routes.js";
 import agencyRoutes from "./modules/user-management/agency.route.js";
 import agencyAdminRoutes from "./modules/user-management/agencyAdmin.routes.js";
 import lessonRoutes from './modules/scheduling/lesson.routes.js';
+import tutorPaymentRoutes from './modules/payment/tutorPayment.route.js';
 import { errorHandler } from "./middleware/errorHandler.js";
 import "./models/index.js";
 
@@ -47,6 +48,7 @@ app.use("/api/lessons", lessonRoutes); //implement lesson routes
 app.use("/api/agencies", agencyRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/agency-admins", agencyAdminRoutes);
+app.use("/api/tutorPayments", tutorPaymentRoutes); //tutor payment routes
 
 
 // Global Error Handler Middleware

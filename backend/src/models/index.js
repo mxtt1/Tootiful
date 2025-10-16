@@ -67,7 +67,7 @@ Lesson.hasMany(Attendance, { foreignKey: 'lessonId', as: 'instances' });
 Attendance.belongsTo(Lesson, { foreignKey: 'lessonId', as: 'lesson' });
 
 // Tutor-Attendance association (for substitutes)
-User.hasMany(Attendance, { foreignKey: 'tutorId', as: 'attendances' });
+User.hasMany(Attendance, { foreignKey: 'tutorId', as: 'attendanceInstances' });
 Attendance.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
 
 
@@ -81,6 +81,7 @@ import PasswordResetToken from './passwordReset.model.js';
 import RefreshToken from './refreshToken.model.js';
 import Agency from './agency.model.js';
 import Location from './location.model.js';
+import Attendance from './attendance.model.js';
 
 // Util imports
 import experienceLevelEnum from "../util/enum/experienceLevelEnum.js";

@@ -5,6 +5,7 @@ import {
   StudentLesson,
   Location,
   Agency,
+  Attendance,
 } from "../../models/index.js";
 import { Op } from "sequelize";
 import sequelize from "../../config/database.js";
@@ -397,6 +398,7 @@ class LessonService {
   }
 
   async createLesson(lessonData) {
+    const transaction = await sequelize.transaction();
     try {
       console.log(
         "Creating lesson with data:",
@@ -414,23 +416,88 @@ class LessonService {
         startTime: lessonData.startTime,
         endTime: lessonData.endTime,
         studentRate: parseFloat(lessonData.studentRate),
+        tutorRate: parseFloat(lessonData.tutorRate),
         totalCap: parseInt(lessonData.totalCap),
         currentCap: 0,
         isActive: lessonData.isActive !== false,
         lessonType: lessonData.lessonType
 
-      });
+      }, { transaction });
 
       console.log(
         `Lesson created successfully: ${lesson.title} (ID: ${lesson.id})`
       );
 
+      await this.generateAttendanceDates(lesson.id, lesson.tutorId, lesson.dayOfWeek, transaction, 1);
+      await transaction.commit();
       return lesson;
     } catch (error) {
       console.error("Lesson creation error:", error);
       throw new Error(`Failed to create lesson: ${error.message}`);
     }
   }
+
+  //Helper function for generating attendance: 
+  async generateAttendanceDates(lessonId, tutorId, dayOfWeek, transaction, monthsAhead) {
+    try {
+      console.log(`Generating attendance dates for lesson ${lessonId}, day: ${dayOfWeek}`);
+
+      const start = new Date();
+      const end = new Date();
+      end.setMonth(start.getMonth() + monthsAhead);
+
+      const dayIndex = {
+        sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+        thursday: 4, friday: 5, saturday: 6
+      }[dayOfWeek.toLowerCase()];
+
+      if (dayIndex === undefined) {
+        throw new Error(`Invalid day of week: ${dayOfWeek}`);
+      }
+
+      const attendances = [];
+      const currentDate = new Date(start);
+
+      while (currentDate <= end) {
+        if (currentDate.getDay() === dayIndex) {
+          attendances.push({
+            lessonId: lessonId,
+            tutorId: tutorId || null, // ✅ Ensure null if undefined
+            date: currentDate.toISOString().slice(0, 10),
+            isAttended: false
+          });
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      console.log(`Generated ${attendances.length} attendance dates`);
+      console.log("Sample record:", JSON.stringify(attendances[0], null, 2)); // ✅ DEBUG
+
+      if (attendances.length > 0) {
+        // ✅ Try creating one record at a time to isolate the issue
+        const createdRecords = [];
+        for (const attendance of attendances) {
+          try {
+            const created = await Attendance.create(attendance, { transaction });
+            createdRecords.push(created);
+          } catch (error) {
+            console.error("Failed to create individual attendance:", error);
+            console.error("Attendance data:", JSON.stringify(attendance, null, 2));
+            throw error;
+          }
+        }
+        console.log(`Successfully created ${createdRecords.length} attendance records`);
+      }
+
+      return attendances.length;
+
+    } catch (error) {
+      console.error(`Failed to generate attendance dates:`, error);
+      console.error("Error stack:", error.stack);
+      throw new Error(`Failed to generate attendance dates: ${error.message}`);
+    }
+  }
+
 
   async updateLesson(lessonId, updateData) {
     try {
