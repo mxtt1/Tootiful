@@ -8,8 +8,9 @@ import tutorRoutes from "./modules/user-management/tutor.routes.js";
 import authRoutes from "./modules/user-management/auth.routes.js";
 import agencyRoutes from "./modules/user-management/agency.route.js";
 import agencyAdminRoutes from "./modules/user-management/agencyAdmin.routes.js";
-import lessonRoutes from './modules/scheduling/lesson.routes.js';
-import tutorPaymentRoutes from './modules/payment/tutorPayment.route.js';
+import lessonRoutes from "./modules/scheduling/lesson.routes.js";
+import tutorPaymentRoutes from "./modules/payment/tutorPayment.route.js";
+import paymentRoutes from "./modules/payment/payment.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import "./models/index.js";
 
@@ -35,7 +36,7 @@ app.use(
       "X-Requested-With",
       "Content-Type",
       "Accept",
-      "params",//allow params holder
+      "params", //allow params holder
       "Authorization",
     ],
   })
@@ -49,7 +50,7 @@ app.use("/api/agencies", agencyRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/agency-admins", agencyAdminRoutes);
 app.use("/api/tutorPayments", tutorPaymentRoutes); //tutor payment routes
-
+app.use("/api/payments", paymentRoutes); //student payment routes
 
 // Global Error Handler Middleware
 app.use(errorHandler);
@@ -76,7 +77,9 @@ const startServer = async () => {
       console.log(`Health check: http://localhost:${PORT}/health`);
       console.log(`Students API: http://localhost:${PORT}/api/students`);
       console.log(`Tutors API: http://localhost:${PORT}/api/tutors`);
-      console.log(`Agency-admins API: http://localhost:${PORT}/api/agency-admins`);
+      console.log(
+        `Agency-admins API: http://localhost:${PORT}/api/agency-admins`
+      );
     });
   } catch (error) {
     console.error("Unable to start server:", error);

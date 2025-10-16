@@ -89,6 +89,58 @@ class LessonService {
       throw error;
     }
   }
+
+  // Payment-related methods
+
+  // Get payment calculation for a lesson
+  async getPaymentCalculation(lessonId) {
+    try {
+      const response = await apiClient.get(`/payments/calculate/${lessonId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching payment calculation:", error);
+      throw error;
+    }
+  }
+
+  // Create payment intent for lesson enrollment
+  async createPaymentIntent(lessonId) {
+    try {
+      const response = await apiClient.post("/payments/create-intent", {
+        lessonId: lessonId,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error creating payment intent:", error);
+      throw error;
+    }
+  }
+
+  // Confirm payment and complete enrollment
+  async confirmPaymentAndEnroll(paymentIntentId) {
+    try {
+      const response = await apiClient.post("/payments/confirm", {
+        paymentIntentId: paymentIntentId,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error confirming payment:", error);
+      throw error;
+    }
+  }
+
+  // Get payment status
+  async getPaymentStatus(paymentIntentId) {
+    try {
+      const response = await apiClient.get(
+        `/payments/status/${paymentIntentId}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error getting payment status:", error);
+      throw error;
+    }
+  }
 }
 
 export default new LessonService();

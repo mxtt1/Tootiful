@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { jwtDecode } from "jwt-decode";
 import lessonService from "../../services/lessonService";
 import authService from "../../services/authService";
@@ -21,6 +21,7 @@ import apiClient from "../../services/apiClient";
 import { lessonsStyles as styles } from "../styles/lessonsStyles";
 
 export default function LessonsScreen() {
+  const router = useRouter();
   const [lessons, setLessons] = useState([]);
   const [filteredLessons, setFilteredLessons] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -321,8 +322,6 @@ export default function LessonsScreen() {
 
   const handleEnrollment = async () => {
     try {
-      setEnrolling(true);
-
       // Check if user is authenticated
       if (!authService.isAuthenticated()) {
         Alert.alert("Error", "Please log in to enroll in lessons");
@@ -350,7 +349,7 @@ export default function LessonsScreen() {
       }
 
       console.log(
-        `🎓 Enrolling ${userType} in lesson: ${selectedLesson.title}`
+        `🎓 Redirecting ${userType} to payment for lesson: ${selectedLesson.title}`
       );
 
       // Ensure only students can enroll
@@ -359,49 +358,19 @@ export default function LessonsScreen() {
         return;
       }
 
-      // Make enrollment API call
-      try {
-        await lessonService.enrollStudentInLesson(userId, selectedLesson.id);
+      // Close modal and redirect to payment page
+      setModalVisible(false);
 
-        Alert.alert(
-          "Success",
-          "You have successfully enrolled in this lesson!",
-          [{ text: "OK", onPress: () => setModalVisible(false) }]
-        );
-
-        // Refresh lessons to update capacity
-        fetchLessons();
-      } catch (enrollmentError) {
-        console.error("❌ Enrollment error:", enrollmentError);
-        const errorMessage =
-          enrollmentError.response?.data?.message ||
-          enrollmentError.message ||
-          "Failed to enroll in lesson";
-
-        // Map backend error messages to user-friendly alerts
-        if (errorMessage.toLowerCase().includes("already enrolled")) {
-          Alert.alert(
-            "Enrollment Error",
-            "You are already enrolled in this lesson."
-          );
-        } else if (errorMessage.toLowerCase().includes("time clash")) {
-          Alert.alert(
-            "Enrollment Error",
-            "This lesson clashes with another lesson you are enrolled in."
-          );
-        } else if (errorMessage.toLowerCase().includes("grade level")) {
-          Alert.alert(
-            "Enrollment Error",
-            "This lesson is not for your grade level."
-          );
-        } else if (errorMessage.toLowerCase().includes("lesson is full")) {
-          Alert.alert("Enrollment Error", "This lesson is already full.");
-        } else {
-          Alert.alert("Error", errorMessage);
-        }
-      }
-    } finally {
-      setEnrolling(false);
+      // Navigate to payment page with lesson details
+      router.push({
+        pathname: "/payment",
+        params: {
+          lessonId: selectedLesson.id,
+        },
+      });
+    } catch (error) {
+      console.error("❌ Navigation error:", error);
+      Alert.alert("Error", "Failed to proceed to payment. Please try again.");
     }
   };
 
@@ -912,7 +881,7 @@ export default function LessonsScreen() {
                           <ActivityIndicator color="#fff" />
                         ) : (
                           <Text style={styles.enrollButtonText}>
-                            Enroll in this Lesson
+                            Continue to Payment
                           </Text>
                         )}
                       </TouchableOpacity>
