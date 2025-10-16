@@ -42,12 +42,109 @@ export default function ManageTutorPayment() {
 
     useEffect(() => {
         fetchPayments();
-    }, []);
+    }, [activeTab]);
 
     useEffect(() => {
         filterPayments();
     }, [searchQuery, monthFilter, activeTab, allPayments]);
 
+    // ✅ FIXED: Handle both attendance records and TutorPayment records
+    const aggregatePaymentsByTutorMonth = (payments) => {
+        const tutorMonthMap = new Map();
+
+        payments.forEach(payment => {
+            // ✅ FIX: Handle different date formats and sources
+            let dateToUse;
+            if (payment.attendanceDate) {
+                dateToUse = new Date(payment.attendanceDate);
+            } else if (payment.paymentDate) {
+                dateToUse = new Date(payment.paymentDate);
+            } else if (payment.createdAt) {
+                dateToUse = new Date(payment.createdAt);
+            } else {
+                dateToUse = new Date(); // Fallback to current date
+            }
+
+            // ✅ Check if date is valid
+            if (isNaN(dateToUse.getTime())) {
+                console.warn('Invalid date found in payment:', payment);
+                dateToUse = new Date(); // Fallback to current date
+            }
+
+            const monthKey = `${dateToUse.getFullYear()}-${String(dateToUse.getMonth() + 1).padStart(2, '0')}`;
+            const tutorMonthKey = `${payment.tutorId}-${monthKey}`;
+
+            if (!tutorMonthMap.has(tutorMonthKey)) {
+                tutorMonthMap.set(tutorMonthKey, {
+                    id: `summary-${payment.tutorId}-${monthKey}`,
+                    tutorId: payment.tutorId,
+                    tutorName: payment.tutorName,
+                    tutorFirstName: payment.tutorFirstName,
+                    tutorLastName: payment.tutorLastName,
+                    month: monthKey,
+                    // ✅ FIX: Use the validated date for month display
+                    monthDisplay: dateToUse.toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
+                    paymentAmount: 0,
+                    sessionCount: 0,
+                    paidSessionsCount: 0,
+                    paymentStatus: activeTab === "paid" ? 'Paid' : 'Not Paid',
+                    paymentDate: null,
+                    attendanceDate: dateToUse.toISOString(), // ✅ Store as ISO string
+                    sessions: [],
+                    earliestDate: dateToUse.toISOString(),
+                    latestDate: dateToUse.toISOString()
+                });
+            }
+
+            const summary = tutorMonthMap.get(tutorMonthKey);
+
+            summary.paymentAmount += parseFloat(payment.paymentAmount || 0);
+            summary.sessionCount += 1;
+            summary.sessions.push(payment);
+
+            // Count paid sessions
+            if (payment.paymentStatus === 'Paid' || payment.isPaid === true) {
+                summary.paidSessionsCount += 1;
+                if (!summary.paymentDate || new Date(payment.paymentDate) > new Date(summary.paymentDate)) {
+                    summary.paymentDate = payment.paymentDate;
+                }
+            }
+
+            // Update date range
+            const currentDateISO = dateToUse.toISOString();
+            if (new Date(currentDateISO) < new Date(summary.earliestDate)) {
+                summary.earliestDate = currentDateISO;
+            }
+            if (new Date(currentDateISO) > new Date(summary.latestDate)) {
+                summary.latestDate = currentDateISO;
+                summary.attendanceDate = currentDateISO;
+            }
+        });
+
+        return Array.from(tutorMonthMap.values()).map(summary => {
+            // Force status based on active tab
+            if (activeTab === "paid") {
+                summary.paymentStatus = 'Paid';
+            } else {
+                if (summary.paidSessionsCount === summary.sessionCount && summary.sessionCount > 0) {
+                    summary.paymentStatus = 'Paid';
+                } else {
+                    summary.paymentStatus = 'Not Paid';
+                }
+            }
+            return summary;
+        }).sort((a, b) => {
+            if (a.tutorName !== b.tutorName) {
+                return a.tutorName.localeCompare(b.tutorName);
+            }
+            return b.month.localeCompare(a.month);
+        });
+    };
+    // ✅ ADD: State for counts
+    const [unpaidCount, setUnpaidCount] = useState(0);
+    const [paidCount, setPaidCount] = useState(0);
+
+    // ✅ UPDATED: Update counts when data changes
     const fetchPayments = async () => {
         setLoading(true);
         setError(null);
@@ -59,16 +156,30 @@ export default function ManageTutorPayment() {
                 return;
             }
 
-            console.log("🚀 Fetching payments for agency:", agencyId);
-            const response = await apiClient.get(`/tutorPayments/agency/${agencyId}`);
+            console.log(`🚀 Fetching ${activeTab} payments for agency:`, agencyId);
 
-            console.log("📦 Full API Response:", response);
-            console.log("📊 Response Data:", response.data);
-            console.log("🔢 Data Length:", response.data?.length);
+            let endpoint;
+            if (activeTab === "paid") {
+                endpoint = `/tutorPayments/agency/${agencyId}/payments`;
+            } else {
+                endpoint = `/tutorPayments/agency/${agencyId}`;
+            }
 
-            const paymentsData = response.data || [];
-            setAllPayments(paymentsData);
-            setPayments(paymentsData);
+            const response = await apiClient.get(endpoint);
+            const rawPayments = response.data?.data || response.data || [];
+            const aggregatedPayments = aggregatePaymentsByTutorMonth(rawPayments);
+
+            console.log("🎯 Aggregated Payments:", aggregatedPayments);
+
+            setAllPayments(aggregatedPayments);
+            setPayments(aggregatedPayments);
+
+            // ✅ UPDATE: Set the count for current tab
+            if (activeTab === "paid") {
+                setPaidCount(aggregatedPayments.length);
+            } else {
+                setUnpaidCount(aggregatedPayments.length);
+            }
 
         } catch (err) {
             console.error("❌ Fetch payments error:", err);
@@ -78,15 +189,57 @@ export default function ManageTutorPayment() {
         }
     };
 
+    // ✅ ADD: Fetch counts on component mount
+    useEffect(() => {
+        const fetchCounts = async () => {
+            try {
+                const agencyId = user?.agencyId || user?.id;
+                if (!agencyId) return;
+
+                const [unpaidRes, paidRes] = await Promise.all([
+                    apiClient.get(`/tutorPayments/agency/${agencyId}`),
+                    apiClient.get(`/tutorPayments/agency/${agencyId}/payments`)
+                ]);
+
+                const unpaidData = unpaidRes.data?.data || [];
+                const paidData = paidRes.data?.data || [];
+
+                const unpaidAggregated = aggregatePaymentsByTutorMonth(unpaidData);
+                const paidAggregated = aggregatePaymentsByTutorMonth(paidData);
+
+                setUnpaidCount(unpaidAggregated.length);
+                setPaidCount(paidAggregated.length);
+            } catch (err) {
+                console.error("Error fetching counts:", err);
+            }
+        };
+
+        fetchCounts();
+    }, [user?.agencyId, user?.id]);
+
+    // ✅ FIXED: Use dynamic counts in SegmentedControl
+    <SegmentedControl
+        value={activeTab}
+        onChange={setActiveTab}
+        data={[
+            {
+                label: `Unpaid `,
+                value: "unpaid",
+            },
+            {
+                label: `Paid `,
+                value: "paid",
+            },
+        ]}
+        size="md"
+        fullWidth
+    />
+
     const filterPayments = () => {
         let filtered = [...allPayments];
 
-        // Filter by status
-        if (activeTab === "unpaid") {
-            filtered = filtered.filter((p) => p.paymentStatus === "Not Paid");
-        } else if (activeTab === "paid") {
-            filtered = filtered.filter((p) => p.paymentStatus === "Paid");
-        }
+        // ✅ Remove status filtering - API already returns correct status based on endpoint
+        // No need to filter by paymentStatus since the API endpoint handles it
 
         // Search by tutor name
         if (searchQuery.trim()) {
@@ -101,19 +254,21 @@ export default function ManageTutorPayment() {
 
         // Filter by month/year based on attendance date
         if (monthFilter) {
-            const selectedYear = monthFilter.getFullYear();
-            const selectedMonth = monthFilter.getMonth();
+            try {
+                const filterDate = monthFilter instanceof Date ? monthFilter : new Date(monthFilter);
+                if (!isNaN(filterDate.getTime())) {
+                    const selectedMonth = `${filterDate.getFullYear()}-${String(filterDate.getMonth() + 1).padStart(2, '0')}`;
 
-            filtered = filtered.filter((p) => {
-                const date = new Date(p.attendanceDate);
-                return (
-                    date.getFullYear() === selectedYear &&
-                    date.getMonth() === selectedMonth
-                );
-            });
+                    filtered = filtered.filter((summary) => summary.month === selectedMonth);
+                } else {
+                    console.error("Invalid month filter date", monthFilter);
+                }
+            } catch (error) {
+                console.error("Error parsing month filter date", error);
+            }
         }
 
-        console.log("🎯 Filtered payments:", filtered);
+        console.log("🎯 Filtered summaries:", filtered);
         setPayments(filtered);
     };
 
@@ -126,22 +281,48 @@ export default function ManageTutorPayment() {
         if (!paymentToPay) return;
 
         setProcessing(true);
+
         try {
-            // Note: You'll need to create this backend endpoint later
-            await apiClient.patch(`/tutorPayments/${paymentToPay.id}`, {
-                paymentStatus: "Paid",
+            // ✅ FIX: Update each attendance record to mark as paid
+            const attendanceUpdatePromises = paymentToPay.sessions.map(session =>
+                apiClient.patch(`/tutorPayments/attendances/${session.attendanceId}`, {
+                    isPaid: true
+                })
+            );
+
+            // ✅ FIX: Create a consolidated payment record
+            const paymentData = {
+                agencyId: user?.agencyId || user?.id,
+                tutorId: paymentToPay.tutorId,
+                paymentType: 'monthly_consolidated',
+                month: paymentToPay.month,
+                monthDisplay: paymentToPay.monthDisplay,
+                totalAmount: paymentToPay.paymentAmount,
+                sessionCount: paymentToPay.sessionCount,
+                paymentStatus: 'Paid',
                 paymentDate: new Date().toISOString(),
-            });
+                sessionIds: paymentToPay.sessions.map(session => session.attendanceId)
+            };
+
+            // ✅ Execute both updates in parallel
+            const [attendanceResults, paymentResult] = await Promise.all([
+                Promise.all(attendanceUpdatePromises),
+                apiClient.post('/tutorPayments', paymentData)
+            ]);
+
+            console.log('✅ Attendance updates:', attendanceResults);
+            console.log('✅ Payment created:', paymentResult);
+            console.log('✅ Payment data sent:', paymentData.agencyId);
 
             notifications.show({
                 title: "Success",
-                message: "Payment marked as paid successfully",
+                message: `Payment of ${formatCurrency(paymentToPay.paymentAmount)} marked as paid for ${paymentToPay.sessionCount} sessions`,
                 color: "green",
             });
 
             setPayModalOpen(false);
             setPaymentToPay(null);
-            fetchPayments();
+            fetchPayments(); // Refresh the data
         } catch (err) {
             console.error("Payment error:", err);
             notifications.show({
@@ -153,7 +334,6 @@ export default function ManageTutorPayment() {
             setProcessing(false);
         }
     };
-
     const getStatusColor = (status) => status === "Paid" ? "green" : "orange";
 
     const formatCurrency = (amt) => `$${parseFloat(amt || 0).toFixed(2)}`;
@@ -195,15 +375,11 @@ export default function ManageTutorPayment() {
                             onChange={setActiveTab}
                             data={[
                                 {
-                                    label: `Unpaid (${allPayments.filter(
-                                        (p) => p.paymentStatus === "Not Paid"
-                                    ).length})`,
+                                    label: "Unpaid", // ✅ No count
                                     value: "unpaid",
                                 },
                                 {
-                                    label: `Paid (${allPayments.filter(
-                                        (p) => p.paymentStatus === "Paid"
-                                    ).length})`,
+                                    label: "Paid", // ✅ No count
                                     value: "paid",
                                 },
                             ]}
@@ -249,72 +425,70 @@ export default function ManageTutorPayment() {
                     ) : (
                         <>
                             <Text mb="md" c="dimmed">
-                                Showing {payments.length} payment{payments.length !== 1 ? 's' : ''}
+                                Showing {payments.length} tutor payment{payments.length !== 1 ? ' summaries' : ' summary'}
                             </Text>
 
                             <Table striped highlightOnHover>
                                 <Table.Thead>
                                     <Table.Tr>
                                         <Table.Th>Tutor Name</Table.Th>
-                                        <Table.Th>Payment Amount</Table.Th>
-                                        <Table.Th>Lesson Details</Table.Th>
+                                        <Table.Th>Month</Table.Th>
+                                        <Table.Th>Total Amount</Table.Th>
+                                        <Table.Th>Sessions</Table.Th>
                                         <Table.Th>Status</Table.Th>
-                                        <Table.Th>Attendance Date</Table.Th>
                                         <Table.Th>Actions</Table.Th>
                                     </Table.Tr>
                                 </Table.Thead>
                                 <Table.Tbody>
-                                    {payments.map((payment) => (
-                                        <Table.Tr key={payment.id}>
+                                    {payments.map((summary) => (
+                                        <Table.Tr key={summary.id}>
                                             <Table.Td>
                                                 <div>
                                                     <Text fw={500}>
-                                                        {payment.tutorName}
+                                                        {summary.tutorName}
                                                     </Text>
                                                     <Text size="sm" c="dimmed">
-                                                        ID: {payment.tutorId.slice(0, 8)}...
+                                                        ID: {summary.tutorId.slice(0, 8)}...
                                                     </Text>
                                                 </div>
+                                            </Table.Td>
+
+                                            <Table.Td>
+                                                <Text fw={500}>
+                                                    {summary.monthDisplay}
+                                                </Text>
                                             </Table.Td>
 
                                             <Table.Td>
                                                 <Text fw={500} c="green">
-                                                    {formatCurrency(payment.paymentAmount)}
+                                                    {formatCurrency(summary.paymentAmount)}
+                                                </Text>
+                                                <Text size="xs" c="dimmed">
+                                                    {summary.sessionCount} sessions
                                                 </Text>
                                             </Table.Td>
 
                                             <Table.Td>
-                                                <div>
-                                                    <Text size="sm" fw={500}>
-                                                        {payment.lessonTitle}
-                                                    </Text>
-                                                    <Text size="xs" c="dimmed">
-                                                        Attendance ID: {payment.attendanceId.slice(0, 8)}...
-                                                    </Text>
-                                                </div>
-                                            </Table.Td>
-
-                                            <Table.Td>
-                                                <Badge color={getStatusColor(payment.paymentStatus)} variant="filled">
-                                                    {payment.paymentStatus}
+                                                <Badge variant="light" color="blue">
+                                                    {summary.sessionCount}
                                                 </Badge>
                                             </Table.Td>
 
                                             <Table.Td>
-                                                <Text size="sm">
-                                                    {formatDate(payment.attendanceDate)}
-                                                </Text>
+                                                <Badge color={getStatusColor(summary.paymentStatus)} variant="filled">
+                                                    {summary.paymentStatus}
+                                                </Badge>
                                             </Table.Td>
 
                                             <Table.Td>
-                                                {payment.paymentStatus === "Not Paid" ? (
+                                                {summary.paymentStatus === "Not Paid" ? (
                                                     <Button
                                                         size="xs"
                                                         color="green"
                                                         leftSection={<IconCurrencyDollar size={14} />}
-                                                        onClick={() => handlePayment(payment)}
+                                                        onClick={() => handlePayment(summary)}
                                                     >
-                                                        Pay
+                                                        Pay Month
                                                     </Button>
                                                 ) : (
                                                     <Badge color="green" variant="light">
@@ -355,13 +529,19 @@ export default function ManageTutorPayment() {
                                     </Text>
                                 </Group>
                                 <Group justify="space-between">
-                                    <Text size="sm" c="dimmed">Lesson:</Text>
+                                    <Text size="sm" c="dimmed">Month:</Text>
                                     <Text size="sm" fw={500}>
-                                        {paymentToPay.lessonTitle}
+                                        {paymentToPay.monthDisplay}
                                     </Text>
                                 </Group>
                                 <Group justify="space-between">
-                                    <Text size="sm" c="dimmed">Amount:</Text>
+                                    <Text size="sm" c="dimmed">Sessions:</Text>
+                                    <Text size="sm" fw={500}>
+                                        {paymentToPay.sessionCount}
+                                    </Text>
+                                </Group>
+                                <Group justify="space-between">
+                                    <Text size="sm" c="dimmed">Total Amount:</Text>
                                     <Text size="sm" fw={500} c="green">
                                         {formatCurrency(paymentToPay.paymentAmount)}
                                     </Text>

@@ -7,10 +7,15 @@ const TutorPayment = sequelize.define('TutorPayment', {
         primaryKey: true,
         defaultValue: DataTypes.UUIDV4,
     },
-//previousl lessonInstance Id
-    attendanceId: {
+
+    agencyId: {
         type: DataTypes.UUID,
         allowNull: false,
+    },
+    //previous lessonInstance Id
+    attendanceId: {
+        type: DataTypes.UUID,
+        allowNull: true,
     },
 
     tutorId: {
@@ -27,9 +32,11 @@ const TutorPayment = sequelize.define('TutorPayment', {
     },
 
     paymentDate: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW,
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+        validate: {
+            isDate: true
+        }
     },
 
     paymentStatus: {

@@ -6,11 +6,14 @@ import { authenticateToken } from "../../middleware/authenticateToken.js";
 const router = express.Router();
 const tutorPaymentService = new TutorPaymentService();
 
-// GET /api/tutorPayments/agency/:id - Get all total tutor balances by agency ID
-router.get("/agency/:id",
-    authenticateToken,
-    asyncHandler(async (req, res) => {
-        await tutorPaymentService.handleGetAllTotalTutorBalance(req, res);
-    })
-);
+
+//create endpoint to manhandle indiv attedance statusd
+
+// ✅ ADD: Missing agency route
+router.get("/agency/:id", tutorPaymentService.handleGetAllTutorPaymentsByAgency.bind(tutorPaymentService));
+router.get("/agency/:id/payments", tutorPaymentService.handleGetPaidPaymentsFromAgencyID.bind(tutorPaymentService));
+router.patch("/attendances/:id", tutorPaymentService.handleMarkAttendanceAsPaid.bind(tutorPaymentService));
+router.post("/", tutorPaymentService.handleCreatePayment.bind(tutorPaymentService));
+router.patch("/:id", tutorPaymentService.handleUpdatePaymentStatus.bind(tutorPaymentService));
+router.get("/tutor/:tutorId/summary", tutorPaymentService.handleGetTutorBalanceSummary.bind(tutorPaymentService));
 export default router;

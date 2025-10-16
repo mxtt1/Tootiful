@@ -1,6 +1,7 @@
 // Lesson and Attendance imports
 import Lesson from './lesson.model.js';
 import Attendance from './attendance.model.js';
+import TutorPayment from './tutorPayment.model.js';
 
 // StudentLesson join table
 const StudentLesson = sequelize.define('StudentLesson', {
@@ -172,5 +173,7 @@ User.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 
 Agency.hasMany(Location, { foreignKey: 'agencyId', as: 'locations' });
 Location.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
+TutorPayment.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
 
-export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Location, Sequelize, sequelize, EmailVerificationToken, Lesson, Attendance, StudentLesson };
+
+export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Location, Sequelize, sequelize, EmailVerificationToken, Lesson, Attendance, StudentLesson, TutorPayment };
