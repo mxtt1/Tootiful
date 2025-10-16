@@ -1,6 +1,6 @@
 // Lesson and Attendance imports
 import Lesson from './lesson.model.js';
-import Attedance from './attendance.model.js';
+import Attendance from './attendance.model.js';
 
 // StudentLesson join table
 const StudentLesson = sequelize.define('StudentLesson', {
