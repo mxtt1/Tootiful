@@ -81,7 +81,6 @@ import PasswordResetToken from './passwordReset.model.js';
 import RefreshToken from './refreshToken.model.js';
 import Agency from './agency.model.js';
 import Location from './location.model.js';
-import Attendance from './attendance.model.js';
 
 // Util imports
 import experienceLevelEnum from "../util/enum/experienceLevelEnum.js";
