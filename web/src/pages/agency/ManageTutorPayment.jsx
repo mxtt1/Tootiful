@@ -15,6 +15,8 @@ import {
     Alert,
     Modal,
     SegmentedControl,
+    Pagination,
+    Select,
 } from "@mantine/core";
 import { MonthPickerInput } from "@mantine/dates";
 import '@mantine/core/styles.css'
@@ -35,6 +37,12 @@ export default function ManageTutorPayment() {
     const [monthFilter, setMonthFilter] = useState(null);
     const [activeTab, setActiveTab] = useState("unpaid"); // unpaid | paid
 
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [paginatedPayments, setPaginatedPayments] = useState([]);
+    const [totalPages, setTotalPages] = useState(0);
+
     // Modal states
     const [payModalOpen, setPayModalOpen] = useState(false);
     const [paymentToPay, setPaymentToPay] = useState(null);
@@ -51,6 +59,16 @@ export default function ManageTutorPayment() {
     useEffect(() => {
         filterPayments();
     }, [searchQuery, monthFilter, allPayments]);
+
+    // ✅ NEW: Update pagination when filtered payments change
+    useEffect(() => {
+        updatePagination();
+    }, [payments, currentPage, pageSize]);
+
+    // ✅ NEW: Reset to page 1 when switching tabs or applying filters
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, searchQuery, monthFilter]);
 
     // ✅ FIXED: Handle both attendance records and TutorPayment records
     const aggregatePaymentsByTutorMonth = (payments) => {
@@ -269,6 +287,22 @@ export default function ManageTutorPayment() {
         setPayments(filtered);
     };
 
+    // ✅ NEW: Pagination logic
+    const updatePagination = () => {
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginated = payments.slice(startIndex, endIndex);
+
+        setPaginatedPayments(paginated);
+        setTotalPages(Math.ceil(payments.length / pageSize));
+    };
+
+    // ✅ NEW: Handle page size change
+    const handlePageSizeChange = (newPageSize) => {
+        setPageSize(parseInt(newPageSize));
+        setCurrentPage(1); // Reset to first page
+    };
+
     const handlePayment = (payment) => {
         setPaymentToPay(payment);
         setPayModalOpen(true);
@@ -421,9 +455,30 @@ export default function ManageTutorPayment() {
                         </Text>
                     ) : (
                         <>
-                            <Text mb="md" c="dimmed">
-                                Showing {payments.length} tutor payment{payments.length !== 1 ? (activeTab === "paid" ? ' records' : ' summaries') : (activeTab === "paid" ? ' record' : ' summary')}
-                            </Text>
+                            {/* ✅ NEW: Table header with pagination info and page size selector */}
+                            <Group justify="space-between" mb="md">
+                                <Text c="dimmed">
+                                    Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, payments.length)} of {payments.length} tutor payment{payments.length !== 1 ? (activeTab === "paid" ? ' records' : ' summaries') : (activeTab === "paid" ? ' record' : ' summary')}
+                                </Text>
+
+                                <Group spacing="xs">
+                                    <Text size="sm" c="dimmed">Show:</Text>
+                                    <Select
+                                        value={pageSize.toString()}
+                                        onChange={handlePageSizeChange}
+                                        data={[
+                                            { value: '5', label: '5' },
+                                            { value: '10', label: '10' },
+                                            { value: '25', label: '25' },
+                                            { value: '50', label: '50' },
+                                            { value: '100', label: '100' },
+                                        ]}
+                                        size="sm"
+                                        w={80}
+                                    />
+                                    <Text size="sm" c="dimmed">per page</Text>
+                                </Group>
+                            </Group>
 
                             {/* ✅ UPDATED: Table that handles both individual records and aggregated summaries */}
                             <Table striped highlightOnHover>
@@ -438,7 +493,8 @@ export default function ManageTutorPayment() {
                                     </Table.Tr>
                                 </Table.Thead>
                                 <Table.Tbody>
-                                    {payments.map((record) => (
+                                    {/* ✅ NEW: Use paginatedPayments instead of payments */}
+                                    {paginatedPayments.map((record) => (
                                         <Table.Tr key={record.id}>
                                             <Table.Td>
                                                 <div>
@@ -465,9 +521,12 @@ export default function ManageTutorPayment() {
                                                 <Text fw={500} c="green">
                                                     {formatCurrency(record.paymentAmount)}
                                                 </Text>
-                                                {/* <Text size="xs" c="dimmed">
-                                                    {record.sessionCount} session{record.sessionCount !== 1 ? 's' : ''}
-                                                </Text> */}
+                                                {/* ✅ Only show session count for unpaid tab */}
+                                                {activeTab !== "paid" && (
+                                                    <Text size="xs" c="dimmed">
+                                                        {record.sessionCount} session{record.sessionCount !== 1 ? 's' : ''}
+                                                    </Text>
+                                                )}
                                             </Table.Td>
 
                                             {activeTab !== "paid" && (
@@ -477,7 +536,6 @@ export default function ManageTutorPayment() {
                                                     </Badge>
                                                 </Table.Td>
                                             )}
-
 
                                             <Table.Td>
                                                 <Badge color={getStatusColor(record.paymentStatus)} variant="filled">
@@ -505,6 +563,21 @@ export default function ManageTutorPayment() {
                                     ))}
                                 </Table.Tbody>
                             </Table>
+
+                            {/* ✅ NEW: Pagination controls */}
+                            {totalPages > 1 && (
+                                <Group justify="center" mt="lg">
+                                    <Pagination
+                                        value={currentPage}
+                                        onChange={setCurrentPage}
+                                        total={totalPages}
+                                        size="sm"
+                                        withEdges
+                                        siblings={1}
+                                        boundaries={1}
+                                    />
+                                </Group>
+                            )}
                         </>
                     )}
                 </Card>

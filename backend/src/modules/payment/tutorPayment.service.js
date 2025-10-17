@@ -159,52 +159,7 @@ class TutorPaymentService {
     }
 
 
-    async handleUpdatePaymentStatus(req, res) {
-        try {
-            const { id } = req.params;
-            const updateData = req.body;
-            console.log(`Handler: Updating payment status for: ${id} with data:`, updateData);
-            const result = await this.updatePaymentStatus(id, updateData);
-            console.log(`Handler: Payment status updated successfully for: ${id}`);
-            res.status(200).json({
-                success: true,
-                message: 'Payment status updated successfully',
-                data: result
-            });
-        } catch (error) {
-            console.error('Handler Error - Update payment status:', error);
-            res.status(500).json({
-                success: false,
-                error: 'Internal server error',
-                message: error.message
-            });
-        }
-    }
-    // ✅ HANDLER: Get tutor balance summary
-    async handleGetTutorBalanceSummary(req, res) {
-        try {
-            const { tutorId } = req.params;
-            const { monthFilter } = req.query;
-            console.log(`Handler: Getting balance summary for tutor: ${tutorId}`);
 
-            const balanceSummary = await this.getTutorBalanceSummary(tutorId, monthFilter);
-
-            console.log(`Handler: Retrieved balance summary for tutor ${tutorId}`);
-
-            res.status(200).json({
-                success: true,
-                data: balanceSummary,
-            });
-
-        } catch (error) {
-            console.error('Handler Error - Get tutor balance summary:', error);
-            res.status(500).json({
-                success: false,
-                error: 'Internal server error',
-                message: error.message
-            });
-        }
-    }
 
     // ✅ BUSINESS LOGIC: Get all tutor payment records by agency ID
     async getAllTutorPaymentsByAgency(agencyId) {
@@ -223,14 +178,14 @@ class TutorPaymentService {
                         as: 'lesson',
                         where: { agencyId: agencyId },
                         attributes: ['id', 'title', 'tutorRate', 'tutorId'],
-                        include: [
-                            {
-                                model: User,
-                                as: 'tutor',
-                                attributes: ['id', 'firstName', 'lastName'],
-                                required: false
-                            }
-                        ]
+
+
+                    },
+                    {
+                        model: User,
+                        as: 'tutor',
+                        attributes: ['id', 'firstName', 'lastName'],
+                        required: false
                     }
                 ],
                 order: [['date', 'DESC']]
@@ -248,7 +203,7 @@ class TutorPaymentService {
 
             const paymentRecords = attendanceRecords.map(attendance => {
                 const lesson = attendance.lesson;
-                const tutor = lesson?.tutor;
+                const tutor = attendance.tutor; //take the tutorId from attedance instead of lesson to make sure we pay the right person
 
                 return {
                     id: `payment-${attendance.id}`,
@@ -277,25 +232,6 @@ class TutorPaymentService {
         }
     }
 
-    // ✅ BUSINESS LOGIC: Update payment status (for when payment is made)
-
-    async updatePaymentStatus(id, updateData) {
-        try {
-            console.log(`Business Logic: Updating payment status for: ${id} with data:`, updateData);
-
-            const paymentRecord = await TutorPayment.findByPk(id);
-            if (!paymentRecord) {
-                throw new Error('Payment record not found');
-            }
-            const updatedRecord = await paymentRecord.update(updateData);
-            console.log(`Business Logic: Payment statzus updated for: ${id}`);
-            return updatedRecord;
-        }
-        catch (error) {
-            console.error('Business Logic Error - Update payment status:', error);
-            throw new Error(`Failed to update payment status: ${error.message}`);
-        }
-    }
 
     // ✅ BUSINESS LOGIC: Get tutor balance summary
     async getTutorBalanceSummary(tutorId, monthFilter = null) {
@@ -360,45 +296,7 @@ class TutorPaymentService {
         }
     }
 
-    // ✅ BUSINESS LOGIC: Get payments by tutor ID
-    async getTutorPaymentsByTutorId(tutorId) {
-        try {
-            console.log(`Business Logic: Fetching payments for tutor: ${tutorId}`);
 
-            const attendanceRecords = await Attendance.findAll({
-                where: { tutorId },
-                include: [
-                    {
-                        model: Lesson,
-                        as: 'lesson',
-                        attributes: ['id', 'title', 'tutorRate'],
-                        required: true
-                    }
-                ],
-                order: [['date', 'DESC']]
-            });
-
-            const paymentRecords = attendanceRecords.map(attendance => ({
-                id: `payment-${attendance.id}`,
-                attendanceId: attendance.id,
-                tutorId: attendance.tutorId,
-                paymentAmount: parseFloat(attendance.lesson?.tutorRate || 0),
-                paymentStatus: 'Not Paid', // Default - you might have actual payment tracking
-                paymentDate: null,
-                lessonTitle: attendance.lesson?.title || 'Unknown Lesson',
-                attendanceDate: attendance.date,
-                createdAt: attendance.createdAt,
-                updatedAt: attendance.updatedAt
-            }));
-
-            console.log(`Business Logic: Found ${paymentRecords.length} payments for tutor ${tutorId}`);
-            return paymentRecords;
-
-        } catch (error) {
-            console.error('Business Logic Error - Get payments by tutor:', error);
-            throw new Error(`Failed to fetch tutor payments by tutor ID: ${error.message}`);
-        }
-    }
 }
 
 export default TutorPaymentService;

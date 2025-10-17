@@ -14,6 +14,6 @@ router.get("/agency/:id", tutorPaymentService.handleGetAllTutorPaymentsByAgency.
 router.get("/agency/:id/payments", tutorPaymentService.handleGetPaidPaymentsFromAgencyID.bind(tutorPaymentService));
 router.patch("/attendances/:id", tutorPaymentService.handleMarkAttendanceAsPaid.bind(tutorPaymentService));
 router.post("/", tutorPaymentService.handleCreatePayment.bind(tutorPaymentService));
-router.patch("/:id", tutorPaymentService.handleUpdatePaymentStatus.bind(tutorPaymentService));
-router.get("/tutor/:tutorId/summary", tutorPaymentService.handleGetTutorBalanceSummary.bind(tutorPaymentService));
+//router.patch("/:id", tutorPaymentService.handleUpdatePaymentStatus.bind(tutorPaymentService));
+//router.get("/tutor/:tutorId/summary", tutorPaymentService.handleGetTutorBalanceSummary.bind(tutorPaymentService));
 export default router;
