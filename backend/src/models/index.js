@@ -1,7 +1,6 @@
-// Lesson and Attendance imports + Payment
+// Lesson and Attendance imports
 import Lesson from './lesson.model.js';
 import Attendance from './attendance.model.js';
-import TutorPayment from './tutorPayment.model.js';
 import TutorPayment from './tutorPayment.model.js';
 
 // StudentLesson join table
@@ -71,14 +70,6 @@ Attendance.belongsTo(Lesson, { foreignKey: 'lessonId', as: 'lesson' });
 // Tutor-Attendance association (for substitutes)
 User.hasMany(Attendance, { foreignKey: 'tutorId', as: 'attendanceInstances' });
 Attendance.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
-
-// Attendance-TutorPayment association
-Attendance.hasOne(TutorPayment, { foreignKey: 'attendanceId', as: 'payment' });
-TutorPayment.belongsTo(Attendance, { foreignKey: 'attendanceId', as: 'attendance' });
-
-// Tutor-TutorPayment association
-User.hasMany(TutorPayment, { foreignKey: 'tutorId', as: 'tutorPayments' });
-TutorPayment.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
 
 
 import Sequelize, { DataTypes } from 'sequelize';
