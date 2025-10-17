@@ -1,10 +1,51 @@
-import { User, Subject, TutorSubject, Agency, Lesson, Location } from '../../models/index.js';
+import { User, Subject, TutorSubject, Agency, Lesson, Location, Attendance, TutorPayment } from '../../models/index.js';
 import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
 import bcrypt from 'bcrypt';
 import { createAndEmailVerificationLink } from "./emailVerification.service.js";
 import generator from 'generate-password';
 
+const ONE_HOUR_IN_MS = 60 * 60 * 1000;
+
+// to set the +1 -1 window for tutor to mark attendance (so they cannot anyhow mark)
+const buildMarkingWindow = (dateStr, startTime, endTime) => {
+    if (!dateStr || !startTime || !endTime) {
+        throw new Error('Missing values');
+    }
+
+    // to check if is a valid date
+    const parseDateTime = (timeStr) => {
+        const dateTime = new Date(`${dateStr}T${timeStr}`);
+        if (Number.isNaN(dateTime.getTime())) {
+            throw new Error('No such date/time');
+        }
+        return dateTime;
+    };
+
+    const startDateTime = parseDateTime(startTime);
+    const endDateTime = parseDateTime(endTime);
+
+    return {
+        windowStart: new Date(startDateTime.getTime() - ONE_HOUR_IN_MS),
+        windowEnd: new Date(endDateTime.getTime() + ONE_HOUR_IN_MS),
+        startDateTime,
+        endDateTime
+    };
+};
+
+// helper to check attendance status
+const determineAttendanceStatus = (isAttended, now, windowStart, windowEnd) => {
+    if (isAttended) {
+        return 'attended';
+    }
+    if (now < windowStart) {
+        return 'upcoming';
+    }
+    if (now > windowEnd) {
+        return 'missed';
+    }
+    return 'pending';
+};
 
 export default class TutorService {
     // Route handler methods with complete HTTP response logic
@@ -81,11 +122,24 @@ export default class TutorService {
     async handleGetTutorById(req, res) {
         const { id } = req.params;
         const tutor = await this.getTutorById(id);
+        const paymentSummary = await this.getTutorPaymentSummary(id);
 
         // Remove password from response
         const { password, ...tutorResponse } = tutor.toJSON();
 
-        res.status(200).json(tutorResponse);
+        res.status(200).json({
+            ...tutorResponse,
+            paymentSummary
+        });
+    }
+
+    async handleGetTutorPaymentSummary(req, res) {
+        const { id } = req.params;
+        const summary = await this.getTutorPaymentSummary(id);
+        res.status(200).json({
+            success: true,
+            data: summary
+        });
     }
 
     async handleCreateTutor(req, res) {
@@ -566,5 +620,368 @@ export default class TutorService {
             throw new Error('Current password is incorrect');
         }
         return await tutor.update({ password: newPassword });
+    }
+
+    // lesson attendance and student detail handlers for new frtonend
+    async handleGetStudentsForLesson(req, res) {
+        const { lessonId } = req.params;
+        console.log(`Fetching students for lesson: ${lessonId}`);
+        const result = await this.getStudentsForLesson(lessonId);
+        res.status(200).json(result);
+    }
+
+    async handleGetLessonAttendance(req, res) {
+        const { lessonId } = req.params;
+        console.log(`Fetching attendance for lesson: ${lessonId}`);
+        const result = await this.getLessonAttendance(lessonId);
+        res.status(200).json(result);
+    }
+
+    async handleMarkAttendance(req, res) {
+        const { lessonId, attendanceId } = req.params;
+        const tutorId = req.user?.userId;
+        console.log(`Tutor ${tutorId} attempting to mark attendance ${attendanceId} for lesson ${lessonId}`);
+        const result = await this.markAttendance({ lessonId, attendanceId, tutorId });
+        res.status(200).json({
+            success: true,
+            data: result
+        });
+    }
+
+    formatAttendanceSession(attendanceRecord, lesson, now = new Date()) {
+        const { windowStart, windowEnd, startDateTime, endDateTime } = buildMarkingWindow(
+            attendanceRecord.date,
+            lesson.startTime,
+            lesson.endTime
+        );
+
+        const status = determineAttendanceStatus(
+            attendanceRecord.isAttended,
+            now,
+            windowStart,
+            windowEnd
+        );
+
+        return {
+            id: attendanceRecord.id,
+            lessonId: attendanceRecord.lessonId,
+            tutorId: attendanceRecord.tutorId,
+            date: attendanceRecord.date,
+            isAttended: attendanceRecord.isAttended,
+            status,
+            canMarkNow: status === 'pending',
+            markWindow: {
+                start: windowStart.toISOString(),
+                end: windowEnd.toISOString(),
+                scheduledStart: startDateTime.toISOString(),
+                scheduledEnd: endDateTime.toISOString()
+            },
+            createdAt: attendanceRecord.createdAt,
+            updatedAt: attendanceRecord.updatedAt
+        };
+    }
+
+    async getLessonAttendanceData(lesson, now = new Date()) {
+        const attendanceRecords = await Attendance.findAll({
+            where: { lessonId: lesson.id },
+            order: [['date', 'ASC']]
+        });
+
+        const classes = [];
+        let attendedSessions = 0;
+        let pendingSessions = 0;
+        let upcomingSessions = 0;
+        let missedSessions = 0;
+
+        for (const attendanceRecord of attendanceRecords) {
+            const session = this.formatAttendanceSession(attendanceRecord, lesson, now);
+            classes.push(session);
+
+            switch (session.status) {
+                case 'attended':
+                    attendedSessions += 1;
+                    break;
+                case 'pending':
+                    pendingSessions += 1;
+                    break;
+                case 'upcoming':
+                    upcomingSessions += 1;
+                    break;
+                case 'missed':
+                    missedSessions += 1;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        return {
+            classes,
+            summary: {
+                totalSessions: classes.length,
+                attendedSessions,
+                pendingSessions,
+                upcomingSessions,
+                missedSessions
+            },
+            serverTime: now.toISOString()
+        };
+    }
+
+    async getLessonAttendance(lessonId) {
+        const lesson = await Lesson.findByPk(lessonId, {
+            attributes: [
+                'id',
+                'title',
+                'description',
+                'dayOfWeek',
+                'startTime',
+                'endTime',
+                'tutorId',
+                'subjectId',
+                'agencyId',
+                'locationId'
+            ]
+        });
+
+        if (!lesson) {
+            throw new Error('Lesson not found');
+        }
+
+        const overview = await this.getLessonAttendanceData(lesson);
+        return {
+            lesson: lesson.toJSON(),
+            ...overview
+        };
+    }
+
+    async markAttendance({ lessonId, attendanceId, tutorId }) {
+        if (!tutorId) {
+            throw new Error('Unauthorized: missing tutor context');
+        }
+
+        const attendanceRecord = await Attendance.findOne({
+            where: { id: attendanceId, lessonId },
+            include: [
+                {
+                    model: Lesson,
+                    as: 'lesson',
+                    attributes: ['id', 'title', 'tutorId', 'startTime', 'endTime']
+                }
+            ]
+        });
+
+        if (!attendanceRecord) {
+            throw new Error('Attendance record not found');
+        }
+
+        const lesson = attendanceRecord.lesson;
+        if (!lesson) {
+            throw new Error('Lesson not found for attendance record');
+        }
+
+        const effectiveTutorId = lesson.tutorId || attendanceRecord.tutorId;
+        if (effectiveTutorId && effectiveTutorId !== tutorId) {
+            throw new Error('Unauthorized: you cannot mark this attendance');
+        }
+
+        if (attendanceRecord.isAttended) {
+            throw new Error('Invalid request: attendance already marked');
+        }
+
+        const now = new Date();
+        const { windowStart, windowEnd } = buildMarkingWindow(
+            attendanceRecord.date,
+            lesson.startTime,
+            lesson.endTime
+        );
+
+        if (now < windowStart || now > windowEnd) {
+            throw new Error(
+                `Attendance must be marked within the allowed window between ${windowStart.toISOString()} and ${windowEnd.toISOString()}`
+            );
+        }
+
+        await attendanceRecord.update({
+            isAttended: true,
+            tutorId
+        });
+
+        const overview = await this.getLessonAttendanceData(lesson, now);
+        const updatedSession = overview.classes.find(
+            (session) => session.id === attendanceRecord.id
+        );
+
+        return {
+            updatedSession,
+            classes: overview.classes,
+            summary: overview.summary,
+            serverTime: overview.serverTime
+        };
+    }
+
+    async getTutorPaymentSummary(tutorId) {
+        const now = new Date();
+        const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+
+        const startDate = monthStart.toISOString().slice(0, 10);
+        const endDate = monthEnd.toISOString().slice(0, 10);
+
+        const attendances = await Attendance.findAll({
+            where: {
+                tutorId,
+                isAttended: true,
+                date: {
+                    [Op.between]: [startDate, endDate]
+                }
+            },
+            include: [
+                {
+                    model: Lesson,
+                    as: 'lesson',
+                    attributes: ['id', 'title', 'dayOfWeek', 'startTime', 'endTime', 'tutorRate'],
+                    required: false
+                },
+                {
+                    model: TutorPayment,
+                    as: 'payment',
+                    attributes: ['id', 'paymentAmount', 'paymentStatus', 'paymentDate', 'createdAt', 'updatedAt'],
+                    required: false
+                }
+            ],
+            order: [['date', 'DESC']]
+        });
+
+        let totalPaid = 0;
+        let totalPending = 0;
+        let paidCount = 0;
+        let pendingCount = 0;
+
+        const breakdown = attendances.map((attendance) => {
+            const lesson = attendance.lesson;
+            const payment = attendance.payment;
+
+            const rawAmount = payment?.paymentAmount ?? lesson?.tutorRate ?? 0;
+            const amount = Number.parseFloat(rawAmount);
+            const safeAmount = Number.isNaN(amount) ? 0 : amount;
+
+            const paymentStatus = payment?.paymentStatus ?? 'Not Paid';
+
+            if (paymentStatus === 'Paid') {
+                totalPaid += safeAmount;
+                paidCount += 1;
+            } else {
+                totalPending += safeAmount;
+                pendingCount += 1;
+            }
+
+            return {
+                id: payment?.id ?? `attendance-${attendance.id}`,
+                attendanceId: attendance.id,
+                lessonId: attendance?.lessonId ?? lesson?.id ?? null,
+                lessonTitle: lesson?.title ?? null,
+                lessonRate: lesson?.tutorRate ? Number.parseFloat(lesson.tutorRate) : null,
+                paymentStatus,
+                paymentAmount: safeAmount,
+                paymentDate: payment?.paymentDate ?? null,
+                attendanceDate: attendance?.date ?? null,
+                isAttendanceMarked: attendance?.isAttended ?? null,
+                recordedAt: payment?.createdAt ?? attendance.createdAt
+            };
+        });
+
+        return {
+            totalPaid: Number.parseFloat(totalPaid.toFixed(2)),
+            totalPending: Number.parseFloat(totalPending.toFixed(2)),
+            paymentsCount: breakdown.length,
+            paidCount,
+            pendingCount,
+            breakdown
+        };
+    }
+
+    async getStudentsForLesson(lessonId) {
+        try {
+            console.log(`Fetching students for lesson ${lessonId}`);
+
+            const lesson = await Lesson.findByPk(lessonId, {
+                include: [
+                    {
+                        model: Subject,
+                        as: "subject",
+                        attributes: ["id", "name", "gradeLevel", "category", "description"],
+                    },
+                    {
+                        model: Location,
+                        as: "location",
+                        attributes: ["id", "address"],
+                        include: [
+                            {
+                                model: Agency,
+                                as: "agency",
+                                attributes: ["id", "name"],
+                            },
+                        ],
+                    },
+                    {
+                        model: User,
+                        as: "tutor",
+                        attributes: ["id", "firstName", "lastName", "email", "phone"],
+                    },
+                ],
+            });
+
+            if (!lesson) {
+                throw new Error("Lesson not found");
+            }
+
+            const [students, attendanceOverview] = await Promise.all([
+                User.findAll({
+                    where: {
+                        role: "student",
+                    },
+                    include: [
+                        {
+                            model: Lesson,
+                            as: "studentLessons",
+                            where: {
+                                id: lessonId,
+                            },
+                            attributes: ["id"],
+                            through: {
+                                attributes: ["startDate", "endDate"],
+                            },
+                        },
+                    ],
+                    attributes: ["id", "firstName", "lastName", "email", "phone", "gender", "gradeLevel"],
+                }),
+                this.getLessonAttendanceData(lesson)
+            ]);
+
+            console.log(`Found ${students.length} students for lesson ${lessonId}`);
+
+            return {
+                ...lesson.toJSON(),
+                students: students.map(student => ({
+                    id: student.id,
+                    firstName: student.firstName,
+                    lastName: student.lastName,
+                    email: student.email,
+                    phone: student.phone,
+                    gender: student.gender,
+                    gradeLevel: student.gradeLevel,
+                })),
+                classes: attendanceOverview.classes,
+                attendanceSummary: attendanceOverview.summary,
+                attendanceServerTime: attendanceOverview.serverTime
+            };
+        } catch (error) {
+            console.error(
+                `Failed to fetch students for lesson ${lessonId}:`,
+                error.message
+            );
+            throw new Error(`Failed to fetch students: ${error.message}`);
+        }
     }
 }
