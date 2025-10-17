@@ -68,9 +68,8 @@ class LessonService {
   // Get student's enrolled lessons
   async getStudentLessons(studentId, ongoingOnly = false) {
     try {
-      const url = `/lessons/students/${studentId}${
-        ongoingOnly ? "?ongoing=true" : ""
-      }`;
+      const url = `/lessons/students/${studentId}${ongoingOnly ? "?ongoing=true" : ""
+        }`;
       const response = await apiClient.get(url);
       return response.data;
     } catch (error) {
@@ -138,6 +137,20 @@ class LessonService {
       return response.data;
     } catch (error) {
       console.error("Error getting payment status:", error);
+      throw error;
+    }
+  }
+
+  // Create a student payment record
+  async createStudentPayment({ lessonId, amount }) {
+    try {
+      const response = await apiClient.post("/payments/student", {
+        lessonId,
+        amount,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error creating student payment:", error);
       throw error;
     }
   }

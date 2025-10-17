@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { Lesson, User } from "../../models/index.js";
+import { Lesson, User, StudentPayment } from "../../models/index.js";
 
 class PaymentService {
   constructor() {
@@ -166,6 +166,47 @@ class PaymentService {
       };
     } catch (error) {
       console.error("Error getting payment status:", error);
+      throw error;
+    }
+  }
+
+  /**
+     * Create a StudentPayment record
+     * @param {Object} data - { studentId, lessonId, amount }
+     * @returns {Object} Created payment record
+     */
+  async createStudentPayment({ studentId, lessonId, amount }) {
+    try {
+      if (!studentId || !lessonId || !amount) {
+        throw new Error("studentId, lessonId, and amount are required");
+      }
+      const payment = await StudentPayment.create({
+        studentId,
+        lessonId,
+        amount,
+        platformFee: amount / (1 + this.PLATFORM_FEE_PERCENTAGE) * this.PLATFORM_FEE_PERCENTAGE
+      });
+      return payment;
+    } catch (error) {
+      console.error("Error creating student payment:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get StudentPayment records (optionally filter by studentId or lessonId)
+   * @param {Object} filter - { studentId, lessonId }
+   * @returns {Array} Payment records
+   */
+  async getStudentPayments({ studentId, lessonId } = {}) {
+    try {
+      const where = {};
+      if (studentId) where.studentId = studentId;
+      if (lessonId) where.lessonId = lessonId;
+      const payments = await StudentPayment.findAll({ where });
+      return payments;
+    } catch (error) {
+      console.error("Error fetching student payments:", error);
       throw error;
     }
   }

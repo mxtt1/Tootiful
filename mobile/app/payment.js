@@ -13,6 +13,7 @@ import { CardField, useStripe } from "@stripe/stripe-react-native";
 import { Ionicons } from "@expo/vector-icons";
 import apiClient from "../services/apiClient";
 import authService from "../services/authService";
+import lessonService from "../services/lessonService";
 import { paymentStyles as styles } from "./styles/paymentStyles";
 
 export default function PaymentPage() {
@@ -82,7 +83,17 @@ export default function PaymentPage() {
         console.error("Payment error:", error);
         Alert.alert("Payment Failed", error.message);
       } else {
-        // Payment successful - redirect to success page
+        // Payment successful - create student payment record
+        try {
+          await lessonService.createStudentPayment({
+            lessonId: lessonId,
+            amount: paymentDetails?.totalAmount,
+          });
+        } catch (err) {
+          console.error("Error creating student payment record:", err);
+          // Optionally alert, but continue to success page
+        }
+        // Redirect to success page
         router.replace({
           pathname: "/payment-success",
           params: {

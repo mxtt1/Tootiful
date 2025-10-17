@@ -1,5 +1,5 @@
 // ES Module imports
-import LessonService from '../src/modules/user-management/lesson.service.js';
+import LessonService from '../src/modules/scheduling/lesson.service.js';
 
 // Mock dependencies
 jest.mock('../src/models/index.js', () => ({

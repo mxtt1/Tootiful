@@ -138,4 +138,54 @@ router.get("/status/:paymentIntentId", authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/payments/student
+ * Create a StudentPayment record
+ */
+router.post("/student", authenticateToken, async (req, res) => {
+  try {
+    const { lessonId, amount } = req.body;
+    const studentId = req.user.userId;
+    if (!lessonId || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: "lessonId and amount are required",
+      });
+    }
+    const payment = await paymentService.createStudentPayment({ studentId, lessonId, amount });
+    res.status(201).json({
+      success: true,
+      data: payment,
+    });
+  } catch (error) {
+    console.error("Error creating student payment:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to create student payment",
+    });
+  }
+});
+
+/**
+ * GET /api/payments/student
+ * Get StudentPayment records (optionally filter by studentId or lessonId)
+ * Query params: studentId, lessonId
+ */
+router.get("/student", authenticateToken, async (req, res) => {
+  try {
+    const { studentId, lessonId } = req.query;
+    const payments = await paymentService.getStudentPayments({ studentId, lessonId });
+    res.status(200).json({
+      success: true,
+      data: payments,
+    });
+  } catch (error) {
+    console.error("Error fetching student payments:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to fetch student payments",
+    });
+  }
+});
+
 export default router;
