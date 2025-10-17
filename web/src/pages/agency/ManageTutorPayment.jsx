@@ -40,13 +40,17 @@ export default function ManageTutorPayment() {
     const [paymentToPay, setPaymentToPay] = useState(null);
     const [processing, setProcessing] = useState(false);
 
+    // State for counts
+    const [unpaidCount, setUnpaidCount] = useState(0);
+    const [paidCount, setPaidCount] = useState(0);
+
     useEffect(() => {
         fetchPayments();
     }, [activeTab]);
 
     useEffect(() => {
         filterPayments();
-    }, [searchQuery, monthFilter, activeTab, allPayments]);
+    }, [searchQuery, monthFilter, allPayments]);
 
     // ✅ FIXED: Handle both attendance records and TutorPayment records
     const aggregatePaymentsByTutorMonth = (payments) => {
@@ -82,14 +86,13 @@ export default function ManageTutorPayment() {
                     tutorFirstName: payment.tutorFirstName,
                     tutorLastName: payment.tutorLastName,
                     month: monthKey,
-                    // ✅ FIX: Use the validated date for month display
                     monthDisplay: dateToUse.toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
                     paymentAmount: 0,
                     sessionCount: 0,
                     paidSessionsCount: 0,
-                    paymentStatus: activeTab === "paid" ? 'Paid' : 'Not Paid',
+                    paymentStatus: 'Not Paid',
                     paymentDate: null,
-                    attendanceDate: dateToUse.toISOString(), // ✅ Store as ISO string
+                    attendanceDate: dateToUse.toISOString(),
                     sessions: [],
                     earliestDate: dateToUse.toISOString(),
                     latestDate: dateToUse.toISOString()
@@ -122,15 +125,11 @@ export default function ManageTutorPayment() {
         });
 
         return Array.from(tutorMonthMap.values()).map(summary => {
-            // Force status based on active tab
-            if (activeTab === "paid") {
+            // Determine status based on sessions
+            if (summary.paidSessionsCount === summary.sessionCount && summary.sessionCount > 0) {
                 summary.paymentStatus = 'Paid';
             } else {
-                if (summary.paidSessionsCount === summary.sessionCount && summary.sessionCount > 0) {
-                    summary.paymentStatus = 'Paid';
-                } else {
-                    summary.paymentStatus = 'Not Paid';
-                }
+                summary.paymentStatus = 'Not Paid';
             }
             return summary;
         }).sort((a, b) => {
@@ -140,11 +139,8 @@ export default function ManageTutorPayment() {
             return b.month.localeCompare(a.month);
         });
     };
-    // ✅ ADD: State for counts
-    const [unpaidCount, setUnpaidCount] = useState(0);
-    const [paidCount, setPaidCount] = useState(0);
 
-    // ✅ UPDATED: Update counts when data changes
+    // ✅ UPDATED: Handle aggregation vs individual records based on tab
     const fetchPayments = async () => {
         setLoading(true);
         setError(null);
@@ -167,18 +163,30 @@ export default function ManageTutorPayment() {
 
             const response = await apiClient.get(endpoint);
             const rawPayments = response.data?.data || response.data || [];
-            const aggregatedPayments = aggregatePaymentsByTutorMonth(rawPayments);
 
-            console.log("🎯 Aggregated Payments:", aggregatedPayments);
-
-            setAllPayments(aggregatedPayments);
-            setPayments(aggregatedPayments);
-
-            // ✅ UPDATE: Set the count for current tab
+            // ✅ FIX: For paid tab, show individual records. For unpaid, aggregate by month
+            let processedPayments;
             if (activeTab === "paid") {
-                setPaidCount(aggregatedPayments.length);
+                // Show individual payment records as-is
+                processedPayments = rawPayments.map(payment => ({
+                    ...payment,
+                    paymentStatus: 'Paid' // Ensure all paid records show as paid
+                }));
             } else {
-                setUnpaidCount(aggregatedPayments.length);
+                // Aggregate unpaid payments by tutor/month
+                processedPayments = aggregatePaymentsByTutorMonth(rawPayments);
+            }
+
+            console.log("🎯 Processed Payments:", processedPayments);
+
+            setAllPayments(processedPayments);
+            setPayments(processedPayments);
+
+            // Update counts
+            if (activeTab === "paid") {
+                setPaidCount(processedPayments.length);
+            } else {
+                setUnpaidCount(processedPayments.length);
             }
 
         } catch (err) {
@@ -189,7 +197,7 @@ export default function ManageTutorPayment() {
         }
     };
 
-    // ✅ ADD: Fetch counts on component mount
+    // ✅ UPDATED: Fetch counts properly for both types
     useEffect(() => {
         const fetchCounts = async () => {
             try {
@@ -204,11 +212,12 @@ export default function ManageTutorPayment() {
                 const unpaidData = unpaidRes.data?.data || [];
                 const paidData = paidRes.data?.data || [];
 
+                // Unpaid: aggregate by month, Paid: individual records
                 const unpaidAggregated = aggregatePaymentsByTutorMonth(unpaidData);
-                const paidAggregated = aggregatePaymentsByTutorMonth(paidData);
+                const paidIndividual = paidData; // Individual records
 
                 setUnpaidCount(unpaidAggregated.length);
-                setPaidCount(paidAggregated.length);
+                setPaidCount(paidIndividual.length);
             } catch (err) {
                 console.error("Error fetching counts:", err);
             }
@@ -217,29 +226,9 @@ export default function ManageTutorPayment() {
         fetchCounts();
     }, [user?.agencyId, user?.id]);
 
-    // ✅ FIXED: Use dynamic counts in SegmentedControl
-    <SegmentedControl
-        value={activeTab}
-        onChange={setActiveTab}
-        data={[
-            {
-                label: `Unpaid `,
-                value: "unpaid",
-            },
-            {
-                label: `Paid `,
-                value: "paid",
-            },
-        ]}
-        size="md"
-        fullWidth
-    />
-
+    // ✅ UPDATED: Filter function that works for both individual and aggregated records
     const filterPayments = () => {
         let filtered = [...allPayments];
-
-        // ✅ Remove status filtering - API already returns correct status based on endpoint
-        // No need to filter by paymentStatus since the API endpoint handles it
 
         // Search by tutor name
         if (searchQuery.trim()) {
@@ -252,23 +241,31 @@ export default function ManageTutorPayment() {
             );
         }
 
-        // Filter by month/year based on attendance date
+        // Filter by month/year
         if (monthFilter) {
             try {
                 const filterDate = monthFilter instanceof Date ? monthFilter : new Date(monthFilter);
                 if (!isNaN(filterDate.getTime())) {
                     const selectedMonth = `${filterDate.getFullYear()}-${String(filterDate.getMonth() + 1).padStart(2, '0')}`;
 
-                    filtered = filtered.filter((summary) => summary.month === selectedMonth);
-                } else {
-                    console.error("Invalid month filter date", monthFilter);
+                    filtered = filtered.filter((record) => {
+                        if (activeTab === "paid") {
+                            // For paid records, check against payment date
+                            const paymentDate = new Date(record.paymentDate || record.attendanceDate || record.createdAt);
+                            const paymentMonth = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}`;
+                            return paymentMonth === selectedMonth;
+                        } else {
+                            // For unpaid summaries, check against month field
+                            return record.month === selectedMonth;
+                        }
+                    });
                 }
             } catch (error) {
                 console.error("Error parsing month filter date", error);
             }
         }
 
-        console.log("🎯 Filtered summaries:", filtered);
+        console.log("🎯 Filtered records:", filtered);
         setPayments(filtered);
     };
 
@@ -312,7 +309,6 @@ export default function ManageTutorPayment() {
 
             console.log('✅ Attendance updates:', attendanceResults);
             console.log('✅ Payment created:', paymentResult);
-            console.log('✅ Payment data sent:', paymentData.agencyId);
 
             notifications.show({
                 title: "Success",
@@ -334,6 +330,7 @@ export default function ManageTutorPayment() {
             setProcessing(false);
         }
     };
+
     const getStatusColor = (status) => status === "Paid" ? "green" : "orange";
 
     const formatCurrency = (amt) => `$${parseFloat(amt || 0).toFixed(2)}`;
@@ -375,11 +372,11 @@ export default function ManageTutorPayment() {
                             onChange={setActiveTab}
                             data={[
                                 {
-                                    label: "Unpaid", // ✅ No count
+                                    label: "Unpaid",
                                     value: "unpaid",
                                 },
                                 {
-                                    label: "Paid", // ✅ No count
+                                    label: "Paid",
                                     value: "paid",
                                 },
                             ]}
@@ -425,68 +422,76 @@ export default function ManageTutorPayment() {
                     ) : (
                         <>
                             <Text mb="md" c="dimmed">
-                                Showing {payments.length} tutor payment{payments.length !== 1 ? ' summaries' : ' summary'}
+                                Showing {payments.length} tutor payment{payments.length !== 1 ? (activeTab === "paid" ? ' records' : ' summaries') : (activeTab === "paid" ? ' record' : ' summary')}
                             </Text>
 
+                            {/* ✅ UPDATED: Table that handles both individual records and aggregated summaries */}
                             <Table striped highlightOnHover>
                                 <Table.Thead>
                                     <Table.Tr>
                                         <Table.Th>Tutor Name</Table.Th>
-                                        <Table.Th>Month</Table.Th>
+                                        <Table.Th>{activeTab === "paid" ? "Payment Date" : "Month"}</Table.Th>
                                         <Table.Th>Total Amount</Table.Th>
-                                        <Table.Th>Sessions</Table.Th>
+                                        {activeTab !== "paid" && <Table.Th>Sessions</Table.Th>}
                                         <Table.Th>Status</Table.Th>
                                         <Table.Th>Actions</Table.Th>
                                     </Table.Tr>
                                 </Table.Thead>
                                 <Table.Tbody>
-                                    {payments.map((summary) => (
-                                        <Table.Tr key={summary.id}>
+                                    {payments.map((record) => (
+                                        <Table.Tr key={record.id}>
                                             <Table.Td>
                                                 <div>
                                                     <Text fw={500}>
-                                                        {summary.tutorName}
+                                                        {record.tutorName}
                                                     </Text>
                                                     <Text size="sm" c="dimmed">
-                                                        ID: {summary.tutorId.slice(0, 8)}...
+                                                        ID: {record.tutorId.slice(0, 8)}...
                                                     </Text>
                                                 </div>
                                             </Table.Td>
 
                                             <Table.Td>
                                                 <Text fw={500}>
-                                                    {summary.monthDisplay}
+                                                    {/* ✅ Show payment date for paid, month for unpaid */}
+                                                    {activeTab === "paid"
+                                                        ? formatDate(record.paymentDate)
+                                                        : record.monthDisplay
+                                                    }
                                                 </Text>
                                             </Table.Td>
 
                                             <Table.Td>
                                                 <Text fw={500} c="green">
-                                                    {formatCurrency(summary.paymentAmount)}
+                                                    {formatCurrency(record.paymentAmount)}
                                                 </Text>
-                                                <Text size="xs" c="dimmed">
-                                                    {summary.sessionCount} sessions
-                                                </Text>
+                                                {/* <Text size="xs" c="dimmed">
+                                                    {record.sessionCount} session{record.sessionCount !== 1 ? 's' : ''}
+                                                </Text> */}
                                             </Table.Td>
 
+                                            {activeTab !== "paid" && (
+                                                <Table.Td>
+                                                    <Badge variant="light" color="blue">
+                                                        {record.sessionCount}
+                                                    </Badge>
+                                                </Table.Td>
+                                            )}
+
+
                                             <Table.Td>
-                                                <Badge variant="light" color="blue">
-                                                    {summary.sessionCount}
+                                                <Badge color={getStatusColor(record.paymentStatus)} variant="filled">
+                                                    {record.paymentStatus}
                                                 </Badge>
                                             </Table.Td>
 
                                             <Table.Td>
-                                                <Badge color={getStatusColor(summary.paymentStatus)} variant="filled">
-                                                    {summary.paymentStatus}
-                                                </Badge>
-                                            </Table.Td>
-
-                                            <Table.Td>
-                                                {summary.paymentStatus === "Not Paid" ? (
+                                                {record.paymentStatus === "Not Paid" ? (
                                                     <Button
                                                         size="xs"
                                                         color="green"
                                                         leftSection={<IconCurrencyDollar size={14} />}
-                                                        onClick={() => handlePayment(summary)}
+                                                        onClick={() => handlePayment(record)}
                                                     >
                                                         Pay Month
                                                     </Button>
@@ -529,9 +534,12 @@ export default function ManageTutorPayment() {
                                     </Text>
                                 </Group>
                                 <Group justify="space-between">
-                                    <Text size="sm" c="dimmed">Month:</Text>
+                                    <Text size="sm" c="dimmed">{activeTab === "paid" ? "Payment Date:" : "Month:"}</Text>
                                     <Text size="sm" fw={500}>
-                                        {paymentToPay.monthDisplay}
+                                        {activeTab === "paid"
+                                            ? formatDate(paymentToPay.paymentDate)
+                                            : paymentToPay.monthDisplay
+                                        }
                                     </Text>
                                 </Group>
                                 <Group justify="space-between">
