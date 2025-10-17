@@ -5,7 +5,6 @@ import { notifications } from "@mantine/notifications";
 import api from "../../api/apiClient";
 import logo from "../../assets/tooty.png";
 
-// Robust success detector that works with either Axios response or plain data
 function isSuccessResponse(resLike) {
   const status = resLike?.status ?? resLike?.statusCode ?? 200;
   const data = resLike?.data ?? resLike ?? {};
@@ -28,7 +27,7 @@ export default function ForgotEmail({ context }) {
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  // === NEW: context-aware paths (works even if no prop is passed) ===
+  // === context-aware paths (works even if no prop is passed) === --> for Agency support
   const isAgency = context === "agency" || window.location.pathname.startsWith("/agency/");
   const baseForgotPath = isAgency ? "/agency/forgot-password" : "/forgot-password";
   const loginPath = isAgency ? "/agency" : "/login";

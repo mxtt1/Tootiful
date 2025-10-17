@@ -10,9 +10,8 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
-import React from "react";
 import { myProfileStyles as styles } from "../styles/myProfileStyles";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
@@ -73,6 +72,15 @@ const formatTimeRangeLabel = (start, end) => {
     return `Starts ${startLabel}`;
   }
   return `${startLabel} - ${endLabel}`;
+};
+
+// format check just in case: ensure 2dp, rounding and no bad values
+const formatCurrency = (value) => {
+  const numericValue = Number.parseFloat(value ?? 0);
+  if (Number.isNaN(numericValue)) {
+    return "$0.00";
+  }
+  return `$${numericValue.toFixed(2)}`;
 };
 
 export default function TutorProfileScreen() {
@@ -202,6 +210,32 @@ export default function TutorProfileScreen() {
       Alert.alert("Error", "Failed to logout. Please try again.");
     }
   };
+
+  const handlePaymentPress = () => {
+    if (currentUser?.id) {
+      router.push({
+        pathname: "/tutor/paymentSummary",
+        params: { tutorId: currentUser.id },
+      });
+    } else {
+      Alert.alert(
+        "Payment Summary",
+        "Tutor information is missing. Please refresh and try again."
+      );
+    }
+  };
+
+  const handleLessonPress = (lesson) => {
+    console.log("📚 Lesson pressed:", lesson?.title, "ID:", lesson?.id);
+    if (lesson?.id) {
+      router.push({
+        pathname: "/tutor/lessonDetails",
+        params: { lessonId: lesson.id },
+      });
+    } else {
+      Alert.alert("Error", "Unable to view lesson details. Lesson ID is missing.");
+    }
+  };
   const tutorLessons = currentUser?.tutorLessons;
   const sortedAssignedLessons = useMemo(() => {
     if (!Array.isArray(tutorLessons)) {
@@ -271,6 +305,8 @@ export default function TutorProfileScreen() {
     );
   }
 
+  const paymentSummary = currentUser?.paymentSummary;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -313,29 +349,6 @@ export default function TutorProfileScreen() {
           </Text>
           <Text style={styles.userRole}>Tutor</Text>
 
-          {/* Stats for tutors */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Total Sessions</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>
-                {currentUser.subjects && currentUser.subjects.length > 0
-                  ? `$${Math.min(
-                      ...currentUser.subjects.map(
-                        (s) => s.TutorSubject?.hourlyRate || 45
-                      )
-                    )}-$${Math.max(
-                      ...currentUser.subjects.map(
-                        (s) => s.TutorSubject?.hourlyRate || 45
-                      )
-                    )}`
-                  : "$45"}
-              </Text>
-              <Text style={styles.statLabel}>Hourly Rate</Text>
-            </View>
-          </View>
         </View>
 
         {/* Profile Information */}
@@ -378,6 +391,37 @@ export default function TutorProfileScreen() {
           )}
         </View>
 
+        {paymentSummary && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Payment Overview</Text>
+              <TouchableOpacity onPress={handlePaymentPress}>
+                <Text style={styles.sectionLink}>View breakdown</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.paymentSummaryRow}>
+              <View style={[styles.paymentCard, styles.paymentCardPaid]}>
+                <Text style={styles.paymentCardLabel}>Total Paid</Text>
+                <Text style={styles.paymentCardAmount}>
+                  {formatCurrency(paymentSummary.totalPaid)}
+                </Text>
+                <Text style={styles.paymentCardCount}>
+                  {paymentSummary.paidCount} payments
+                </Text>
+              </View>
+              <View style={[styles.paymentCard, styles.paymentCardPending]}>
+                <Text style={styles.paymentCardLabel}>Pending</Text>
+                <Text style={styles.paymentCardAmount}>
+                  {formatCurrency(paymentSummary.totalPending)}
+                </Text>
+                <Text style={styles.paymentCardCount}>
+                  {paymentSummary.pendingCount} payments
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Assigned lessons */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Assigned Lessons</Text>
@@ -402,7 +446,7 @@ export default function TutorProfileScreen() {
               const isActive = lesson?.isActive !== false;
 
               return (
-                <View
+                <TouchableOpacity
                   key={lesson?.id || `${lesson?.title || "lesson"}-${index}`}
                   style={[
                     styles.lessonItem,
@@ -410,6 +454,7 @@ export default function TutorProfileScreen() {
                       ? styles.lessonItemLast
                       : null,
                   ]}
+                  onPress={() => handleLessonPress(lesson)}
                 >
                   <View style={styles.lessonHeader}>
                     <Text style={styles.lessonTitle} numberOfLines={1}>
@@ -445,7 +490,7 @@ export default function TutorProfileScreen() {
                     {locationLine}
                   </Text>
                   <Text style={styles.lessonMeta}>{studentCount}</Text>
-                </View>
+                </TouchableOpacity>
               );
             })
           ) : (
@@ -480,7 +525,7 @@ export default function TutorProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={handlePaymentPress}>
             <Ionicons name="card-outline" size={24} color="#374151" />
             <Text style={styles.menuText}>Payment</Text>
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
