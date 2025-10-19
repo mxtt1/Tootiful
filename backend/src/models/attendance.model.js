@@ -23,7 +23,7 @@ const Attendance = sequelize.define('Attendance', {
             isDate: true
         }
     },
-    
+
     isAttended: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
@@ -35,6 +35,7 @@ const Attendance = sequelize.define('Attendance', {
         defaultValue: false,
         field: 'isPaid'
     }
+
 }, {
     tableName: 'attendance',
     timestamps: true,
