@@ -6,11 +6,15 @@ const Attendance = sequelize.define('Attendance', {
         type: DataTypes.UUID,
         primaryKey: true,
         defaultValue: DataTypes.UUIDV4, // Auto-generate UUID
-        autoIncrement: true
     },
     lessonId: {
         type: DataTypes.UUID,
         allowNull: false,
+        references: {  
+            model: 'lessons', 
+            key: 'id'
+        },
+        onDelete: 'CASCADE' // Cascade when lesson is deleted
     },
     tutorId: {
         type: DataTypes.UUID,
