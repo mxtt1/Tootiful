@@ -1,4 +1,4 @@
-import { User, Subject, TutorSubject, Agency, Lesson, Location, Attendance, TutorPayment } from '../../models/index.js';
+import { User, Subject, TutorSubject, Agency, Lesson, Location, Attendance } from '../../models/index.js';
 import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
 import bcrypt from 'bcrypt';
@@ -842,12 +842,6 @@ export default class TutorService {
                     as: 'lesson',
                     attributes: ['id', 'title', 'dayOfWeek', 'startTime', 'endTime', 'tutorRate'],
                     required: false
-                },
-                {
-                    model: TutorPayment,
-                    as: 'payment',
-                    attributes: ['id', 'paymentAmount', 'paymentStatus', 'paymentDate', 'createdAt', 'updatedAt'],
-                    required: false
                 }
             ],
             order: [['date', 'DESC']]
@@ -860,15 +854,15 @@ export default class TutorService {
 
         const breakdown = attendances.map((attendance) => {
             const lesson = attendance.lesson;
-            const payment = attendance.payment;
 
-            const rawAmount = payment?.paymentAmount ?? lesson?.tutorRate ?? 0;
+            const rawAmount = lesson?.tutorRate ?? 0;
             const amount = Number.parseFloat(rawAmount);
             const safeAmount = Number.isNaN(amount) ? 0 : amount;
 
-            const paymentStatus = payment?.paymentStatus ?? 'Not Paid';
+            const isPaid = attendance?.isPaid === true;
+            const paymentStatus = isPaid ? 'Paid' : 'Not Paid';
 
-            if (paymentStatus === 'Paid') {
+            if (isPaid) {
                 totalPaid += safeAmount;
                 paidCount += 1;
             } else {
@@ -877,17 +871,18 @@ export default class TutorService {
             }
 
             return {
-                id: payment?.id ?? `attendance-${attendance.id}`,
+                id: `attendance-${attendance.id}`,
                 attendanceId: attendance.id,
                 lessonId: attendance?.lessonId ?? lesson?.id ?? null,
                 lessonTitle: lesson?.title ?? null,
                 lessonRate: lesson?.tutorRate ? Number.parseFloat(lesson.tutorRate) : null,
                 paymentStatus,
                 paymentAmount: safeAmount,
-                paymentDate: payment?.paymentDate ?? null,
+                paymentDate: isPaid ? attendance?.updatedAt ?? attendance?.date ?? null : null,
                 attendanceDate: attendance?.date ?? null,
                 isAttendanceMarked: attendance?.isAttended ?? null,
-                recordedAt: payment?.createdAt ?? attendance.createdAt
+                isPaid,
+                recordedAt: attendance?.updatedAt ?? attendance?.createdAt
             };
         });
 

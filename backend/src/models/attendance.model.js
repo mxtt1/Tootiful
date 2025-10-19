@@ -23,12 +23,19 @@ const Attendance = sequelize.define('Attendance', {
             isDate: true
         }
     },
-    
+
     isAttended: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false
+    },
+    isPaid: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: 'isPaid'
     }
+
 }, {
     tableName: 'attendance',
     timestamps: true,

@@ -1,4 +1,4 @@
-import {
+﻿import {
   View,
   Text,
   ScrollView,
@@ -98,7 +98,7 @@ export default function TutorProfileScreen() {
   // Refresh data when user returns to this screen
   useFocusEffect(
     React.useCallback(() => {
-      console.log("🔄 Tutor profile screen focused - refreshing data");
+      console.log("≡ƒöä Tutor profile screen focused - refreshing data");
       fetchCurrentUser();
     }, [])
   );
@@ -108,39 +108,39 @@ export default function TutorProfileScreen() {
       setLoading(true);
       setError(null);
 
-      console.log("🔍 Checking tutor authentication...");
+      console.log("≡ƒöì Checking tutor authentication...");
 
       // Check if user is authenticated
       if (!authService.isAuthenticated()) {
-        console.log("❌ Tutor not authenticated");
+        console.log("Γ¥î Tutor not authenticated");
         throw new Error("Please log in to view your profile");
       }
 
-      console.log("✅ Tutor is authenticated!");
+      console.log("Γ£à Tutor is authenticated!");
 
       // Try to decode the JWT to get user info
       const token = authService.getCurrentToken();
-      console.log("🎫 Token:", token ? "exists" : "missing");
+      console.log("≡ƒÄ½ Token:", token ? "exists" : "missing");
 
       if (token) {
         // Decode JWT payload
         try {
           const payload = jwtDecode(token);
-          console.log("📋 Token payload:", payload);
+          console.log("≡ƒôï Token payload:", payload);
 
           // Get user ID and type from token
           const userId = payload.userId;
           const userTypeFromToken = payload.userType;
 
-          console.log(`👤 User ID: ${userId}, Type: ${userTypeFromToken}`);
+          console.log(`≡ƒæñ User ID: ${userId}, Type: ${userTypeFromToken}`);
 
           // Only fetch if it's a tutor
           if (userTypeFromToken === "tutor") {
-            console.log("👨‍🏫 Fetching tutor data...");
+            console.log("≡ƒæ¿ΓÇì≡ƒÅ½ Fetching tutor data...");
             // Use API client instead of direct fetch
             const userData = await apiClient.get(`/tutors/${userId}`);
 
-            console.log("📄 API Response:", userData);
+            console.log("≡ƒôä API Response:", userData);
 
             if (userData) {
               const finalUser = {
@@ -150,7 +150,7 @@ export default function TutorProfileScreen() {
                   : [],
                 userType: userTypeFromToken,
               };
-              console.log("✅ Setting tutor data:", finalUser);
+              console.log("Γ£à Setting tutor data:", finalUser);
               setCurrentUser(finalUser);
             } else {
               throw new Error("Failed to fetch tutor data");
@@ -159,14 +159,14 @@ export default function TutorProfileScreen() {
             throw new Error("Not a tutor account");
           }
         } catch (tokenError) {
-          console.error("❌ Token decode error:", tokenError);
+          console.error("Γ¥î Token decode error:", tokenError);
           throw new Error("Invalid token");
         }
       } else {
         throw new Error("No token available");
       }
     } catch (error) {
-      console.error("❌ Error fetching tutor data:", error);
+      console.error("Γ¥î Error fetching tutor data:", error);
       setError(error.message || "Failed to load profile data");
       // Don't fallback to mock data - let user know they need to authenticate
     } finally {
@@ -188,7 +188,7 @@ export default function TutorProfileScreen() {
   };
 
   const handleLogout = () => {
-    console.log("🚪 Tutor logout button clicked!");
+    console.log("≡ƒÜ¬ Tutor logout button clicked!");
 
     // Use Alert for mobile compatibility
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -200,13 +200,13 @@ export default function TutorProfileScreen() {
   const handleActualLogout = async () => {
     try {
       await authService.logout();
-      console.log("✅ Tutor auth service logout complete");
+      console.log("Γ£à Tutor auth service logout complete");
       // Clear user data and redirect to login
       setCurrentUser(null);
-      console.log("🔄 Tutor navigating to login page");
+      console.log("≡ƒöä Tutor navigating to login page");
       router.replace("/login");
     } catch (error) {
-      console.error("❌ Tutor logout error:", error);
+      console.error("Γ¥î Tutor logout error:", error);
       Alert.alert("Error", "Failed to logout. Please try again.");
     }
   };
@@ -226,7 +226,7 @@ export default function TutorProfileScreen() {
   };
 
   const handleLessonPress = (lesson) => {
-    console.log("📚 Lesson pressed:", lesson?.title, "ID:", lesson?.id);
+    console.log("≡ƒôÜ Lesson pressed:", lesson?.title, "ID:", lesson?.id);
     if (lesson?.id) {
       router.push({
         pathname: "/tutor/lessonDetails",

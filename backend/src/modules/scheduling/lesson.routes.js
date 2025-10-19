@@ -51,6 +51,15 @@ router.get(
   })
 );
 
+// GET /api/lessons/agency/:id/attendance - Get attendance for that agency
+router.get(
+    "/agency/:id/attendance",
+    authenticateToken,
+    asyncHandler(async (req, res) => {
+        await lessonService.handleGetAgencyAttendance(req, res);
+    })
+);
+
 // PATCH /api/lessons/:id - Update lesson
 router.patch(
   "/:id",
