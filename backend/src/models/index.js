@@ -69,7 +69,7 @@ Attendance.belongsTo(Lesson, { foreignKey: 'lessonId', as: 'lesson' });
 
 // Tutor-Attendance association (for substitutes)
 User.hasMany(Attendance, { foreignKey: 'tutorId', as: 'attendanceInstances' });
-Attendance.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
+Attendance.belongsTo(User, { foreignKey: 'tutorId', as: 'attendanceTutor' });
 
 // Attendance-TutorPayment association
 const tutorPaymentForeignKey = { name: 'attendanceId', field: 'attendanceId' };
@@ -78,7 +78,7 @@ TutorPayment.belongsTo(Attendance, { foreignKey: tutorPaymentForeignKey, as: 'at
 
 // Tutor-TutorPayment association
 User.hasMany(TutorPayment, { foreignKey: 'tutorId', as: 'tutorPayments' });
-TutorPayment.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
+TutorPayment.belongsTo(User, { foreignKey: 'tutorId', as: 'paymentTutor' });
 
 import Sequelize, { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
@@ -181,7 +181,6 @@ User.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 
 Agency.hasMany(Location, { foreignKey: 'agencyId', as: 'locations' });
 Location.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
-TutorPayment.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
 
 
 export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Location, Sequelize, sequelize, EmailVerificationToken, Lesson, Attendance, StudentLesson, TutorPayment };
