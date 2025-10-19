@@ -7,6 +7,17 @@ import generator from 'generate-password';
 
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;
 
+const formatLocalDateTimeString = (date) => {
+    const pad = (value) => String(value).padStart(2, '0');
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    const seconds = pad(date.getSeconds());
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+};
+
 // to set the +1 -1 window for tutor to mark attendance (so they cannot anyhow mark)
 const buildMarkingWindow = (dateStr, startTime, endTime) => {
     if (!dateStr || !startTime || !endTime) {
@@ -671,10 +682,10 @@ export default class TutorService {
             status,
             canMarkNow: status === 'pending',
             markWindow: {
-                start: windowStart.toISOString(),
-                end: windowEnd.toISOString(),
-                scheduledStart: startDateTime.toISOString(),
-                scheduledEnd: endDateTime.toISOString()
+                start: formatLocalDateTimeString(windowStart),
+                end: formatLocalDateTimeString(windowEnd),
+                scheduledStart: formatLocalDateTimeString(startDateTime),
+                scheduledEnd: formatLocalDateTimeString(endDateTime)
             },
             createdAt: attendanceRecord.createdAt,
             updatedAt: attendanceRecord.updatedAt
