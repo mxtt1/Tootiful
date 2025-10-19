@@ -6,14 +6,14 @@ import TutorPayment from './tutorPayment.model.js';
 // StudentLesson join table
 const StudentLesson = sequelize.define('StudentLesson', {
   studentId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
     references: { model: User, key: 'id' },
     onDelete: 'CASCADE',
     allowNull: false,
   },
   lessonId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
     references: { model: Lesson, key: 'id' },
     onDelete: 'CASCADE',

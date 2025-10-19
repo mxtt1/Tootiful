@@ -550,7 +550,6 @@ class LessonService {
         `Lesson created successfully: ${lesson.title} (ID: ${lesson.id})`
       );
 
-      await this.generateAttendanceDates(lesson.id, lesson.tutorId, lesson.dayOfWeek, transaction, 1);
       await transaction.commit();
       return lesson;
     } catch (error) {
@@ -758,6 +757,7 @@ class LessonService {
         throw new Error("Lesson is full");
       }
 
+
       // Check if already enrolled
       const existing = await StudentLesson.findOne({
         where: {
@@ -795,6 +795,7 @@ class LessonService {
         },
         transaction,
       });
+
       for (const otherLesson of currentLessons) {
         if (
           otherLesson.dayOfWeek === lesson.dayOfWeek &&
@@ -807,6 +808,22 @@ class LessonService {
         }
       }
 
+      // Only generate if first student AND no attendance exists
+      if (currentCapacity === 0) { // no students yet
+        const existingAttendance = await Attendance.count({
+          where: { lessonId },
+          transaction,
+        });
+        
+        if (existingAttendance === 0) { // no attendance exists
+          if (!lesson.tutorId) {
+            throw new Error("Cannot generate attendance - no tutor assigned");
+          }
+          await this.generateAttendanceDates(lesson.id, lesson.tutorId, lesson.dayOfWeek, transaction, 1);
+        }
+      }
+
+
       // Enrol student and update lesson's currentCap
       await student.addStudentLesson(lesson, {
         through: { startDate: today, endDate: endDate },
@@ -816,6 +833,7 @@ class LessonService {
       await lesson.save({ transaction });
 
       await transaction.commit();
+      
       return { studentId, lessonId };
     } catch (error) {
       await transaction.rollback();
