@@ -15,6 +15,7 @@ import { useFocusEffect } from "expo-router";
 import authService from "../../services/authService";
 import lessonService from "../../services/lessonService";
 import { jwtDecode } from "jwt-decode";
+import PaymentHistory from "../../components/PaymentHistory";
 import {
   studentTimetableStyles as styles
 } from "../styles/studentTimetableStyles.js";
@@ -211,6 +212,9 @@ export default function StudentTimetable() {
               {renderGrid()}
             </View>
           </ScrollView>
+
+          {/* Payment History Section */}
+          <PaymentHistory userId={studentId} />
         </ScrollView>
       )}
       {/* Lesson details modal */}
