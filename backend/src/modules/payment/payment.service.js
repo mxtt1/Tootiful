@@ -203,7 +203,24 @@ class PaymentService {
       const where = {};
       if (studentId) where.studentId = studentId;
       if (lessonId) where.lessonId = lessonId;
-      const payments = await StudentPayment.findAll({ where });
+      
+      const payments = await StudentPayment.findAll({ 
+        where,
+        include: [
+          {
+            association: 'lesson',
+            attributes: ['id', 'title'],
+            include: [
+              {
+                association: 'agency',
+                attributes: ['id', 'name']
+              }
+            ]
+          }
+        ],
+        order: [['paymentDate', 'DESC']]
+      });
+      
       return payments;
     } catch (error) {
       console.error("Error fetching student payments:", error);
