@@ -1,5 +1,6 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
+import Agency from './agency.model.js';
 
 const TutorPayment = sequelize.define('TutorPayment', {
     id: {
@@ -7,12 +8,12 @@ const TutorPayment = sequelize.define('TutorPayment', {
         primaryKey: true,
         defaultValue: DataTypes.UUIDV4,
     },
-    // attendance FK
-    attendanceId: {
+
+    agencyId: {
         type: DataTypes.UUID,
         allowNull: false,
-        field: 'attendanceId',
     },
+
     tutorId: {
         type: DataTypes.UUID,
         allowNull: false,

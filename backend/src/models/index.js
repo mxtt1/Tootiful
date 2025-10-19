@@ -70,14 +70,14 @@ Attendance.belongsTo(Lesson, { foreignKey: 'lessonId', as: 'lesson' });
 
 // Tutor-Attendance association (for substitutes)
 User.hasMany(Attendance, { foreignKey: 'tutorId', as: 'attendanceInstances' });
-Attendance.belongsTo(User, { foreignKey: 'tutorId', as: 'attendanceTutor' });
+Attendance.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
 
 // StudentPayment associations
 StudentPayment.belongsTo(User, { foreignKey: 'studentId', as: 'student' });
 StudentPayment.belongsTo(Lesson, { foreignKey: 'lessonId', as: 'lesson' });
 User.hasMany(StudentPayment, { foreignKey: 'studentId', as: 'payments' });
 Lesson.hasMany(StudentPayment, { foreignKey: 'lessonId', as: 'payments' });
- 
+
 // Attendance-TutorPayment association
 const tutorPaymentForeignKey = { name: 'attendanceId', field: 'attendanceId' };
 Attendance.hasOne(TutorPayment, { foreignKey: tutorPaymentForeignKey, as: 'payment' });
@@ -85,7 +85,7 @@ TutorPayment.belongsTo(Attendance, { foreignKey: tutorPaymentForeignKey, as: 'at
 
 // Tutor-TutorPayment association
 User.hasMany(TutorPayment, { foreignKey: 'tutorId', as: 'tutorPayments' });
-TutorPayment.belongsTo(User, { foreignKey: 'tutorId', as: 'paymentTutor' });
+TutorPayment.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
 
 import Sequelize, { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';

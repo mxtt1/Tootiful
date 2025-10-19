@@ -133,125 +133,125 @@ class LessonService {
 
   async handleGetAgencyAttendance(req, res) {
     try {
-      const { id: agencyId } = req.params;
-      console.log(`Fetching agency-wide attendance for agency: ${agencyId}`);
-
-      const agencyAttendance = await this.getAgencyAttendance(agencyId);
-
-      console.log(`Retrieved attendance data for ${agencyAttendance.length} lessons in agency ${agencyId}`);
-
-      res.status(200).json({
-        success: true,
-        data: agencyAttendance,
-      });
+        const { id: agencyId } = req.params;
+        console.log(`Fetching agency-wide attendance for agency: ${agencyId}`);
+        
+        const agencyAttendance = await this.getAgencyAttendance(agencyId);
+        
+        console.log(`Retrieved attendance data for ${agencyAttendance.length} lessons in agency ${agencyId}`);
+        
+        res.status(200).json({
+            success: true,
+            data: agencyAttendance,
+        });
     } catch (error) {
-      console.error("Error fetching agency attendance:", error);
-      res.status(500).json({
-        success: false,
-        message: error.message
-      });
+        console.error("Error fetching agency attendance:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
   }
 
   async getAgencyAttendance(agencyId) {
     try {
-      console.log(`Fetching agency-wide attendance for: ${agencyId}`);
+        console.log(`Fetching agency-wide attendance for: ${agencyId}`);
 
-      // Get all lessons for the agency with their attendance
-      const lessons = await Lesson.findAll({
-        where: { agencyId },
-        include: [
-          {
-            model: Subject,
-            as: "subject",
-            attributes: ["id", "name", "gradeLevel", "category"],
-          },
-          {
-            model: Location,
-            as: "location",
-            attributes: ["id", "address"],
-          },
-          {
-            model: User,
-            as: "tutor",
-            attributes: ["id", "firstName", "lastName"],
-            required: false,
-          },
-          {
-            model: Attendance,
-            as: "instances",
-            attributes: ["id", "date", "isAttended", "tutorId", "createdAt"],
-            order: [['date', 'DESC']]
-          }
-        ],
-        order: [["createdAt", "DESC"]],
-      });
+        // Get all lessons for the agency with their attendance
+        const lessons = await Lesson.findAll({
+            where: { agencyId },
+            include: [
+                {
+                    model: Subject,
+                    as: "subject",
+                    attributes: ["id", "name", "gradeLevel", "category"],
+                },
+                {
+                    model: Location,
+                    as: "location",
+                    attributes: ["id", "address"],
+                },
+                {
+                    model: User,
+                    as: "tutor",
+                    attributes: ["id", "firstName", "lastName"],
+                    required: false,
+                },
+                {
+                    model: Attendance,
+                    as: "instances",
+                    attributes: ["id", "date", "isAttended", "tutorId", "createdAt"],
+                    order: [['date', 'DESC']]
+                }
+            ],
+            order: [["createdAt", "DESC"]],
+        });
 
-      // Format the response for agency-wide attendance view
-      const agencyAttendance = lessons.map((lesson) => {
-        const lessonData = lesson.toJSON();
-        const attendances = lessonData.instances || [];
+        // Format the response for agency-wide attendance view
+        const agencyAttendance = lessons.map((lesson) => {
+            const lessonData = lesson.toJSON();
+            const attendances = lessonData.instances || [];
+            
+            // Calculate attendance statistics for this lesson
+            const totalSessions = attendances.length;
+            const attendedSessions = attendances.filter(a => a.isAttended).length;
+            const attendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
 
-        // Calculate attendance statistics for this lesson
-        const totalSessions = attendances.length;
-        const attendedSessions = attendances.filter(a => a.isAttended).length;
-        const attendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
+            // Get recent sessions (last 4 weeks)
+            const recentSessions = attendances.slice(0, 4).map(session => ({
+                id: session.id,
+                date: session.date,
+                isAttended: session.isAttended,
+                status: session.isAttended ? 'present' : 'absent'
+            }));
 
-        // Get recent sessions (last 4 weeks)
-        const recentSessions = attendances.slice(0, 4).map(session => ({
-          id: session.id,
-          date: session.date,
-          isAttended: session.isAttended,
-          status: session.isAttended ? 'present' : 'absent'
-        }));
+            return {
+                // Lesson identification
+                lessonId: lessonData.id,
+                lessonTitle: lessonData.title,
+                dayOfWeek: lessonData.dayOfWeek,
+                timeSlot: `${lessonData.startTime} - ${lessonData.endTime}`,
+                
+                // Lesson details
+                subjectName: lessonData.subject?.name || 'N/A',
+                gradeLevel: lessonData.subject?.gradeLevel || 'N/A',
+                location: lessonData.location?.address || 'N/A',
+                tutorName: lessonData.tutor ? 
+                    `${lessonData.tutor.firstName} ${lessonData.tutor.lastName}` : 
+                    'No Tutor Assigned',
+                
+                // Attendance summary
+                attendanceSummary: {
+                    totalSessions,
+                    attendedSessions,
+                    attendanceRate: Math.round(attendanceRate),
+                    missedSessions: totalSessions - attendedSessions
+                },
+                
+                // Recent sessions for quick overview
+                recentSessions,
+                
+                // All sessions (if needed for detailed view)
+                allSessions: attendances.map(session => ({
+                    id: session.id,
+                    date: session.date,
+                    isAttended: session.isAttended,
+                    status: session.isAttended ? 'present' : 'absent',
+                    markedAt: session.createdAt
+                }))
+            };
+        });
 
-        return {
-          // Lesson identification
-          lessonId: lessonData.id,
-          lessonTitle: lessonData.title,
-          dayOfWeek: lessonData.dayOfWeek,
-          timeSlot: `${lessonData.startTime} - ${lessonData.endTime}`,
-
-          // Lesson details
-          subjectName: lessonData.subject?.name || 'N/A',
-          gradeLevel: lessonData.subject?.gradeLevel || 'N/A',
-          location: lessonData.location?.address || 'N/A',
-          tutorName: lessonData.tutor ?
-            `${lessonData.tutor.firstName} ${lessonData.tutor.lastName}` :
-            'No Tutor Assigned',
-
-          // Attendance summary
-          attendanceSummary: {
-            totalSessions,
-            attendedSessions,
-            attendanceRate: Math.round(attendanceRate),
-            missedSessions: totalSessions - attendedSessions
-          },
-
-          // Recent sessions for quick overview
-          recentSessions,
-
-          // All sessions (if needed for detailed view)
-          allSessions: attendances.map(session => ({
-            id: session.id,
-            date: session.date,
-            isAttended: session.isAttended,
-            status: session.isAttended ? 'present' : 'absent',
-            markedAt: session.createdAt
-          }))
-        };
-      });
-
-      console.log(`Formatted attendance data for ${agencyAttendance.length} lessons`);
-      return agencyAttendance;
+        console.log(`Formatted attendance data for ${agencyAttendance.length} lessons`);
+        return agencyAttendance;
 
     } catch (error) {
-      console.error(`Failed to fetch agency attendance for agency ${agencyId}:`, error.message);
-      throw new Error(`Failed to fetch agency attendance: ${error.message}`);
+        console.error(`Failed to fetch agency attendance for agency ${agencyId}:`, error.message);
+        throw new Error(`Failed to fetch agency attendance: ${error.message}`);
     }
   }
 
-
+  
 
   // getAllLessons with related data for better frontend filtering and display
   async getAllLessons() {
@@ -579,20 +579,15 @@ class LessonService {
       const attendances = [];
       const currentDate = new Date(start);
 
-      while (start.getDay() !== dayIndex) {
-        start.setDate(start.getDate() + 1);
-      }
-
-
       while (currentDate <= end) {
-       // if (currentDate.getDay() === dayIndex) {
+        if (currentDate.getDay() === dayIndex) {
           attendances.push({
             lessonId: lessonId,
             tutorId: tutorId || null, // ✅ Ensure null if undefined
             date: currentDate.toISOString().slice(0, 10),
             isAttended: false
           });
-        //}
+        }
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
@@ -819,7 +814,7 @@ class LessonService {
           where: { lessonId },
           transaction,
         });
-
+        
         if (existingAttendance === 0) { // no attendance exists
           if (!lesson.tutorId) {
             throw new Error("Cannot generate attendance - no tutor assigned");
@@ -838,7 +833,7 @@ class LessonService {
       await lesson.save({ transaction });
 
       await transaction.commit();
-
+      
       return { studentId, lessonId };
     } catch (error) {
       await transaction.rollback();
