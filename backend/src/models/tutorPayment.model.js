@@ -7,12 +7,12 @@ const TutorPayment = sequelize.define('TutorPayment', {
         primaryKey: true,
         defaultValue: DataTypes.UUIDV4,
     },
-//previousl lessonInstance Id
+// attendance FK
     attendanceId: {
         type: DataTypes.UUID,
         allowNull: false,
+        field: 'attendanceId',
     },
-
     tutorId: {
         type: DataTypes.UUID,
         allowNull: false,
@@ -36,6 +36,7 @@ const TutorPayment = sequelize.define('TutorPayment', {
         type: DataTypes.ENUM('Paid', 'Not Paid'),
         allowNull: false,
         defaultValue: 'Not Paid',
+        field: 'paymentStatus',
     },
 
 }, {

@@ -185,6 +185,14 @@ export default function LessonDetailsScreen() {
       return;
     }
 
+    if (!students.length) {
+      Alert.alert(
+        "Attendance",
+        "Cant mark attendance if there are no students."
+      );
+      return;
+    }
+
     try {
       setIsMarking(true);
       setMarkingSessionId(session.id);
@@ -374,7 +382,8 @@ export default function LessonDetailsScreen() {
               const statusMeta =
                 ATTENDANCE_STATUS_META[session.status] ||
                 ATTENDANCE_STATUS_META.upcoming;
-              const canMark = session.canMarkNow && session.status === "pending";
+              const canMark =
+                session.canMarkNow && session.status === "pending" && students.length > 0;
               return (
                 <View style={styles.attendanceItem} key={session.id}>
                   <View style={styles.attendanceItemHeader}>
@@ -384,9 +393,9 @@ export default function LessonDetailsScreen() {
                       </Text>
                       <Text style={styles.attendanceMeta}>
                         Scheduled:{" "}
-                        {formatWindowLabel(
-                          session.markWindow?.scheduledStart,
-                          session.markWindow?.scheduledEnd
+                        {formatTimeRangeLabel(
+                          lesson?.startTime,
+                          lesson?.endTime
                         )}
                       </Text>
                     </View>
@@ -515,6 +524,3 @@ export default function LessonDetailsScreen() {
     </SafeAreaView>
   );
 }
-
-
-

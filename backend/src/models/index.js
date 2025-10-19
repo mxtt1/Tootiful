@@ -72,8 +72,9 @@ User.hasMany(Attendance, { foreignKey: 'tutorId', as: 'attendanceInstances' });
 Attendance.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
 
 // Attendance-TutorPayment association
-Attendance.hasOne(TutorPayment, { foreignKey: 'attendanceId', as: 'payment' });
-TutorPayment.belongsTo(Attendance, { foreignKey: 'attendanceId', as: 'attendance' });
+const tutorPaymentForeignKey = { name: 'attendanceId', field: 'attendanceId' };
+Attendance.hasOne(TutorPayment, { foreignKey: tutorPaymentForeignKey, as: 'payment' });
+TutorPayment.belongsTo(Attendance, { foreignKey: tutorPaymentForeignKey, as: 'attendance' });
 
 // Tutor-TutorPayment association
 User.hasMany(TutorPayment, { foreignKey: 'tutorId', as: 'tutorPayments' });
