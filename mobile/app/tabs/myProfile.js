@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   View,
   Text,
@@ -34,7 +34,7 @@ export default function ProfileScreen() {
   // Refresh data when user returns to this screen
   useFocusEffect(
     React.useCallback(() => {
-      console.log("🔄 Student profile screen focused - refreshing data");
+      console.log("≡ƒöä Student profile screen focused - refreshing data");
       fetchCurrentUser();
     }, [])
   );
@@ -44,36 +44,36 @@ export default function ProfileScreen() {
       setLoading(true);
       setError(null);
 
-      console.log("🔍 Checking authentication...");
+      console.log("≡ƒöì Checking authentication...");
 
       // Check if user is authenticated
       if (!authService.isAuthenticated()) {
-        console.log("❌ User not authenticated");
+        console.log("Γ¥î User not authenticated");
         throw new Error("Please log in to view your profile");
       }
 
-      console.log("✅ User is authenticated!");
+      console.log("Γ£à User is authenticated!");
 
       // Try to decode the JWT to get user info
       const token = authService.getCurrentToken();
-      console.log("🎫 Token:", token ? "exists" : "missing");
+      console.log("≡ƒÄ½ Token:", token ? "exists" : "missing");
 
       if (token) {
         // Decode JWT payload (this is safe for client-side as it's not sensitive data)
         try {
           const payload = jwtDecode(token);
-          console.log("📋 Token payload:", payload);
+          console.log("≡ƒôï Token payload:", payload);
 
           // Get user ID and type from token
           const userId = payload.userId;
           const userTypeFromToken = payload.userType;
 
-          console.log(`👤 User ID: ${userId}, Type: ${userTypeFromToken}`);
+          console.log(`≡ƒæñ User ID: ${userId}, Type: ${userTypeFromToken}`);
 
           // Only fetch student data (tutors should use the tutor profile page)
           let userData;
           if (userTypeFromToken === "student") {
-            console.log("📚 Fetching student data...");
+            console.log("≡ƒôÜ Fetching student data...");
             userData = await apiClient.get(`/students/${userId}`);
             setUserType("student");
           } else {
@@ -82,27 +82,27 @@ export default function ProfileScreen() {
             );
           }
 
-          console.log("📄 API Response:", userData);
+          console.log("≡ƒôä API Response:", userData);
 
           if (userData) {
             const finalUser = {
               ...userData,
               userType: userTypeFromToken,
             };
-            console.log("✅ Setting user data:", finalUser);
+            console.log("Γ£à Setting user data:", finalUser);
             setCurrentUser(finalUser);
           } else {
             throw new Error("Failed to fetch user data");
           }
         } catch (tokenError) {
-          console.error("❌ Token decode error:", tokenError);
+          console.error("Γ¥î Token decode error:", tokenError);
           throw new Error("Invalid token");
         }
       } else {
         throw new Error("No token available");
       }
     } catch (error) {
-      console.error("❌ Error fetching user data:", error);
+      console.error("Γ¥î Error fetching user data:", error);
       setError(error.message || "Failed to load profile data");
       // Don't fallback to mock data - let user know they need to authenticate
     } finally {
@@ -124,7 +124,7 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    console.log("🚪 Logout button clicked!");
+    console.log("≡ƒÜ¬ Logout button clicked!");
 
     // Use Alert for mobile compatibility
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -136,15 +136,15 @@ export default function ProfileScreen() {
   const handleActualLogout = async () => {
     try {
       await authService.logout();
-      console.log("✅ Auth service logout complete");
+      console.log("Γ£à Auth service logout complete");
       // Clear user data and redirect to login
       setCurrentUser(null);
       setUserType(null);
       // Navigate back to login page
-      console.log("🔄 Navigating to login page");
+      console.log("≡ƒöä Navigating to login page");
       router.replace("/login");
     } catch (error) {
-      console.error("❌ Logout error:", error);
+      console.error("Γ¥î Logout error:", error);
       Alert.alert("Error", "Failed to logout. Please try again.");
     }
   };

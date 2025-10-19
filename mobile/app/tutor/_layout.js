@@ -62,6 +62,18 @@ export default function TutorTabLayout() {
           href: null, // This hides it from the tab bar
         }}
       />
+      <Tabs.Screen
+        name="lessonDetails"
+        options={{
+          href: null, // same
+        }}
+      />
+      <Tabs.Screen
+        name="paymentSummary"
+        options={{
+          href: null, // same style as above for consistency
+        }}
+      />
     </Tabs>
   );
 }

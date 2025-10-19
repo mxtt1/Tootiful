@@ -52,6 +52,13 @@ class AuthService {
     return !!apiClient.accessToken;
   }
 
+  async ensureAccessToken() {
+    if (!apiClient.accessToken) {
+      await apiClient.loadTokenFromStorage();
+    }
+    return apiClient.accessToken;
+  }
+
   // Auto-refresh token with retry logic
   async autoRefreshToken() {
     try {

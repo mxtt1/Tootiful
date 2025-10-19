@@ -1,4 +1,4 @@
-import {
+﻿import {
   View,
   Text,
   ScrollView,
@@ -10,9 +10,8 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
-import React from "react";
 import { myProfileStyles as styles } from "../styles/myProfileStyles";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
@@ -75,6 +74,15 @@ const formatTimeRangeLabel = (start, end) => {
   return `${startLabel} - ${endLabel}`;
 };
 
+// format check just in case: ensure 2dp, rounding and no bad values
+const formatCurrency = (value) => {
+  const numericValue = Number.parseFloat(value ?? 0);
+  if (Number.isNaN(numericValue)) {
+    return "$0.00";
+  }
+  return `$${numericValue.toFixed(2)}`;
+};
+
 export default function TutorProfileScreen() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
@@ -90,7 +98,7 @@ export default function TutorProfileScreen() {
   // Refresh data when user returns to this screen
   useFocusEffect(
     React.useCallback(() => {
-      console.log("🔄 Tutor profile screen focused - refreshing data");
+      console.log("≡ƒöä Tutor profile screen focused - refreshing data");
       fetchCurrentUser();
     }, [])
   );
@@ -100,39 +108,39 @@ export default function TutorProfileScreen() {
       setLoading(true);
       setError(null);
 
-      console.log("🔍 Checking tutor authentication...");
+      console.log("≡ƒöì Checking tutor authentication...");
 
       // Check if user is authenticated
       if (!authService.isAuthenticated()) {
-        console.log("❌ Tutor not authenticated");
+        console.log("Γ¥î Tutor not authenticated");
         throw new Error("Please log in to view your profile");
       }
 
-      console.log("✅ Tutor is authenticated!");
+      console.log("Γ£à Tutor is authenticated!");
 
       // Try to decode the JWT to get user info
       const token = authService.getCurrentToken();
-      console.log("🎫 Token:", token ? "exists" : "missing");
+      console.log("≡ƒÄ½ Token:", token ? "exists" : "missing");
 
       if (token) {
         // Decode JWT payload
         try {
           const payload = jwtDecode(token);
-          console.log("📋 Token payload:", payload);
+          console.log("≡ƒôï Token payload:", payload);
 
           // Get user ID and type from token
           const userId = payload.userId;
           const userTypeFromToken = payload.userType;
 
-          console.log(`👤 User ID: ${userId}, Type: ${userTypeFromToken}`);
+          console.log(`≡ƒæñ User ID: ${userId}, Type: ${userTypeFromToken}`);
 
           // Only fetch if it's a tutor
           if (userTypeFromToken === "tutor") {
-            console.log("👨‍🏫 Fetching tutor data...");
+            console.log("≡ƒæ¿ΓÇì≡ƒÅ½ Fetching tutor data...");
             // Use API client instead of direct fetch
             const userData = await apiClient.get(`/tutors/${userId}`);
 
-            console.log("📄 API Response:", userData);
+            console.log("≡ƒôä API Response:", userData);
 
             if (userData) {
               const finalUser = {
@@ -142,7 +150,7 @@ export default function TutorProfileScreen() {
                   : [],
                 userType: userTypeFromToken,
               };
-              console.log("✅ Setting tutor data:", finalUser);
+              console.log("Γ£à Setting tutor data:", finalUser);
               setCurrentUser(finalUser);
             } else {
               throw new Error("Failed to fetch tutor data");
@@ -151,14 +159,14 @@ export default function TutorProfileScreen() {
             throw new Error("Not a tutor account");
           }
         } catch (tokenError) {
-          console.error("❌ Token decode error:", tokenError);
+          console.error("Γ¥î Token decode error:", tokenError);
           throw new Error("Invalid token");
         }
       } else {
         throw new Error("No token available");
       }
     } catch (error) {
-      console.error("❌ Error fetching tutor data:", error);
+      console.error("Γ¥î Error fetching tutor data:", error);
       setError(error.message || "Failed to load profile data");
       // Don't fallback to mock data - let user know they need to authenticate
     } finally {
@@ -180,7 +188,7 @@ export default function TutorProfileScreen() {
   };
 
   const handleLogout = () => {
-    console.log("🚪 Tutor logout button clicked!");
+    console.log("≡ƒÜ¬ Tutor logout button clicked!");
 
     // Use Alert for mobile compatibility
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -192,14 +200,40 @@ export default function TutorProfileScreen() {
   const handleActualLogout = async () => {
     try {
       await authService.logout();
-      console.log("✅ Tutor auth service logout complete");
+      console.log("Γ£à Tutor auth service logout complete");
       // Clear user data and redirect to login
       setCurrentUser(null);
-      console.log("🔄 Tutor navigating to login page");
+      console.log("≡ƒöä Tutor navigating to login page");
       router.replace("/login");
     } catch (error) {
-      console.error("❌ Tutor logout error:", error);
+      console.error("Γ¥î Tutor logout error:", error);
       Alert.alert("Error", "Failed to logout. Please try again.");
+    }
+  };
+
+  const handlePaymentPress = () => {
+    if (currentUser?.id) {
+      router.push({
+        pathname: "/tutor/paymentSummary",
+        params: { tutorId: currentUser.id },
+      });
+    } else {
+      Alert.alert(
+        "Payment Summary",
+        "Tutor information is missing. Please refresh and try again."
+      );
+    }
+  };
+
+  const handleLessonPress = (lesson) => {
+    console.log("≡ƒôÜ Lesson pressed:", lesson?.title, "ID:", lesson?.id);
+    if (lesson?.id) {
+      router.push({
+        pathname: "/tutor/lessonDetails",
+        params: { lessonId: lesson.id },
+      });
+    } else {
+      Alert.alert("Error", "Unable to view lesson details. Lesson ID is missing.");
     }
   };
   const tutorLessons = currentUser?.tutorLessons;
@@ -271,6 +305,8 @@ export default function TutorProfileScreen() {
     );
   }
 
+  const paymentSummary = currentUser?.paymentSummary;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -313,29 +349,6 @@ export default function TutorProfileScreen() {
           </Text>
           <Text style={styles.userRole}>Tutor</Text>
 
-          {/* Stats for tutors */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Total Sessions</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>
-                {currentUser.subjects && currentUser.subjects.length > 0
-                  ? `$${Math.min(
-                      ...currentUser.subjects.map(
-                        (s) => s.TutorSubject?.hourlyRate || 45
-                      )
-                    )}-$${Math.max(
-                      ...currentUser.subjects.map(
-                        (s) => s.TutorSubject?.hourlyRate || 45
-                      )
-                    )}`
-                  : "$45"}
-              </Text>
-              <Text style={styles.statLabel}>Hourly Rate</Text>
-            </View>
-          </View>
         </View>
 
         {/* Profile Information */}
@@ -378,6 +391,37 @@ export default function TutorProfileScreen() {
           )}
         </View>
 
+        {paymentSummary && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Payment Overview</Text>
+              <TouchableOpacity onPress={handlePaymentPress}>
+                <Text style={styles.sectionLink}>View breakdown</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.paymentSummaryRow}>
+              <View style={[styles.paymentCard, styles.paymentCardPaid]}>
+                <Text style={styles.paymentCardLabel}>Total Paid</Text>
+                <Text style={styles.paymentCardAmount}>
+                  {formatCurrency(paymentSummary.totalPaid)}
+                </Text>
+                <Text style={styles.paymentCardCount}>
+                  {paymentSummary.paidCount} payments
+                </Text>
+              </View>
+              <View style={[styles.paymentCard, styles.paymentCardPending]}>
+                <Text style={styles.paymentCardLabel}>Pending</Text>
+                <Text style={styles.paymentCardAmount}>
+                  {formatCurrency(paymentSummary.totalPending)}
+                </Text>
+                <Text style={styles.paymentCardCount}>
+                  {paymentSummary.pendingCount} payments
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Assigned lessons */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Assigned Lessons</Text>
@@ -402,7 +446,7 @@ export default function TutorProfileScreen() {
               const isActive = lesson?.isActive !== false;
 
               return (
-                <View
+                <TouchableOpacity
                   key={lesson?.id || `${lesson?.title || "lesson"}-${index}`}
                   style={[
                     styles.lessonItem,
@@ -410,6 +454,7 @@ export default function TutorProfileScreen() {
                       ? styles.lessonItemLast
                       : null,
                   ]}
+                  onPress={() => handleLessonPress(lesson)}
                 >
                   <View style={styles.lessonHeader}>
                     <Text style={styles.lessonTitle} numberOfLines={1}>
@@ -445,7 +490,7 @@ export default function TutorProfileScreen() {
                     {locationLine}
                   </Text>
                   <Text style={styles.lessonMeta}>{studentCount}</Text>
-                </View>
+                </TouchableOpacity>
               );
             })
           ) : (
@@ -480,7 +525,7 @@ export default function TutorProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={handlePaymentPress}>
             <Ionicons name="card-outline" size={24} color="#374151" />
             <Text style={styles.menuText}>Payment</Text>
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />

@@ -2,18 +2,19 @@
 import Lesson from './lesson.model.js';
 import Attendance from './attendance.model.js';
 import StudentPayment from './studentPayment.model.js';
+import TutorPayment from './tutorPayment.model.js';
 
 // StudentLesson join table
 const StudentLesson = sequelize.define('StudentLesson', {
   studentId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
     references: { model: User, key: 'id' },
     onDelete: 'CASCADE',
     allowNull: false,
   },
   lessonId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.UUID,
     primaryKey: true,
     references: { model: Lesson, key: 'id' },
     onDelete: 'CASCADE',
@@ -69,7 +70,7 @@ Attendance.belongsTo(Lesson, { foreignKey: 'lessonId', as: 'lesson' });
 
 // Tutor-Attendance association (for substitutes)
 User.hasMany(Attendance, { foreignKey: 'tutorId', as: 'attendanceInstances' });
-Attendance.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
+Attendance.belongsTo(User, { foreignKey: 'tutorId', as: 'attendanceTutor' });
 
 // StudentPayment associations
 StudentPayment.belongsTo(User, { foreignKey: 'studentId', as: 'student' });
@@ -77,6 +78,14 @@ StudentPayment.belongsTo(Lesson, { foreignKey: 'lessonId', as: 'lesson' });
 User.hasMany(StudentPayment, { foreignKey: 'studentId', as: 'payments' });
 Lesson.hasMany(StudentPayment, { foreignKey: 'lessonId', as: 'payments' });
  
+// Attendance-TutorPayment association
+const tutorPaymentForeignKey = { name: 'attendanceId', field: 'attendanceId' };
+Attendance.hasOne(TutorPayment, { foreignKey: tutorPaymentForeignKey, as: 'payment' });
+TutorPayment.belongsTo(Attendance, { foreignKey: tutorPaymentForeignKey, as: 'attendance' });
+
+// Tutor-TutorPayment association
+User.hasMany(TutorPayment, { foreignKey: 'tutorId', as: 'tutorPayments' });
+TutorPayment.belongsTo(User, { foreignKey: 'tutorId', as: 'paymentTutor' });
 
 import Sequelize, { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
@@ -180,4 +189,6 @@ User.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 Agency.hasMany(Location, { foreignKey: 'agencyId', as: 'locations' });
 Location.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 
-export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Location, Sequelize, sequelize, EmailVerificationToken, Lesson, Attendance, StudentLesson, StudentPayment };
+export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Location, Sequelize, sequelize, EmailVerificationToken, Lesson, Attendance, StudentLesson, StudentPayment, TutorPayment };
+
+

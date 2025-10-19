@@ -1,56 +1,93 @@
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const UserPieChart = ({ tutors, students, agencies }) => {
-    const data = [
-        { name: 'Tutors', value: tutors },
-        { name: 'Students', value: students },
-        { name: 'Agencies', value: agencies },
-    ];
+const GenericPieChart = ({ 
+    data, 
+    title, 
+    colors = ['#EA4335', '#FBBC05', '#4285B4', '#34A853', '#9334E6', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'],
+    showLabel = true,
+    labelType = 'nameValue', // 'nameValue', 'percentage', 'value', 'name'
+    outerRadius = 65,
+    innerRadius = 30,
+    height = 250
+}) => {
+    // Calculate total for percentage display
+    const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
 
-    const COLORS = ['#EA4335', '#FBBC05', '#4285B4'];
+    const renderCustomLabel = ({ name, value, percent }) => {
+        if (!showLabel) return null;
+        
+        switch (labelType) {
+            case 'percentage':
+                return `${(percent * 100).toFixed(1)}%`;
+            case 'value':
+                return `${value}`;
+            case 'name':
+                return name;
+            case 'nameValue':
+            default:
+                return `${name}: ${value}`;
+        }
+    };
+
+    const formatTooltip = (value, name, props) => {
+        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+        return [
+            <div key="tooltip-content" style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <span style={{ fontWeight: 'bold' }}>{name}</span>
+                <span>{`Count: ${value}`}</span>
+                <span style={{ color: '#666' }}>{`Percentage: ${percentage}%`}</span>
+            </div>
+        ];
+    };
 
     return (
         <div className="pie-chart-container" style={{ width: '100%', height: '100%' }}>
-            <ResponsiveContainer width="100%" height="100%" minHeight={250}>
+            {title && (
+                <h4 style={{ textAlign: 'center', marginBottom: '10px', color: '#333' }}>
+                    {title}
+                </h4>
+            )}
+            <ResponsiveContainer width="100%" height={height}>
                 <PieChart>
                     <Pie
                         data={data}
                         cx="50%"
                         cy="50%"
-                        outerRadius={65}
-                        innerRadius={30}
-                        label
+                        outerRadius={outerRadius}
+                        innerRadius={innerRadius}
+                        label={renderCustomLabel}
                         dataKey="value"
                         nameKey="name"
                     >
                         {data.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            <Cell 
+                                key={`cell-${index}`} 
+                                fill={colors[index % colors.length]} 
+                            />
                         ))}
                     </Pie>
                     <Tooltip 
-                        formatter={(value, name) => {
-                            return (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                    <span>{`${value}`}</span>
-                                    <span style={{ color: '#888' }}>{name}</span>
-                                </div>
-                            );
-                        }}
+                        formatter={formatTooltip}
                         contentStyle={{
                             padding: '10px',
                             borderRadius: '4px',
                             backgroundColor: '#fff',
                             boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
                         }}
-
                     />
                     <Legend 
                         iconSize={10}
                         iconType="circle"
                         layout="horizontal"
                         verticalAlign="bottom"
-                        wrapperStyle={{ paddingTop: '10px', fontSize: '14px' }}
+                        wrapperStyle={{ 
+                            paddingTop: '10px', 
+                            fontSize: '12px',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            flexWrap: 'wrap'
+                        }}
                     />
                 </PieChart>
             </ResponsiveContainer>
@@ -58,4 +95,4 @@ const UserPieChart = ({ tutors, students, agencies }) => {
     );
 };
 
-export default UserPieChart;
+export default GenericPieChart;

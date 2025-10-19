@@ -16,6 +16,20 @@ export const myProfileStyles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: "center",
   },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    marginLeft: 12,
+  },
+  backButton: {
+    position: "absolute",
+    left: 20,
+    top: 20,
+    padding: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
   profileImageContainer: {
     position: "relative",
     marginBottom: 15,
@@ -130,6 +144,21 @@ export const myProfileStyles = StyleSheet.create({
     color: "#374151",
     marginBottom: 15,
   },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  sectionLink: {
+    fontSize: 14,
+    color: "#8B5CF6",
+    fontWeight: "600",
+  },
   subjectItem: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -237,6 +266,191 @@ export const myProfileStyles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
     lineHeight: 18,
+  },
+  paymentSummaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  paymentCard: {
+    flex: 1,
+    backgroundColor: "#EEF2FF",
+    padding: 16,
+    borderRadius: 12,
+  },
+  paymentCardPaid: {
+    backgroundColor: "#ECFDF5",
+  },
+  paymentCardPending: {
+    backgroundColor: "#FEF3C7",
+  },
+  paymentCardLabel: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 8,
+  },
+  paymentCardAmount: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  paymentCardCount: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 8,
+  },
+  paymentList: {
+    gap: 12,
+  },
+  paymentItem: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: "#FFFFFF",
+  },
+  paymentItemHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  paymentItemTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+    flex: 1,
+    marginRight: 12,
+  },
+  paymentStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  paymentStatusText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  paymentStatusPaid: {
+    backgroundColor: "#DCFCE7",
+  },
+  paymentStatusPending: {
+    backgroundColor: "#FEF3C7",
+  },
+  paymentStatusTextPaid: {
+    color: "#047857",
+  },
+  paymentStatusTextPending: {
+    color: "#B45309",
+  },
+  paymentAmount: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 8,
+  },
+  paymentMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  paymentMetaIcon: {
+    marginRight: 6,
+  },
+  paymentMetaText: {
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  errorLink: {
+    fontSize: 12,
+    color: "#DC2626",
+    fontWeight: "600",
+  },
+  centeredState: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  attendanceItem: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    backgroundColor: "#FFFFFF",
+  },
+  attendanceItemHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  attendanceItemInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  attendanceItemDate: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  attendanceMeta: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  attendanceStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  attendanceStatusText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  attendanceStatusAttended: {
+    backgroundColor: "#DCFCE7",
+  },
+  attendanceStatusTextAttended: {
+    color: "#047857",
+  },
+  attendanceStatusPending: {
+    backgroundColor: "#FEF3C7",
+  },
+  attendanceStatusTextPending: {
+    color: "#B45309",
+  },
+  attendanceStatusUpcoming: {
+    backgroundColor: "#DBEAFE",
+  },
+  attendanceStatusTextUpcoming: {
+    color: "#1D4ED8",
+  },
+  attendanceStatusMissed: {
+    backgroundColor: "#FEE2E2",
+  },
+  attendanceStatusTextMissed: {
+    color: "#B91C1C",
+  },
+  attendanceMarkButton: {
+    marginTop: 12,
+    backgroundColor: "#8B5CF6",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  attendanceMarkButtonDisabled: {
+    backgroundColor: "#A78BFA",
+  },
+  attendanceMarkButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
   menuContainer: {
     backgroundColor: "#FFFFFF",
