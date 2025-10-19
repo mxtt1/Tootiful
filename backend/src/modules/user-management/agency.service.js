@@ -90,7 +90,10 @@ class AgencyService {
         const { id } = req.params;
         const agency = await this.getAgencyById(id);
         const { password, ...agencyResponse } = agency.toJSON();
-        res.status(200).json(agencyResponse);
+        res.status(200).json({
+            success: true,
+            data: agencyResponse
+        });
     }
 
     async handleUpdateAgency(req, res) {

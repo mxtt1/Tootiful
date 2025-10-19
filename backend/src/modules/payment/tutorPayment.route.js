@@ -14,12 +14,6 @@ router.get("/agency/:id", tutorPaymentService.handleGetAllTutorPaymentsByAgency.
 router.get("/agency/:id/payments", tutorPaymentService.handleGetPaidPaymentsFromAgencyID.bind(tutorPaymentService));
 router.patch("/attendances/:id", tutorPaymentService.handleMarkAttendanceAsPaid.bind(tutorPaymentService));
 router.post("/", tutorPaymentService.handleCreatePayment.bind(tutorPaymentService));
-// GET /api/tutorPayments/agency/:id/revenue-summary - Get revenue summary for agency
-router.get("/agency/:id/revenue-summary", tutorPaymentService.handleGetAgencyRevenueSummary.bind(tutorPaymentService));
-// GET /api/tutorPayments/agency/:id/revenue-growth - Get revenue growth for agency
-router.get('/agency/:id/revenue-growth', tutorPaymentService.handleGetRevenueGrowthData.bind(tutorPaymentService));
-// GET /api/tutorPayments/agency/:id/subscription-growth - Get subscription growth for agency
-router.get('/agency/:id/subscription-growth', tutorPaymentService.handleGetSubscriptionGrowthData.bind(tutorPaymentService));
 
 //router.patch("/:id", tutorPaymentService.handleUpdatePaymentStatus.bind(tutorPaymentService));
 //router.get("/tutor/:tutorId/summary", tutorPaymentService.handleGetTutorBalanceSummary.bind(tutorPaymentService));

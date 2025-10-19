@@ -19,8 +19,8 @@ const GrowthChart = ({ dataType = 'revenue', agencyId, timeRange = 'monthly', cu
       setError(null);
       
       const endpoint = dataType === 'revenue' 
-        ? `/tutorPayments/agency/${agencyId}/revenue-growth`
-        : `/tutorPayments/agency/${agencyId}/subscription-growth`;
+        ? `/analytics/agency/${agencyId}/revenue-growth`
+        : `/analytics/agency/${agencyId}/subscription-growth`;
       
       console.log(`🔍 Frontend: Making API call to: ${endpoint}`, {
         agencyId,
