@@ -5,11 +5,9 @@ import { createAndEmailVerificationLink } from "./emailVerification.service.js";
 
 class AgencyAdminService {
     // Route handler methods with complete HTTP response logic
-    
 
     async handleGetAgencyAdminById(req, res) {
         const { id } = req.params;
-        const user = req.user;
 
         const agencyAdmin = await this.getAgencyAdminById(id);
 
@@ -106,7 +104,7 @@ class AgencyAdminService {
             // Apply other (non-email) updates if any
             const patch = { ...updateData };
             delete patch.email;
-            if (Object.keys(patch).length) {
+            if (Object.keys(patch).length) { // If there are other fields to update
             await admin.update(patch);
             }
             return { admin, emailChanged };

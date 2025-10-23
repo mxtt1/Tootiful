@@ -126,7 +126,7 @@ const AgencyDashboard = () => {
 
   const fetchRevenueData = async () => {
     try {
-      const res = await ApiClient.get(`/tutorPayments/agency/${agencyId}/revenue-summary`);
+      const res = await ApiClient.get(`/analytics/agency/${agencyId}/revenue-summary`);
       
       if (!res) {
         throw new Error("No response from server");

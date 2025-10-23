@@ -26,12 +26,12 @@ import { notifications } from "@mantine/notifications";
 export default function AgencyManagement() {
   const { user } = useAuth();
 
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState([]); // array of agency admins
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [page, setPage] = useState(1); // current page num
+  const [limit] = useState(10); // items per page
   const [error, setError] = useState(null);
-  const [totalPages, setTotalPages] = useState(1);
+  const [totalPages, setTotalPages] = useState(1); // total pages for pagination
 
   // Delete confirmation modal
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -74,17 +74,18 @@ export default function AgencyManagement() {
         const agencyAdmins = response.rows || response.data || response || [];
         const totalCount = response.totalCount || response.data?.totalCount || agencyAdmins.length;
 
+        // Converts database values to user-friendly formats
         const mappedUsers = agencyAdmins.map((user) => ({
           id: user.id,
           email: user.email,
-          isActive: !!user.isActive,
+          isActive: !!user.isActive, // Convert to boolean
           isSuspended: !!user.isSuspended,
           status: user.isSuspended ? "Suspended" : (user.isActive ? "Active" : "Inactive"),
           role: user.role,
           joinedDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "",
         }));
 
-        setRows(mappedUsers);
+        setRows(mappedUsers); // updates only the current page's data
         setTotalPages(Math.ceil(totalCount / limit));
       } catch (err) {
         console.error("Fetch error:", err);
@@ -256,6 +257,7 @@ export default function AgencyManagement() {
     }
   };
 
+  // Show full-page loader only on initial load (when no rows exist)
   if (loading && rows.length === 0) {
     return (
       <Container size="xl" py="xl">

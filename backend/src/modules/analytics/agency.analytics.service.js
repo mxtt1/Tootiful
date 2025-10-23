@@ -1,4 +1,4 @@
-import { Attendance, Lesson, Subject } from '../../models/index.js';
+import { Attendance, Lesson, Subject, StudentPayment } from '../../models/index.js';
 import gradeLevelEnum from "../../util/enum/gradeLevelEnum.js";   
   
 class AgencyAnalyticsService {
@@ -73,10 +73,8 @@ class AgencyAnalyticsService {
         try {
             console.log(`DEBUG getRevenueGrowthData: agencyId=${agencyId}, timeRange=${timeRange}`);
             
-            const revenueHistory = await Attendance.findAll({
-                where: { 
-                    isAttended: true 
-                },
+            // Use ACTUAL payment data instead of attendance estimates
+            const paymentHistory = await StudentPayment.findAll({
                 include: [{
                     model: Lesson,
                     as: 'lesson',
@@ -84,15 +82,15 @@ class AgencyAnalyticsService {
                         agencyId,
                         isActive: true
                     },
-                    attributes: ['studentRate', 'createdAt']
+                    attributes: ['id'] 
                 }],
-                order: [['date', 'ASC']]
+                order: [['paymentDate', 'ASC']] 
             });
 
-            console.log(`DEBUG: Found ${revenueHistory.length} attendance records for revenue growth`);
+            console.log(`DEBUG: Found ${paymentHistory.length} payment records for revenue growth`);
 
             // Group by time period and calculate revenue
-            const groupedData = this.groupDataByTimePeriod(revenueHistory, timeRange, 'revenue');
+            const groupedData = this.groupDataByTimePeriod(paymentHistory, timeRange, 'revenue', 'paymentDate');
             console.log(`DEBUG: Grouped into ${groupedData.length} time periods`, groupedData);
             
             const result = this.calculateGrowthRates(groupedData);
@@ -123,7 +121,7 @@ class AgencyAnalyticsService {
             console.log(`DEBUG: Found ${subscriptionHistory.length} lessons for subscription growth`);
 
             // Group by time period and calculate subscriptions
-            const groupedData = this.groupDataByTimePeriod(subscriptionHistory, timeRange, 'subscriptions');
+            const groupedData = this.groupDataByTimePeriod(subscriptionHistory, timeRange, 'subscriptions', 'createdAt');
             console.log(`DEBUG: Grouped into ${groupedData.length} time periods`, groupedData);
             
             const result = this.calculateGrowthRates(groupedData);
@@ -138,13 +136,15 @@ class AgencyAnalyticsService {
         }
     }
 
-    groupDataByTimePeriod(data, timeRange, dataType) {
-        const grouped = {};
+    groupDataByTimePeriod(data, timeRange, dataType, dateField) {
+        const grouped = {}; // Empty object to store grouped data
         
         data.forEach(item => {
-            const date = new Date(item.createdAt || item.date);
+            // paymentDate for payments, createdAt for subscriptions
+            const date = new Date(item[dateField]);
             let periodKey;
-            
+
+            // Create period key based on timeRange parameter
             switch (timeRange) {
                 case 'monthly':
                     periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -160,25 +160,26 @@ class AgencyAnalyticsService {
                     periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             }
             
+            // Initialize period group if it doesn't exist
             if (!grouped[periodKey]) {
                 grouped[periodKey] = {
                     period: periodKey,
-                    value: 0,
-                    count: 0
+                    value: 0, // Will accumulate revenue or subscriptions
+                    count: 0 // Number of records in this period
                 };
             }
             
             if (dataType === 'revenue') {
-                const lessonRevenue = parseFloat(item.lesson?.studentRate || 0) * (item.lesson?.currentCap || 0);
-                grouped[periodKey].value += lessonRevenue;
+                grouped[periodKey].value += parseFloat(item.amount || 0);
             } else if (dataType === 'subscriptions') {
                 // For subscriptions, count the currentCap
                 grouped[periodKey].value += (item.currentCap || 0);
             }
             
-            grouped[periodKey].count++;
+            grouped[periodKey].count++; // Increment record count for this period
         });
         
+        // Convert object to array and sort by period (chronological order)
         return Object.values(grouped).sort((a, b) => a.period.localeCompare(b.period));
     }
 
@@ -190,22 +191,25 @@ class AgencyAnalyticsService {
         }
         
         return data.map((item, index) => {
+            // First period has no previous data, so growth is 0
             if (index === 0) {
                 return {
-                    ...item,
+                    ...item, 
                     growthRate: 0,
                     growthLabel: "→ 0%"
                 };
             }
             
-            const previousValue = data[index - 1].value;
-            const currentValue = item.value;
+            const previousValue = data[index - 1].value; // Previous period's value
+            const currentValue = item.value; // Current period's value
             
             let growthRate, growthLabel;
             
+            // Infinite growth (from 0 to positive)
             if (previousValue === 0 && currentValue > 0) {
                 growthRate = 100;
                 growthLabel = "↑ 100%+";
+            // No change (both zero)
             } else if (previousValue === 0 && currentValue === 0) {
                 growthRate = 0;
                 growthLabel = "→ 0%";
@@ -217,7 +221,7 @@ class AgencyAnalyticsService {
             }
             
             return {
-                ...item,
+                ...item, // Original period data
                 growthRate,
                 growthLabel,
                 label: this.formatPeriodLabel(item.period)
@@ -228,7 +232,7 @@ class AgencyAnalyticsService {
     generateHistoricalData(currentData, currentLength) {
         // If we have current data, use it as the latest point and generate previous points
         if (currentLength === 1) {
-            const current = currentData[0];
+            const current = currentData[0]; // The only real data point
             const currentDate = new Date();
             
             // Generate previous month's data
@@ -321,29 +325,39 @@ class AgencyAnalyticsService {
 
             const totalPaidToTutors = paidSessions.reduce((total, attendance) => {
                 return total + parseFloat(attendance.lesson?.tutorRate || 0);
-            }, 0);
+            }, 0); // Start from 0
 
-            // Get lessons to calculate student revenue
-            const lessons = await Lesson.findAll({
-                where: { 
-                    agencyId: agencyId,
-                    isActive: true 
-                },
-                include: [
-                    {
+            // 2. Get all student payments for revenue calculation
+            // the array of payment objects
+            const studentPayments = await StudentPayment.findAll({
+                include: [{
+                    model: Lesson,
+                    as: 'lesson',
+                    where: { 
+                        agencyId,
+                        isActive: true
+                    },
+                    include: [{
                         model: Subject,
                         as: 'subject',
                         attributes: ['id', 'name', 'gradeLevel']
-                    }
-                ]
+                    }]
+                }]
             });
 
-            // Calculate student revenue
-            // For each lesson: studentRate × currentCap
-            const studentRevenue = lessons.reduce((total, lesson) => {
-                const lessonRevenue = parseFloat(lesson.studentRate) * (lesson.currentCap || 0);
-                return total + lessonRevenue;
-            }, 0); // immediately once student subscribes to a lesson
+            // 3. Get current subscriptions 
+            const lessons = await Lesson.findAll({
+                where: { 
+                    agencyId,
+                    isActive: true 
+                },
+                attributes: ['id', 'currentCap']
+            });
+
+            // Calculate student revenue (sum number)
+            const studentRevenue = studentPayments.reduce((total, payment) => {
+                return total + parseFloat(payment.amount || 0);
+            }, 0);
 
             // Calculate total student subscriptions
             // Sum of currentCap across all lessons
@@ -355,10 +369,10 @@ class AgencyAnalyticsService {
             const netRevenue = studentRevenue - totalPaidToTutors; // profit after paying tutors
 
             // Calculate revenue by grade level for the pie chart
-            const revenueByGradeLevel = this.calculateRevenueByGradeLevel(lessons);
+            const revenueByGradeLevel = this.calculateRevenueByGradeLevel(studentPayments);
 
             // Calculate subject revenue within each grade level for drill-down
-            const subjectRevenueByGrade = this.calculateSubjectRevenueByGrade(lessons);
+            const subjectRevenueByGrade = this.calculateSubjectRevenueByGrade(studentPayments);
 
             const summary = {
                 // Revenue breakdown
@@ -383,15 +397,15 @@ class AgencyAnalyticsService {
         }
     }
 
-    calculateRevenueByGradeLevel(lessons) {
+    calculateRevenueByGradeLevel(studentPayments) {
         const revenueByGrade = {};
             
-        lessons.forEach((lesson, index) => {
-            const rawGradeLevel = lesson.subject?.gradeLevel;
-            const category = gradeLevelEnum.getCategory(rawGradeLevel); // using enum 
-            const studentRevenue = parseFloat(lesson.studentRate) * (lesson.currentCap || 0);
+        studentPayments.forEach(payment => {
+            const rawGradeLevel = payment.lesson?.subject?.gradeLevel;
+            const category = gradeLevelEnum.getCategory(rawGradeLevel);
+            const paymentAmount = parseFloat(payment.amount || 0);
             
-            revenueByGrade[category] = (revenueByGrade[category] || 0) + studentRevenue;
+            revenueByGrade[category] = (revenueByGrade[category] || 0) + paymentAmount;
         });
         
         const result = Object.entries(revenueByGrade)
@@ -401,14 +415,14 @@ class AgencyAnalyticsService {
         return result;
     }
 
-    calculateSubjectRevenueByGrade(lessons) {
+    calculateSubjectRevenueByGrade(studentPayments) {
         const revenueByGradeAndSubject = {};
         
-        lessons.forEach(lesson => {
-            const rawGradeLevel = lesson.subject?.gradeLevel;
-            const category = gradeLevelEnum.getCategory(rawGradeLevel); // Use enum directly
-            const subjectName = lesson.subject?.name || 'Unknown Subject';
-            const studentRevenue = parseFloat(lesson.studentRate) * (lesson.currentCap || 0);
+        studentPayments.forEach(payment => {
+            const rawGradeLevel = payment.lesson?.subject?.gradeLevel;
+            const category = gradeLevelEnum.getCategory(rawGradeLevel);
+            const subjectName = payment.lesson?.subject?.name || 'Unknown Subject';
+            const paymentAmount = parseFloat(payment.amount || 0);
             
             if (!revenueByGradeAndSubject[category]) {
                 revenueByGradeAndSubject[category] = {};
@@ -416,7 +430,7 @@ class AgencyAnalyticsService {
             
             // Group by grade category → subject name
             revenueByGradeAndSubject[category][subjectName] = 
-                (revenueByGradeAndSubject[category][subjectName] || 0) + studentRevenue;
+                (revenueByGradeAndSubject[category][subjectName] || 0) + paymentAmount;
         });
         
         // Convert to pie chart format for each grade level

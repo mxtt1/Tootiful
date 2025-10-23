@@ -66,21 +66,21 @@ class AgencyService {
 
     async handleGetAgencyAdmins(req, res) {
         const { id: agencyId } = req.params;
-        const { limit = 10, offset = 0 } = req.query;
+        const { limit = 10, offset = 0 } = req.query; // Gets pagination from query params
         const { count, rows } = await User.findAndCountAll({
             where: {
                 agencyId: agencyId,
                 role: 'agencyAdmin'
             },
             attributes: { exclude: ['password'] },
-            limit: parseInt(limit),
-            offset: parseInt(offset),
+            limit: parseInt(limit), // Uses limit from frontend
+            offset: parseInt(offset), // Uses offset from frontend
             order: [['createdAt', 'DESC']]
         });
         res.status(200).json({
             rows,
-            totalCount: count,
-            limit: parseInt(limit),
+            totalCount: count, // Sends total count for pagination calc
+            limit: parseInt(limit), 
             offset: parseInt(offset)
         });
     }
@@ -242,11 +242,11 @@ class AgencyService {
         };
 
         if (page && limit) {
-            queryOptions.limit = parseInt(limit);
-            queryOptions.offset = (parseInt(page) - 1) * parseInt(limit);
+            queryOptions.limit = parseInt(limit); // Sets limit
+            queryOptions.offset = (parseInt(page) - 1) * parseInt(limit); // calculates offset
         }
 
-        return await Agency.findAndCountAll(queryOptions);
+        return await Agency.findAndCountAll(queryOptions); // return count + rows
     }
 
     async getAgencyById(id) {
@@ -322,21 +322,21 @@ class AgencyService {
         if (!agencyAdmin) {
             throw new Error('Agency Admin not found');
         }
-        await agencyAdmin.destroy();
+        await agencyAdmin.destroy(); // UPDATE users SET deletedAt = NOW()
     }
 
 
     async getAgencyLocations(agencyId) {
         return await Location.findAll({
             where: { agencyId },
-            order: [['createdAt', 'DESC']]
+            order: [['createdAt', 'DESC']] // newest first
         });
     }
 
     async createLocation(agencyId, locationData) {
         return await Location.create({
-            ...locationData,
-            agencyId
+            ...locationData, // Spread address, name
+            agencyId // force association to agency
         });
     }
 
