@@ -428,6 +428,7 @@ class LessonService {
           updatedAt: lessonData.updatedAt,
           lessonType: lessonData.lessonType,
 
+
           // Flattened subject fields
           subjectId: lessonData.subject?.id || null,
           subjectName: lessonData.subject?.name || null,
@@ -515,6 +516,8 @@ class LessonService {
         createdAt: lessonData.createdAt,
         updatedAt: lessonData.updatedAt,
         tutorRate: lessonData.tutorRate,
+        startDate: lessonData.startDate,
+        endDate: lessonData.endDate,
 
         // Flattened subject fields
         subjectId: lessonData.subject?.id || null,
@@ -603,6 +606,8 @@ class LessonService {
           updatedAt: lessonData.updatedAt,
           lessonType: lessonData.lessonType,
           tutorRate: lessonData.tutorRate,
+          startDate: lessonData.startDate,
+          endDate: lessonData.endDate,
 
           // Flattened subject fields
           subjectId: lessonData.subject?.id || null,
@@ -660,6 +665,8 @@ class LessonService {
         dayOfWeek: lessonData.dayOfWeek,
         startTime: lessonData.startTime,
         endTime: lessonData.endTime,
+        startDate: lessonData.startDate,
+        endDate: lessonData.endDate,
         studentRate: parseFloat(lessonData.studentRate),
         tutorRate: parseFloat(lessonData.tutorRate),
         totalCap: parseInt(lessonData.totalCap),

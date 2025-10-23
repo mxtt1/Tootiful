@@ -65,7 +65,7 @@ const Lesson = sequelize.define('Lesson', {
             min: 0
         }
     },
-    
+
     totalCap: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -79,6 +79,14 @@ const Lesson = sequelize.define('Lesson', {
         validate: {
             min: 0
         }
+    },
+    startDate: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    endDate: {
+        type: DataTypes.DATE,
+        allowNull: true,
     }
 }, {
     tableName: 'lessons',

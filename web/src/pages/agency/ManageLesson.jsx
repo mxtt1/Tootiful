@@ -88,6 +88,8 @@ export default function ManageLesson() {
         tutorId: "",
         isActive: true,
         lessonType: "", // Default to Sem 1
+        startDate: "", // Add this
+        endDate: "", // Add this
     });
     const [formErrors, setFormErrors] = useState({});
 
@@ -408,6 +410,9 @@ export default function ManageLesson() {
         if (!formData.studentRate || formData.studentRate <= 0) errors.studentRate = "Valid student rate is required";
         if (!formData.tutorRate || formData.tutorRate <= 0) errors.tutorRate = "Valid tutor rate is required";
         if (!formData.totalCap || formData.totalCap <= 0) errors.totalCap = "Valid total capacity is required";
+        if (!formData.startDate) errors.startDate = "Start date is required";
+        if (!formData.endDate) errors.endDate = "End date is required";
+
 
         if (tutorConflicts.length > 0) {
             errors.tutorId = "Tutor has scheduling conflicts. Please resolve before saving.";
@@ -420,6 +425,15 @@ export default function ManageLesson() {
                 errors.endTime = "End time must be after start time";
             }
         }
+
+        if (formData.startDate && formData.endDate) {
+            const startDate = new Date(formData.startDate);
+            const endDate = new Date(formData.endDate);
+            if (endDate < startDate) {
+                errors.endDate = "End date must be on or after start date";
+            }
+        }
+
 
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
@@ -603,6 +617,8 @@ export default function ManageLesson() {
             tutorId: lesson.tutorId || "",
             isActive: lesson.isActive !== false,
             lessonType: lesson.lessonType || "",
+            startDate: lesson.startDate ? lesson.startDate.substring(0, 10) : "",
+            endDate: lesson.endDate ? lesson.endDate.substring(0, 10) : "",
         });
 
         if (lesson.subjectId) {
@@ -837,6 +853,8 @@ export default function ManageLesson() {
                                     <Table.Th>Capacity</Table.Th>
                                     <Table.Th>Student Rate</Table.Th>
                                     <Table.Th>Tutor Rate</Table.Th>
+                                    <Table.Th>Start Date</Table.Th>
+                                    <Table.Th>End Date</Table.Th>
                                     <Table.Th>Status</Table.Th>
                                     <Table.Th>Actions</Table.Th>
                                 </Table.Tr>
@@ -886,6 +904,8 @@ export default function ManageLesson() {
                                         </Table.Td>
                                         <Table.Td>${lesson.studentRate}</Table.Td>
                                         <Table.Td>${lesson.tutorRate}</Table.Td>
+                                        <Table.Td>{lesson.startDate ? new Date(lesson.startDate).toLocaleDateString() : 'N/A'}</Table.Td>
+                                        <Table.Td>{lesson.endDate ? new Date(lesson.endDate).toLocaleDateString() : 'N/A'}</Table.Td>
                                         <Table.Td>
                                             <Badge color={getStatusColor(lesson.isActive)} variant="filled">
                                                 {lesson.isActive ? "Active" : "Inactive"}
@@ -1122,6 +1142,30 @@ export default function ManageLesson() {
                                 value={formData.lessonType}
                                 onChange={(value) => setFormData({ ...formData, lessonType: value })}
                                 error={formErrors.lessonType}
+                                required
+                                disabled={restrictedEdit}
+                            />
+                        </Grid.Col>
+
+                        <Grid.Col span={4}>
+                            <TextInput
+                                label="Start Date"
+                                type="date"
+                                value={formData.startDate}
+                                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                                error={formErrors.startDate}
+                                required
+                                disabled={restrictedEdit}
+                            />
+                        </Grid.Col>
+
+                        <Grid.Col span={4}>
+                            <TextInput
+                                label="End Date"
+                                type="date"
+                                value={formData.endDate}
+                                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                                error={formErrors.endDate}
                                 required
                                 disabled={restrictedEdit}
                             />
