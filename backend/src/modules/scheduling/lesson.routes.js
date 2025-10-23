@@ -53,11 +53,11 @@ router.get(
 
 // GET /api/lessons/agency/:id/attendance - Get attendance for that agency
 router.get(
-    "/agency/:id/attendance",
-    authenticateToken,
-    asyncHandler(async (req, res) => {
-        await lessonService.handleGetAgencyAttendance(req, res);
-    })
+  "/agency/:id/attendance",
+  authenticateToken,
+  asyncHandler(async (req, res) => {
+    await lessonService.handleGetAgencyAttendance(req, res);
+  })
 );
 
 // PATCH /api/lessons/:id - Update lesson
@@ -68,6 +68,8 @@ router.patch(
     await lessonService.handleUpdateLesson(req, res);
   })
 );
+
+router.patch('/:id/attendance', lessonService.handleUpdateAttendance.bind(lessonService));
 
 // DELETE /api/lessons/:id - Delete lesson
 router.delete(
@@ -94,6 +96,8 @@ router.get(
     await lessonService.handleCheckEnrollmentStatus(req, res);
   })
 );
+
+router.get('/:id/attendance/unpaid', lessonService.handleGetUnpaidAttendanceByLesson.bind(lessonService));
 
 // POST /api/lessons/students/:id - Enrol a student in a lesson
 router.post(

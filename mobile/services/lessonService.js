@@ -12,6 +12,8 @@ class LessonService {
     }
   }
 
+  
+
   // Get lesson by ID
   async getLessonById(lessonId) {
     try {
@@ -23,6 +25,8 @@ class LessonService {
     }
   }
 
+
+  
   // Enroll student in lesson
   async enrollStudentInLesson(studentId, lessonId) {
     try {

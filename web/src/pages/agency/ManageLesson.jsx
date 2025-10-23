@@ -55,6 +55,24 @@ export default function ManageLesson() {
     const [deleting, setDeleting] = useState(false);
     const [restrictedEdit, setRestrictedEdit] = useState(false);
 
+    //Set Attendance date:
+    const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
+    const [selectedLessonAttendance, setSelectedLessonAttendance] = useState(null);
+    const [attendanceDates, setAttendanceDates] = useState([]);
+    const [loadingAttendance, setLoadingAttendance] = useState(false);
+
+    //Set update Attendance:
+    // Add these new state variables after your existing state declarations
+    const [attendanceDetailModalOpen, setAttendanceDetailModalOpen] = useState(false);
+    const [selectedAttendance, setSelectedAttendance] = useState(null);
+    const [updatingAttendance, setUpdatingAttendance] = useState(false);
+    const [attendanceTutors, setAttendanceTutors] = useState([]);
+    const [attendanceFormData, setAttendanceFormData] = useState({
+        tutorId: "",
+        isAttended: false,
+        notes: ""
+    });
+
     // Form data - simplified for testing
     const [formData, setFormData] = useState({
         title: "",
@@ -412,25 +430,157 @@ export default function ManageLesson() {
         setCreateModalOpen(true);
     };
 
+    const handleViewAttendanceDates = async (lesson) => {
+        console.log("🔍 Checking lesson:", lesson.title, "currentCap:", lesson.currentCap);
+
+        if (lesson.currentCap === 0) {
+            notifications.show({
+                title: "No Students Enrolled",
+                message: "This lesson has no enrolled students.",
+                color: "yellow",
+            });
+            return;
+        }
+
+        setSelectedLessonAttendance(lesson);
+        setLoadingAttendance(true);
+        setAttendanceModalOpen(true);
+
+        try {
+            console.log(`📋 Fetching attendance dates for lesson: ${lesson.id}`);
+
+            // Fetch all attendance for this lesson (we'll start with all, then filter to unpaid)
+            const response = await apiClient.get(`/lessons/${lesson.id}/attendance/unpaid`);
+            const attendanceData = response.data?.data || response.data || [];
+
+            console.log(`📊 Found ${attendanceData.length} attendance records:`, attendanceData);
+
+            // Sort by date (newest first)
+            const sortedAttendance = attendanceData.sort((a, b) =>
+                new Date(b.date) - new Date(a.date)
+            );
+
+            setAttendanceDates(sortedAttendance);
+
+        } catch (error) {
+            console.error("❌ Error fetching attendance dates:", error);
+            notifications.show({
+                title: "Error",
+                message: "Failed to load attendance dates",
+                color: "red",
+            });
+            setAttendanceDates([]);
+        } finally {
+            setLoadingAttendance(false);
+        }
+    };
+
+    // Add this function after your existing handleViewAttendanceDates function
+    const handleAttendanceDetailClick = async (attendance) => {
+        console.log("📋 Opening attendance detail for:", attendance);
+
+        setSelectedAttendance(attendance);
+        setAttendanceFormData({
+            tutorId: attendance.tutorId || "",
+            isAttended: attendance.isAttended || false,
+            notes: attendance.notes || ""
+        });
+
+        // Fetch available tutors for this lesson's subject
+        if (selectedLessonAttendance?.subjectId) {
+            await fetchTutorsForAttendance(selectedLessonAttendance.subjectId);
+        }
+
+        setAttendanceDetailModalOpen(true);
+    };
+
+    // Add function to fetch tutors for attendance update
+    const fetchTutorsForAttendance = async (subjectId) => {
+        try {
+            const agencyId = user?.agencyId || user?.id;
+            const url = `/tutors/available-for-subject?subjectId=${subjectId}&agencyId=${agencyId}`;
+
+            const response = await apiClient.get(url);
+            const tutorsData = response.data?.data || response.data || [];
+
+            setAttendanceTutors(Array.isArray(tutorsData) ? tutorsData : []);
+            console.log(`📚 Loaded ${tutorsData.length} tutors for attendance update`);
+
+        } catch (error) {
+            console.error("❌ Error fetching tutors for attendance:", error);
+            notifications.show({
+                title: "Warning",
+                message: "Could not load available tutors",
+                color: "yellow",
+            });
+            setAttendanceTutors([]);
+        }
+    };
+
+    // Add function to update attendance
+    const handleUpdateAttendance = async () => {
+        if (!selectedAttendance) return;
+
+        setUpdatingAttendance(true);
+
+        try {
+            console.log("📝 Updating attendance:", selectedAttendance.id, "with data:", attendanceFormData);
+
+            const updatePayload = {
+                tutorId: attendanceFormData.tutorId || null,
+                isAttended: attendanceFormData.isAttended,
+                notes: attendanceFormData.notes || null
+            };
+
+            // Update the attendance record
+            await apiClient.patch(`/lessons/${selectedAttendance.id}/attendance`, updatePayload);
+
+            notifications.show({
+                title: "Success",
+                message: "Attendance updated successfully",
+                color: "green",
+            });
+
+            // Close the detail modal
+            setAttendanceDetailModalOpen(false);
+            setSelectedAttendance(null);
+
+            // Refresh the attendance dates
+            await handleViewAttendanceDates(selectedLessonAttendance);
+
+        } catch (error) {
+            console.error("❌ Error updating attendance:", error);
+            notifications.show({
+                title: "Error",
+                message: error.response?.data?.message || "Failed to update attendance",
+                color: "red",
+            });
+        } finally {
+            setUpdatingAttendance(false);
+        }
+    };
+
+    // Update your handleEditLesson function to check for restricted lessons
     const handleEditLesson = (lesson) => {
+        console.log("✏️ Edit clicked for lesson:", lesson.title, "currentCap:", lesson.currentCap);
+
+        // Check if lesson has enrolled students
+        if (lesson.currentCap > 0) {
+            console.log("🔒 Lesson has enrolled students, showing attendance dates first");
+            handleViewAttendanceDates(lesson);
+            return; // Don't open edit modal, show attendance first
+        }
+
+        // Original edit logic for lessons without students
+        console.log("📝 Opening edit modal for lesson without students");
         setEditingLesson(lesson);
         setRestrictedEdit(lesson.currentCap > 0);
 
-        // // Helper function to convert time string to Date object
-        // const parseTimeString = (timeStr) => {
-        //     if (!timeStr) return null;
-        //     const [hours, minutes] = timeStr.split(':');
-        //     const date = new Date();
-        //     date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        //     return date;
-        // };
-
-        // immediately add the current tutor to the tutors list if they exist
+        // ... rest of your existing handleEditLesson code stays the same
         if (lesson.tutorId) {
             const currentTutor = allAgencyTutors.find(t => t.id === lesson.tutorId);
             if (currentTutor) {
                 setTutors(prev => {
-                    // Only add if not already in the list
                     if (!prev.some(t => t.id === lesson.tutorId)) {
                         return [...prev, currentTutor];
                     }
@@ -443,10 +593,10 @@ export default function ManageLesson() {
             title: lesson.title || "",
             description: lesson.description || "",
             subjectId: lesson.subjectId || "",
-            locationId: lesson.locationId || "", // Add this
+            locationId: lesson.locationId || "",
             dayOfWeek: lesson.dayOfWeek || "",
-            startTime: lesson.startTime ? lesson.startTime.substring(0, 5) : "", // "HH:mm:ss" -> "HH:mm"
-            endTime: lesson.endTime ? lesson.endTime.substring(0, 5) : "",       // "HH:mm:ss" -> "HH:mm"
+            startTime: lesson.startTime ? lesson.startTime.substring(0, 5) : "",
+            endTime: lesson.endTime ? lesson.endTime.substring(0, 5) : "",
             studentRate: lesson.studentRate || "",
             tutorRate: lesson.tutorRate || "",
             totalCap: lesson.totalCap || "",
@@ -454,8 +604,7 @@ export default function ManageLesson() {
             isActive: lesson.isActive !== false,
             lessonType: lesson.lessonType || "",
         });
-        // if lesson has a subject, fetch tutors for that subject
-        // dont clear tutorId when opening modal
+
         if (lesson.subjectId) {
             fetchTutorsBySubject(lesson.subjectId, false);
         }
@@ -1056,6 +1205,7 @@ export default function ManageLesson() {
                 </Stack>
             </Modal>
 
+
             {/* Delete Modal */}
             <Modal
                 opened={deleteModalOpen}
@@ -1086,6 +1236,254 @@ export default function ManageLesson() {
                         </Button>
                         <Button color="red" onClick={confirmDelete} loading={deleting}>
                             Delete Lesson
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+            <Modal
+                opened={attendanceModalOpen}
+                onClose={() => {
+                    setAttendanceModalOpen(false);
+                    setSelectedLessonAttendance(null);
+                    setAttendanceDates([]);
+                }}
+                title="Attendance Dates"
+                size="md"
+            >
+                <Stack spacing="md">
+                    {selectedLessonAttendance && (
+                        <Card withBorder padding="sm">
+                            <Text size="lg" fw={600} mb="xs">
+                                📚 {selectedLessonAttendance.title}
+                            </Text>
+                            <Text size="sm" c="dimmed">
+                                🔒 This lesson has {selectedLessonAttendance.currentCap} enrolled students
+                            </Text>
+                        </Card>
+                    )}
+
+                    <div>
+                        <Text size="md" fw={500} mb="sm">
+                            📅 All Attendance Dates:
+                        </Text>
+
+                        {loadingAttendance ? (
+                            <div style={{ display: "flex", justifyContent: "center", padding: "20px" }}>
+                                <Loader size="sm" />
+                            </div>
+                        ) : attendanceDates.length === 0 ? (
+                            <Alert color="yellow" title="No Dates Found">
+                                No attendance records found for this lesson.
+                            </Alert>
+                        ) : (
+                            <Card withBorder padding="sm" style={{ maxHeight: "300px", overflowY: "auto" }}>
+                                <Stack spacing="xs">
+                                    {attendanceDates.map((attendance, index) => (
+                                        <div
+                                            key={attendance.id || index}
+                                            style={{
+                                                padding: "12px",
+                                                borderRadius: "6px",
+                                                border: "1px solid #e9ecef",
+                                                backgroundColor: "#f8f9fa",
+                                                cursor: "pointer", // ✅ Make it look clickable
+                                                transition: "background-color 0.2s"
+                                            }}
+                                            onClick={() => handleAttendanceDetailClick(attendance)} // ✅ Make it clickable
+                                            onMouseEnter={(e) => e.target.style.backgroundColor = "#e2e6ea"}
+                                            onMouseLeave={(e) => e.target.style.backgroundColor = "#f8f9fa"}
+                                        >
+                                            <Group justify="space-between">
+                                                <div>
+                                                    <Text size="sm" fw={500}>
+                                                        📅 {new Date(attendance.date).toLocaleDateString('en-US', {
+                                                            weekday: 'long',
+                                                            year: 'numeric',
+                                                            month: 'long',
+                                                            day: 'numeric'
+                                                        })}
+                                                    </Text>
+                                                    <Text size="xs" c="dimmed" mt="xs">
+                                                        👨‍🏫 {attendance.tutorName || 'No tutor assigned'}
+                                                    </Text>
+                                                </div>
+                                                <div style={{ textAlign: "right" }}>
+                                                    <Badge
+                                                        color={attendance.isAttended ? "green" : "gray"}
+                                                        size="sm"
+                                                    >
+                                                        {attendance.isAttended ? "Attended" : "Scheduled"}
+                                                    </Badge>
+                                                    <Text size="xs" c="dimmed" mt="xs">
+                                                        💰 ${attendance.tutorRate || 0}
+                                                    </Text>
+                                                </div>
+                                            </Group>
+
+                                            {/* ✅ Add click hint */}
+                                            <Text size="xs" c="blue" mt="xs" style={{ fontStyle: "italic" }}>
+                                                Click to edit details →
+                                            </Text>
+                                        </div>
+                                    ))}
+                                </Stack>
+                            </Card>
+                        )}
+                    </div>
+
+                    <Group justify="flex-end" mt="lg">
+                        <Button
+                            variant="subtle"
+                            onClick={() => {
+                                setAttendanceModalOpen(false);
+                                setSelectedLessonAttendance(null);
+                                setAttendanceDates([]);
+                            }}
+                        >
+                            Close
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+            {/* ✅ NEW: Simple Attendance Dates Modal */}
+            <Modal
+                opened={attendanceDetailModalOpen}
+                onClose={() => {
+                    setAttendanceDetailModalOpen(false);
+                    setSelectedAttendance(null);
+                    setAttendanceFormData({ tutorId: "", isAttended: false, notes: "" });
+                    setAttendanceTutors([]);
+                }}
+                title="Edit Attendance Details"
+                size="md"
+            >
+                <Stack spacing="md">
+                    {selectedAttendance && (
+                        <Card withBorder padding="sm">
+                            <Group justify="space-between" mb="xs">
+                                <div>
+                                    <Text size="lg" fw={600}>
+                                        📅 {new Date(selectedAttendance.date).toLocaleDateString('en-US', {
+                                            weekday: 'long',
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                        })}
+                                    </Text>
+                                    <Text size="sm" c="dimmed">
+                                        📚 {selectedLessonAttendance?.title}
+                                    </Text>
+                                </div>
+                                <Badge
+                                    color={selectedAttendance.isPaid ? "green" : "orange"}
+                                    size="sm"
+                                >
+                                    {selectedAttendance.isPaid ? "Paid" : "Unpaid"}
+                                </Badge>
+                            </Group>
+
+                            <Group spacing="md">
+                                <Text size="sm">
+                                    <strong>Session ID:</strong> {String(selectedAttendance.id).slice(0, 8)}...
+                                </Text>
+                                <Text size="sm">
+                                    <strong>Rate:</strong> ${selectedAttendance.tutorRate || 0}
+                                </Text>
+                            </Group>
+                        </Card>
+                    )}
+
+                    <div>
+                        <Text size="md" fw={500} mb="sm">
+                            📝 Edit Session Details:
+                        </Text>
+
+                        <Stack spacing="md">
+                            <Select
+                                label="Assigned Tutor"
+                                placeholder="Select tutor for this session"
+                                data={attendanceTutors.map(tutor => ({
+                                    value: tutor.id,
+                                    label: `${tutor.firstName} ${tutor.lastName}`
+                                }))}
+                                value={attendanceFormData.tutorId}
+                                onChange={(value) => setAttendanceFormData(prev => ({
+                                    ...prev,
+                                    tutorId: value
+                                }))}
+                                searchable
+                                clearable
+                                description="Change the tutor for this specific session"
+                            />
+
+                            <Select
+                                label="Attendance Status"
+                                data={[
+                                    { value: "false", label: "Not Attended" },
+                                    { value: "true", label: "Attended" }
+                                ]}
+                                value={attendanceFormData.isAttended.toString()}
+                                onChange={(value) => setAttendanceFormData(prev => ({
+                                    ...prev,
+                                    isAttended: value === "true"
+                                }))}
+                                description="Mark whether the session was attended"
+                            />
+
+                            <Textarea
+                                label="Notes (Optional)"
+                                placeholder="Add any notes about this session..."
+                                value={attendanceFormData.notes}
+                                onChange={(e) => setAttendanceFormData(prev => ({
+                                    ...prev,
+                                    notes: e.target.value
+                                }))}
+                                rows={3}
+                                description="Optional notes about tutor changes, attendance, etc."
+                            />
+                        </Stack>
+                    </div>
+
+                    {/* ✅ Show warning if changing tutor */}
+                    {selectedAttendance && attendanceFormData.tutorId !== selectedAttendance.tutorId && (
+                        <Alert color="yellow" title="⚠️ Tutor Change Detected">
+                            <Text size="sm">
+                                You are changing the tutor for this session from{" "}
+                                <strong>{selectedAttendance.tutorName || "Unknown"}</strong> to{" "}
+                                <strong>
+                                    {attendanceFormData.tutorId
+                                        ? attendanceTutors.find(t => t.id === attendanceFormData.tutorId)?.firstName + " " +
+                                        attendanceTutors.find(t => t.id === attendanceFormData.tutorId)?.lastName
+                                        : "No tutor assigned"
+                                    }
+                                </strong>.
+                            </Text>
+                            <Text size="sm" mt="xs">
+                                This will affect payment calculations for this specific session.
+                            </Text>
+                        </Alert>
+                    )}
+
+                    <Group justify="flex-end" mt="lg">
+                        <Button
+                            variant="subtle"
+                            onClick={() => {
+                                setAttendanceDetailModalOpen(false);
+                                setSelectedAttendance(null);
+                                setAttendanceFormData({ tutorId: "", isAttended: false, notes: "" });
+                                setAttendanceTutors([]);
+                            }}
+                            disabled={updatingAttendance}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            color="blue"
+                            onClick={handleUpdateAttendance}
+                            loading={updatingAttendance}
+                            leftSection={<IconEdit size={16} />}
+                        >
+                            Update Attendance
                         </Button>
                     </Group>
                 </Stack>
