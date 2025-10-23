@@ -1416,7 +1416,7 @@ export default function ManageLesson() {
                                 description="Change the tutor for this specific session"
                             />
 
-                            <Select
+                            {/* <Select
                                 label="Attendance Status"
                                 data={[
                                     { value: "false", label: "Not Attended" },
@@ -1440,7 +1440,7 @@ export default function ManageLesson() {
                                 }))}
                                 rows={3}
                                 description="Optional notes about tutor changes, attendance, etc."
-                            />
+                            /> */}
                         </Stack>
                     </div>
 
