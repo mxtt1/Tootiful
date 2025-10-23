@@ -31,6 +31,7 @@ export default function AgencyProfile() {
     const [error, setError] = useState("");
 
     // State for personal details with initial data tracking
+    // so if the user tries to edit before data loads, change detection wont fail 
     const [personalDetails, setPersonalDetails] = useState({
     firstName: "", lastName: "", email: "", phone: "", role: "",
     isActive: true,          // email verified?
@@ -381,7 +382,7 @@ export default function AgencyProfile() {
         } else {
             setAgencyInfo(prev => ({ ...prev, [field]: value }));
         }
-        if (error) setError("");
+        if (error) setError(""); // Clears errors when user starts typing
     };
 
     const handleResendVerification = async () => {
