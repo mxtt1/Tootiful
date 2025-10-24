@@ -32,8 +32,10 @@ class LessonService {
 
   async handleGetLessonsByAgencyId(req, res) {
     const { id } = req.params;
-    console.log(`Fetching lessons for agency: ${id}`);
-    const lessons = await this.getAllLessonsByAgencyId(id); // Fetch all lessons for the agency
+    const { location } = req.query; 
+    console.log(`Fetching lessons for agency: ${id}, location: ${location}`);   
+
+    const lessons = await this.getAllLessonsByAgencyId(id, location); // Fetch all lessons for the agency
     console.log(`Retrieved ${lessons.length} lessons for agency ${id}`);
     res.status(200).json({
       success: true,
@@ -257,9 +259,9 @@ class LessonService {
   async handleGetAgencyAttendance(req, res) {
     try {
       const { id: agencyId } = req.params;
-      console.log(`Fetching agency-wide attendance for agency: ${agencyId}`);
-
-      const agencyAttendance = await this.getAgencyAttendance(agencyId);
+      const { location } = req.query; 
+      console.log(`Fetching agency-wide attendance for agency: ${agencyId}, location: ${location}`);
+      const agencyAttendance = await this.getAgencyAttendance(agencyId, location);
 
       console.log(`Retrieved attendance data for ${agencyAttendance.length} lessons in agency ${agencyId}`);
 
@@ -276,37 +278,49 @@ class LessonService {
     }
   }
 
-  async getAgencyAttendance(agencyId) {
+  async getAgencyAttendance(agencyId, location = 'all') {
     try {
-      console.log(`Fetching agency-wide attendance for: ${agencyId}`);
+      console.log(`Fetching agency-wide attendance for: ${agencyId}, location: ${location}`);
+      // include array
+      const include = [
+        {
+          model: Subject,
+          as: "subject",
+          attributes: ["id", "name", "gradeLevel", "category"],
+        },
+        {
+          model: Location,
+          as: "location",
+          attributes: ["id", "address"],
+        },
+        {
+          model: User,
+          as: "tutor",
+          attributes: ["id", "firstName", "lastName"],
+          required: false,
+        },
+        {
+          model: Attendance,
+          as: "instances",
+          attributes: ["id", "date", "isAttended", "tutorId", "createdAt"],
+          order: [['date', 'DESC']]
+        }
+      ];
+      const where = { agencyId };
+
+      // location filtering
+      if (location && location !== 'all') {
+        include[1] = {
+          ...include[1],
+          where: { address: location },
+          required: true
+        };
+      }
 
       // Get all lessons for the agency with their attendance
       const lessons = await Lesson.findAll({
-        where: { agencyId },
-        include: [
-          {
-            model: Subject,
-            as: "subject",
-            attributes: ["id", "name", "gradeLevel", "category"],
-          },
-          {
-            model: Location,
-            as: "location",
-            attributes: ["id", "address"],
-          },
-          {
-            model: User,
-            as: "tutor",
-            attributes: ["id", "firstName", "lastName"],
-            required: false,
-          },
-          {
-            model: Attendance,
-            as: "instances",
-            attributes: ["id", "date", "isAttended", "tutorId", "createdAt"],
-            order: [['date', 'DESC']]
-          }
-        ],
+        where,
+        include,
         order: [["createdAt", "DESC"]],
       });
 
@@ -551,39 +565,55 @@ class LessonService {
     }
   }
 
-  async getAllLessonsByAgencyId(agencyId) {
+  async getAllLessonsByAgencyId(agencyId, location = 'all') {
     try {
-      console.log(`Fetching lessons for agency: ${agencyId}`);
-      const lessons = await Lesson.findAll({
-        include: [
-          {
-            model: Subject,
-            as: "subject",
-            attributes: ["id", "name", "gradeLevel", "category", "description"],
-          },
-          {
-            model: Location,
-            as: "location",
-            attributes: ["id", "address"],
-            include: [
-              {
-                model: Agency,
-                as: "agency",
-                attributes: ["id", "name"],
-              },
-            ],
-          },
-          {
-            model: User,
-            as: "tutor",
-            attributes: ["id", "firstName", "lastName"],
-            required: false,
-          },
-        ],
-        where: {
-          agencyId,
-          isActive: true,
+      console.log(`Fetching lessons for agency: ${agencyId}, location: ${location}`);
+      
+      // Define include array first
+      const include = [
+        {
+          model: Subject,
+          as: "subject",
+          attributes: ["id", "name", "gradeLevel", "category", "description"],
         },
+        {
+          model: Location,
+          as: "location",
+          attributes: ["id", "address"],
+          include: [
+            {
+              model: Agency,
+              as: "agency",
+              attributes: ["id", "name"],
+            },
+          ],
+        },
+        {
+          model: User,
+          as: "tutor",
+          attributes: ["id", "firstName", "lastName"],
+          required: false,
+        },
+      ];
+
+      const where = {
+        agencyId,
+        isActive: true,
+      };
+
+      // location filtering
+      if (location && location !== 'all') {
+        // Create a copy of the location include with the where clause
+        include[1] = {
+          ...include[1],
+          where: { address: location },
+          required: true
+        };
+      }
+
+      const lessons = await Lesson.findAll({
+        include,
+        where,
         order: [["createdAt", "DESC"]],
       });
 
@@ -634,15 +664,10 @@ class LessonService {
         };
       });
 
-      console.log(
-        `Found ${flattenedLessons.length} lessons for agency ${agencyId}`
-      );
+      console.log(`Found ${flattenedLessons.length} lessons for agency ${agencyId}`);
       return flattenedLessons;
     } catch (error) {
-      console.error(
-        `Failed to fetch lessons for agency ${agencyId}:`,
-        error.message
-      );
+      console.error(`Failed to fetch lessons for agency ${agencyId}:`, error.message);
       throw new Error(`Failed to fetch lessons by agency ID: ${error.message}`);
     }
   }

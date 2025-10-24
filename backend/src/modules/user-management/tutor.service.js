@@ -69,7 +69,8 @@ export default class TutorService {
             maxRate,
             subject,
             agencyId,
-            search
+            search,
+            location
         } = req.query;
 
         // Handle multivalued parameters - convert to arrays if needed
@@ -83,7 +84,8 @@ export default class TutorService {
             maxRate, 
             subjects,
             agencyId,
-            search
+            search,
+            location
         });
 
         // Only include pagination if page and limit are present
@@ -258,7 +260,8 @@ export default class TutorService {
             maxRate,
             subjects = [],
             agencyId,
-            search, 
+            search,
+            location, 
         } = options;
         const where = { role: 'tutor' };
 
@@ -279,6 +282,21 @@ export default class TutorService {
                 through: { attributes: ['experienceLevel', 'hourlyRate'] } // include these cols from join table
             }
         ];
+
+        // filter lesson wtih JOIN
+        if (location && location !== 'all') {
+            include.push({
+                model: Lesson,
+                as: 'tutorLessons',
+                include: [{
+                    model: Location,
+                    as: 'location',
+                    where: { address: location },
+                    required: true
+                }],
+                required: true // only include tutors with lessons at this location
+            });
+        }
 
         // filter by agencyId
         if (agencyId !== undefined) {

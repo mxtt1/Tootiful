@@ -1,14 +1,15 @@
-import { Attendance, Lesson, Subject, StudentPayment } from '../../models/index.js';
+import { Attendance, Lesson, Subject, StudentPayment, Location } from '../../models/index.js';
 import gradeLevelEnum from "../../util/enum/gradeLevelEnum.js";   
-  
+import { Op } from 'sequelize';
+
 class AgencyAnalyticsService {
 
    async handleGetAgencyRevenueSummary(req, res) {
         try {
             const { id } = req.params;
-            console.log(`Handler: Fetching revenue summary for agency: ${id}`);
-
-            const revenueSummary = await this.getAgencyRevenueSummary(id);
+            const { timeRange = 'all_time', location } = req.query;
+            console.log(`Handler: Fetching revenue summary for agency: ${id} with filters:`, { timeRange, location });
+            const revenueSummary = await this.getAgencyRevenueSummary(id, { timeRange, location });
 
             console.log(`Handler: Retrieved revenue summary for agency ${id}`);
 
@@ -30,9 +31,9 @@ class AgencyAnalyticsService {
     async handleGetRevenueGrowthData(req, res) {
         try {
             const { id } = req.params;
-            const { timeRange = 'monthly' } = req.query; 
+            const { timeRange = 'monthly', location } = req.query; 
             
-            const growthData = await this.getRevenueGrowthData(id, timeRange);
+            const growthData = await this.getRevenueGrowthData(id, timeRange, location);
             
             res.status(200).json({
                 success: true,
@@ -51,9 +52,9 @@ class AgencyAnalyticsService {
     async handleGetSubscriptionGrowthData(req, res) {
         try {
             const { id } = req.params;
-            const { timeRange = 'monthly' } = req.query;
+            const { timeRange = 'monthly', location } = req.query;
             
-            const growthData = await this.getSubscriptionGrowthData(id, timeRange);
+            const growthData = await this.getSubscriptionGrowthData(id, timeRange, location);
             
             res.status(200).json({
                 success: true,
@@ -69,26 +70,40 @@ class AgencyAnalyticsService {
         }
     }
 
-    async getRevenueGrowthData(agencyId, timeRange) {
+    async getRevenueGrowthData(agencyId, timeRange, location = 'all') {
         try {
-            console.log(`DEBUG getRevenueGrowthData: agencyId=${agencyId}, timeRange=${timeRange}`);
+            console.log(`DEBUG getRevenueGrowthData: agencyId=${agencyId}, timeRange=${timeRange}, location=${location}`);
             
+            // build where clause for lessons
+            const lessonWhereClause = { 
+                agencyId,
+                isActive: true
+            };
+
+            const paymentInclude = [{
+                model: Lesson,
+                as: 'lesson',
+                where: lessonWhereClause,
+                include: []
+            }];
+            
+            if (location && location !== 'all') {
+                lessonInclude[0].include.push({
+                    model: Location,
+                    as: 'location',
+                    where: { address: location },
+                    required: true
+                });
+            }
+
             // Use ACTUAL payment data instead of attendance estimates
             const paymentHistory = await StudentPayment.findAll({
-                include: [{
-                    model: Lesson,
-                    as: 'lesson',
-                    where: { 
-                        agencyId,
-                        isActive: true
-                    },
-                    attributes: ['id'] 
-                }],
+                include: paymentInclude,
                 order: [['paymentDate', 'ASC']] 
             });
 
-            console.log(`DEBUG: Found ${paymentHistory.length} payment records for revenue growth`);
-
+            console.log(`DEBUG: Found ${paymentHistory.length} payment records for revenue growth with location: ${location}`);
+            
             // Group by time period and calculate revenue
             const groupedData = this.groupDataByTimePeriod(paymentHistory, timeRange, 'revenue', 'paymentDate');
             console.log(`DEBUG: Grouped into ${groupedData.length} time periods`, groupedData);
@@ -105,15 +120,30 @@ class AgencyAnalyticsService {
         }
     }
 
-    async getSubscriptionGrowthData(agencyId, timeRange) {
+    async getSubscriptionGrowthData(agencyId, timeRange, location = 'all') {
         try {
-            console.log(`DEBUG getSubscriptionGrowthData: agencyId=${agencyId}, timeRange=${timeRange}`);
+            console.log(`DEBUG getSubscriptionGrowthData: agencyId=${agencyId}, timeRange=${timeRange}, location=${location}`);  
             
+            // Build where clause
+            const whereClause = { 
+                agencyId,
+                isActive: true 
+            };
+            
+            // location filtering with JOIN
+            const include = [];
+            if (location && location !== 'all') {
+                include.push({
+                    model: Location,
+                    as: 'location',
+                    where: { address: location },
+                    required: true
+                });
+            }
+
             const subscriptionHistory = await Lesson.findAll({
-                where: { 
-                    agencyId,
-                    isActive: true 
-                },
+                where: whereClause,
+                include: include, 
                 attributes: ['id', 'currentCap', 'createdAt', 'updatedAt'],
                 order: [['createdAt', 'ASC']]
             });
@@ -303,9 +333,47 @@ class AgencyAnalyticsService {
         }
     }
 
-    async getAgencyRevenueSummary(agencyId) {
+    async getAgencyRevenueSummary(agencyId, filters = {}) {
         try {
-            console.log("Calculating revenue summary for agency:", agencyId);
+            const { timeRange = 'all_time', location } = filters;
+            console.log("Calculating revenue summary for agency:", agencyId, "with filters:", filters);
+
+            // Build where clause for lessons based on location filter
+            const lessonWhereClause = { 
+                agencyId,
+                isActive: true
+            };
+
+            // Build include array for location filtering
+            const lessonInclude = [{
+                model: Subject,
+                as: 'subject',
+                attributes: ['id', 'name', 'gradeLevel']
+            }];
+            // Handle location filtering by joining with Location table
+            if (location && location !== 'all') {
+                lessonInclude.push({
+                    model: Location,
+                    as: 'location',
+                    where: { address: location },
+                    required: true
+                });
+            } else {
+                lessonInclude.push({
+                    model: Location,
+                    as: 'location',
+                    required: false
+                });
+            }
+
+            // Apply time range filter to payments
+            const paymentWhereClause = {};
+            if (timeRange !== 'all_time') {
+                const dateRange = this.getDateRangeForTimePeriod(timeRange);
+                paymentWhereClause.paymentDate = {
+                    [Op.between]: [dateRange.start, dateRange.end]
+                };
+            }
 
             // 1. Get ALL paid sessions for this agency 
             const paidSessions = await Attendance.findAll({
@@ -315,10 +383,8 @@ class AgencyAnalyticsService {
                 include: [{
                     model: Lesson,
                     as: 'lesson',
-                    where: { 
-                        agencyId,
-                        isActive: true
-                    },
+                    where: lessonWhereClause,
+                    include: [...lessonInclude],
                     attributes: ['tutorRate']
                 }]
             });
@@ -330,27 +396,20 @@ class AgencyAnalyticsService {
             // 2. Get all student payments for revenue calculation
             // the array of payment objects
             const studentPayments = await StudentPayment.findAll({
+                where: paymentWhereClause, // time range filter
                 include: [{
                     model: Lesson,
                     as: 'lesson',
-                    where: { 
-                        agencyId,
-                        isActive: true
-                    },
-                    include: [{
-                        model: Subject,
-                        as: 'subject',
-                        attributes: ['id', 'name', 'gradeLevel']
-                    }]
+                    where: lessonWhereClause,
+                    include: [...lessonInclude],
+                    required: true
                 }]
             });
 
             // 3. Get current subscriptions 
             const lessons = await Lesson.findAll({
-                where: { 
-                    agencyId,
-                    isActive: true 
-                },
+                where: lessonWhereClause,
+                include: [...lessonInclude],
                 attributes: ['id', 'currentCap']
             });
 
@@ -388,13 +447,55 @@ class AgencyAnalyticsService {
                 subjectRevenueByGrade
             };
 
-            console.log("Revenue Summary Calculated:", summary);
+            console.log("Revenue Summary Calculated:", {
+                ...summary,
+                filters: { timeRange, location },
+                studentPaymentsCount: studentPayments.length,
+                lessonsCount: lessons.length,
+                paidSessionsCount: paidSessions.length
+            });            
             return summary;
 
         } catch (error) {
             console.error('Get agency revenue summary:', error);
             throw new Error(`Failed to calculate agency revenue: ${error.message}`);
         }
+    }
+
+    getDateRangeForTimePeriod(timeRange) {
+        const now = new Date();
+        let start, end = new Date();
+
+        switch (timeRange) {
+            case 'this_month':
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
+                break;
+            case 'last_month':
+                start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                end = new Date(now.getFullYear(), now.getMonth(), 0);
+                break;
+            case 'this_quarter':
+                const quarter = Math.floor(now.getMonth() / 3);
+                start = new Date(now.getFullYear(), quarter * 3, 1);
+                break;
+            case 'last_quarter':
+                const lastQuarter = Math.floor(now.getMonth() / 3) - 1;
+                start = new Date(now.getFullYear(), lastQuarter * 3, 1);
+                end = new Date(now.getFullYear(), (lastQuarter + 1) * 3, 0);
+                break;
+            case 'this_year':
+                start = new Date(now.getFullYear(), 0, 1);
+                break;
+            case 'last_year':
+                start = new Date(now.getFullYear() - 1, 0, 1);
+                end = new Date(now.getFullYear() - 1, 11, 31);
+                break;
+            default: // all_time
+                start = new Date(0); // Beginning of time
+                break;
+        }
+
+        return { start, end };
     }
 
     calculateRevenueByGradeLevel(studentPayments) {

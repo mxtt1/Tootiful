@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend } from 'recharts';
 import ApiClient from '../api/apiClient';
 
-const GrowthChart = ({ dataType = 'revenue', agencyId, timeRange = 'monthly', currentValue }) => {
+const GrowthChart = ({ dataType = 'revenue', agencyId, timeRange = 'monthly', location = 'all', currentValue }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,7 +11,7 @@ const GrowthChart = ({ dataType = 'revenue', agencyId, timeRange = 'monthly', cu
     if (!agencyId) return;
     
     fetchGrowthData();
-  }, [dataType, agencyId, timeRange, currentValue]);
+  }, [dataType, agencyId, timeRange, location, currentValue]);
 
   const fetchGrowthData = async () => {
     try {
@@ -25,12 +25,16 @@ const GrowthChart = ({ dataType = 'revenue', agencyId, timeRange = 'monthly', cu
       console.log(`🔍 Frontend: Making API call to: ${endpoint}`, {
         agencyId,
         timeRange,
+        location,
         dataType,
         currentValue
       });
       
       const res = await ApiClient.get(endpoint, {
-        params: { timeRange }
+        params: { 
+          timeRange,
+          location: location !== 'all' ? location : undefined // Only send if not 'all'
+        }
       });
 
       console.log(`🔍 Frontend: API Response:`, res);
