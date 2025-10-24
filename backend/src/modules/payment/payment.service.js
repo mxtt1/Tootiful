@@ -38,7 +38,7 @@ class PaymentService {
         platformFee: platformFee,
         platformFeePercentage: this.PLATFORM_FEE_PERCENTAGE * 100,
         totalAmount: totalAmount,
-        currency: "usd", // You can make this configurable
+        currency: "sgd",
         lesson: {
           title: lesson.title,
           subject: lesson.subject?.name,
@@ -171,10 +171,10 @@ class PaymentService {
   }
 
   /**
-     * Create a StudentPayment record
-     * @param {Object} data - { studentId, lessonId, amount }
-     * @returns {Object} Created payment record
-     */
+   * Create a StudentPayment record
+   * @param {Object} data - { studentId, lessonId, amount }
+   * @returns {Object} Created payment record
+   */
   async createStudentPayment({ studentId, lessonId, amount }) {
     try {
       if (!studentId || !lessonId || !amount) {
@@ -184,7 +184,9 @@ class PaymentService {
         studentId,
         lessonId,
         amount,
-        platformFee: amount / (1 + this.PLATFORM_FEE_PERCENTAGE) * this.PLATFORM_FEE_PERCENTAGE
+        platformFee:
+          (amount / (1 + this.PLATFORM_FEE_PERCENTAGE)) *
+          this.PLATFORM_FEE_PERCENTAGE,
       });
       return payment;
     } catch (error) {
@@ -203,24 +205,24 @@ class PaymentService {
       const where = {};
       if (studentId) where.studentId = studentId;
       if (lessonId) where.lessonId = lessonId;
-      
-      const payments = await StudentPayment.findAll({ 
+
+      const payments = await StudentPayment.findAll({
         where,
         include: [
           {
-            association: 'lesson',
-            attributes: ['id', 'title'],
+            association: "lesson",
+            attributes: ["id", "title"],
             include: [
               {
-                association: 'agency',
-                attributes: ['id', 'name']
-              }
-            ]
-          }
+                association: "agency",
+                attributes: ["id", "name"],
+              },
+            ],
+          },
         ],
-        order: [['paymentDate', 'DESC']]
+        order: [["paymentDate", "DESC"]],
       });
-      
+
       return payments;
     } catch (error) {
       console.error("Error fetching student payments:", error);

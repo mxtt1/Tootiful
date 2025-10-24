@@ -29,7 +29,7 @@ app.use(cookieParser()); // Add cookie parser middleware
 // Proper CORS middleware for credentials support
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: [
@@ -53,7 +53,6 @@ app.use("/api/agency-admins", agencyAdminRoutes);
 app.use("/api/tutorPayments", tutorPaymentRoutes); //tutor payment routes
 app.use("/api/payments", paymentRoutes); //student payment routes
 app.use("/api/analytics", analyticsRoutes); //agency analytics routes
-
 
 // Global Error Handler Middleware
 app.use(errorHandler);

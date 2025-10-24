@@ -154,6 +154,14 @@ export const paymentStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e9ecef",
   },
+  cardFieldStyle: {
+    backgroundColor: "#FFFFFF",
+    textColor: "#000000",
+    placeholderColor: "#999999",
+    borderColor: "#e9ecef",
+    borderWidth: 1,
+    borderRadius: 8,
+  },
   testCardNote: {
     fontSize: 12,
     color: "#28a745",

@@ -41,7 +41,7 @@ export default function PaymentPage() {
       // Check authentication
       if (!authService.isAuthenticated()) {
         Alert.alert("Error", "Please log in to continue");
-        router.back();
+        router.push("/tabs/lessons");
         return;
       }
 
@@ -59,7 +59,7 @@ export default function PaymentPage() {
       Alert.alert(
         "Error",
         error.response?.data?.message || "Failed to load payment details",
-        [{ text: "OK", onPress: () => router.back() }]
+        [{ text: "OK", onPress: () => router.push("/tabs/lessons") }]
       );
     } finally {
       setLoading(false);
@@ -142,7 +142,10 @@ export default function PaymentPage() {
           <Text style={styles.errorText}>Failed to load payment details</Text>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => {
+              console.log("🔙 Go back button pressed - navigating to lessons");
+              router.push("/tabs/lessons");
+            }}
           >
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
@@ -160,7 +163,10 @@ export default function PaymentPage() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => {
+              console.log("🔙 Back button pressed - navigating to lessons");
+              router.push("/tabs/lessons");
+            }}
             style={styles.backIcon}
           >
             <Ionicons name="arrow-back" size={24} color="#6155F5" />
@@ -238,6 +244,14 @@ export default function PaymentPage() {
             postalCodeEnabled={false}
             placeholders={{
               number: "4242 4242 4242 4242",
+            }}
+            cardStyle={{
+              backgroundColor: "#FFFFFF",
+              textColor: "#000000",
+              placeholderColor: "#999999",
+              borderColor: "#e9ecef",
+              borderWidth: 1,
+              borderRadius: 8,
             }}
             style={styles.cardFieldContainer}
             onCardChange={(cardDetails) => {
