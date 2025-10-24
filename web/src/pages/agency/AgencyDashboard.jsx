@@ -4,7 +4,8 @@ import GenericPieChart from "../../components/userChart";
 import GrowthChart from "../../components/growthChart";
 import TransactionTable from "../../components/transactionTable";
 import { notifications } from "@mantine/notifications";
-import { Container, Title, Text, Stack } from "@mantine/core";
+import { Container, Title, Text, Stack, Select, Group } from "@mantine/core";
+import { FaFilter } from "react-icons/fa";
 import {
   FaMoneyBillAlt,
   FaChartLine,
@@ -35,6 +36,22 @@ const AgencyDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("user-distribution");
 
+  // filters
+  const [locations, setLocations] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState("all");
+  const [selectedTimeRange, setSelectedTimeRange] = useState("this_month");
+  
+  // Time range options
+  const timeRangeOptions = [
+    { value: "this_month", label: "This Month" },
+    { value: "last_month", label: "Last Month" },
+    { value: "this_quarter", label: "This Quarter" },
+    { value: "last_quarter", label: "Last Quarter" },
+    { value: "this_year", label: "This Year" },
+    { value: "last_year", label: "Last Year" },
+    { value: "all_time", label: "All Time" }
+  ];
+
   // Get agencyId from user context
   const agencyId = user?.userType === "agency" ? user.id : user?.agencyId;
 
@@ -55,6 +72,30 @@ const AgencyDashboard = () => {
   const selectedGradeSubjectRevenue = selectedGradeLevel 
     ? subjectRevenueByGrade[selectedGradeLevel] || []
     : [];
+
+  // Fetch locations for filter
+  const fetchLocations = async () => {
+    try {
+      const response = await ApiClient.get(`/agencies/${agencyId}/locations`);
+      const locationsData = response?.data?.data || response?.data || [];
+      // Format the locations for the dropdown
+      const formattedLocations = locationsData.map(location => ({
+        value: location.address,
+        label: location.address
+      }));
+      setLocations([{ value: "all", label: "All Locations" }, ...formattedLocations]);
+    } catch (err) {
+      console.error("Failed to fetch locations:", err);
+      // If API fails, provide default location
+      setLocations([{ value: "all", label: "All Locations" }]);
+    } 
+  };
+
+  useEffect(() => {
+    if (agencyId) {
+      fetchLocations();
+    }
+  }, [agencyId]);
 
   useEffect(() => {
     if (agencyId) {
@@ -85,7 +126,7 @@ const AgencyDashboard = () => {
       setError("No agency ID found. Please contact support.");
       setLoading(false);
     }
-  }, [agencyId]);
+  }, [agencyId, selectedLocation, selectedTimeRange]);
 
   const fetchSubjects = async () => {
     try {
@@ -102,9 +143,10 @@ const AgencyDashboard = () => {
     }
   };
 
+  // added location and timerage filters to all the fetch functions below
   const fetchAllTutors = async () => {
     try {
-      const res = await ApiClient.get(`/tutors?agencyId=${agencyId}`);
+      const res = await ApiClient.get(`/tutors?agencyId=${agencyId}${selectedLocation !== 'all' ? `&location=${selectedLocation}` : ''}`);
       const tutorsData = res?.data || [];
       setTotalTutors(tutorsData.length || 0);
     } catch (err) {
@@ -115,7 +157,7 @@ const AgencyDashboard = () => {
 
   const fetchAllStudents = async () => {
     try {
-      const res = await ApiClient.get(`/students?agencyId=${agencyId}`);
+      const res = await ApiClient.get(`/students?agencyId=${agencyId}${selectedLocation !== 'all' ? `&location=${selectedLocation}` : ''}`);
       const studentsData = res?.data || [];
       setTotalStudents(studentsData.length || 0);
     } catch (err) {
@@ -126,7 +168,7 @@ const AgencyDashboard = () => {
 
   const fetchRevenueData = async () => {
     try {
-      const res = await ApiClient.get(`/analytics/agency/${agencyId}/revenue-summary`);
+      const res = await ApiClient.get(`/analytics/agency/${agencyId}/revenue-summary?timeRange=${selectedTimeRange}${selectedLocation !== 'all' ? `&location=${selectedLocation}` : ''}`);
       
       if (!res) {
         throw new Error("No response from server");
@@ -155,7 +197,7 @@ const AgencyDashboard = () => {
 
   const fetchLessonData = async () => {
     try {
-      const res = await ApiClient.get(`/lessons/agency/${agencyId}`);
+      const res = await ApiClient.get(`/lessons/agency/${agencyId}${selectedLocation !== 'all' ? `?location=${selectedLocation}` : ''}`);
       const lessonsData = res?.data?.data || res?.data || [];
       setLessons(lessonsData);
     } catch (err) {
@@ -166,7 +208,7 @@ const AgencyDashboard = () => {
 
   const fetchAttendanceData = async () => {
     try {
-      const res = await ApiClient.get(`/lessons/agency/${agencyId}/attendance`);
+      const res = await ApiClient.get(`/lessons/agency/${agencyId}/attendance${selectedLocation !== 'all' ? `?location=${selectedLocation}` : ''}`);
       const attendanceData = res?.data?.data || res?.data || [];
       
       if (!attendanceData || attendanceData.length === 0) {
@@ -211,6 +253,27 @@ const AgencyDashboard = () => {
       setAttendanceRate(0);
     } 
   };
+
+  // Filter Component
+  const FilterSection = () => (
+    <Group spacing="md" style={{ justifyContent: "flex-end", marginBottom: "1.5rem" }}>
+      <Select
+        value={selectedLocation}
+        onChange={setSelectedLocation}
+        data={locations}
+        placeholder="Select location"
+        style={{ width: "200px" }}
+      />
+      
+      <Select
+        value={selectedTimeRange}
+        onChange={setSelectedTimeRange}
+        data={timeRangeOptions}
+        placeholder="Select time range"
+        style={{ width: "200px" }}
+      />
+    </Group>
+  );
 
   const handleShowSubscriptionsDetail = () => {
     setShowSubscriptionsDetail(true);
@@ -565,6 +628,8 @@ const AgencyDashboard = () => {
               Here's an overview of your agency's performance.
             </Text>
           </div>
+
+          <FilterSection />
 
           <TabNavigation />
 
@@ -1043,7 +1108,8 @@ const AgencyDashboard = () => {
                     <GrowthChart 
                       dataType="revenue" 
                       agencyId={agencyId} 
-                      timeRange="monthly"
+                      timeRange={selectedTimeRange}  
+                      location={selectedLocation}  
                       currentValue={revenueData?.studentRevenue} 
                     />
                   </div>
@@ -1065,7 +1131,8 @@ const AgencyDashboard = () => {
                     <GrowthChart 
                       dataType="subscriptions" 
                       agencyId={agencyId} 
-                      timeRange="monthly"
+                      timeRange={selectedTimeRange}  
+                      location={selectedLocation}  
                       currentValue={totalSubscriptions} 
                     />
                   </div>

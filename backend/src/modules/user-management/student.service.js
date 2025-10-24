@@ -1,4 +1,4 @@
-import { User, Agency } from "../../models/index.js";
+import { User, Agency, Lesson, Location } from "../../models/index.js";
 import { Op } from "sequelize";
 import bcrypt from "bcrypt";
 import gradeLevelEnum from "../../util/enum/gradeLevelEnum.js";
@@ -7,7 +7,7 @@ import { createAndEmailVerificationLink, getPendingEmailForUser } from "./emailV
 class StudentService {
   // Route handler methods with complete HTTP response logic
   async handleGetAllStudents(req, res) {
-    const { page, limit, active, gradeLevel, agencyId } = req.query;
+    const { page, limit, active, gradeLevel, agencyId, location } = req.query;
     const gradeLevels = Array.isArray(gradeLevel)
       ? gradeLevel
       : gradeLevel
@@ -30,6 +30,7 @@ class StudentService {
       active,
       gradeLevels,
       agencyId,
+      location
     });
 
     // Only return student-relevant fields
@@ -154,7 +155,7 @@ class StudentService {
   }
 
   async getStudents(options = {}) {
-    const { page, limit, gradeLevels = [], active, agencyId } = options;
+    const { page, limit, gradeLevels = [], active, agencyId, location } = options;
     const where = { role: "student" };
     if (gradeLevels.length > 0) {
       if (gradeLevels.length === 1) {
@@ -171,9 +172,28 @@ class StudentService {
     if (agencyId !== undefined) {
       where.agencyId = agencyId;
     }
+
+    // location filtering
+    const include = [];
+    if (location && location !== 'all') {
+        include.push({
+            model: Lesson,
+            as: 'studentLessons',
+            include: [{
+                model: Location,
+                as: 'location',
+                where: { address: location },
+                required: true
+            }],
+            required: true, // only include students with lessons at this location
+            attributes: [] // Just for filtering
+        });
+    }
+
     const queryOptions = {
       attributes: { exclude: ["password"] },
       where,
+      include,
       order: [["createdAt", "DESC"]],
     };
     if (page && limit) {
