@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { CardField, useStripe } from "@stripe/stripe-react-native";
@@ -156,133 +158,141 @@ export default function PaymentPage() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => {
-              console.log("🔙 Back button pressed - navigating to lessons");
-              router.push("/tabs/lessons");
-            }}
-            style={styles.backIcon}
-          >
-            <Ionicons name="arrow-back" size={24} color="#6155F5" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Complete Payment</Text>
-        </View>
-
-        {/* Lesson Details Card */}
-        <View style={styles.lessonCard}>
-          <Text style={styles.lessonTitle}>{paymentDetails.lessonTitle}</Text>
-          <View style={styles.lessonDetails}>
-            <View style={styles.detailRow}>
-              <Ionicons name="book-outline" size={16} color="#666" />
-              <Text style={styles.detailText}>
-                {paymentDetails.lesson.subject}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="person-outline" size={16} color="#666" />
-              <Text style={styles.detailText}>
-                {paymentDetails.lesson.tutor}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={16} color="#666" />
-              <Text style={styles.detailText}>
-                {paymentDetails.lesson.dayOfWeek.charAt(0).toUpperCase() +
-                  paymentDetails.lesson.dayOfWeek.slice(1)}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={16} color="#666" />
-              <Text style={styles.detailText}>
-                {formatTime(paymentDetails.lesson.startTime)} -{" "}
-                {formatTime(paymentDetails.lesson.endTime)}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Payment Breakdown */}
-        <View style={styles.paymentCard}>
-          <Text style={styles.sectionTitle}>Payment Breakdown</Text>
-
-          <View style={styles.feeRow}>
-            <Text style={styles.feeLabel}>Lesson Fee</Text>
-            <Text style={styles.feeAmount}>
-              {formatCurrency(paymentDetails.lessonFee)}
-            </Text>
-          </View>
-
-          <View style={styles.feeRow}>
-            <Text style={styles.feeLabel}>
-              Platform Fee ({paymentDetails.platformFeePercentage}%)
-            </Text>
-            <Text style={styles.feeAmount}>
-              {formatCurrency(paymentDetails.platformFee)}
-            </Text>
-          </View>
-
-          <View style={styles.separator} />
-
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total Amount</Text>
-            <Text style={styles.totalAmount}>
-              {formatCurrency(paymentDetails.totalAmount)}
-            </Text>
-          </View>
-        </View>
-
-        {/* Card Input */}
-        <View style={styles.cardContainer}>
-          <Text style={styles.sectionTitle}>Payment Method</Text>
-          <CardField
-            postalCodeEnabled={false}
-            placeholders={{
-              number: "4242 4242 4242 4242",
-            }}
-            cardStyle={{
-              backgroundColor: "#FFFFFF",
-              textColor: "#000000",
-              placeholderColor: "#999999",
-              borderColor: "#e9ecef",
-              borderWidth: 1,
-              borderRadius: 8,
-            }}
-            style={styles.cardFieldContainer}
-            onCardChange={(cardDetails) => {
-              setCardValid(cardDetails.complete);
-            }}
-          />
-          <Text style={styles.testCardNote}>
-            💡 Use test card: 4242 4242 4242 4242, any future date, any CVC
-          </Text>
-        </View>
-
-        {/* Payment Button */}
-        <TouchableOpacity
-          style={[
-            styles.payButton,
-            (!cardValid || processing) && styles.payButtonDisabled,
-          ]}
-          onPress={handlePayment}
-          disabled={!cardValid || processing}
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 100 }}
         >
-          {processing ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text style={styles.payButtonText}>
-              Pay {formatCurrency(paymentDetails.totalAmount)}
-            </Text>
-          )}
-        </TouchableOpacity>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => {
+                console.log("🔙 Back button pressed - navigating to lessons");
+                router.push("/tabs/lessons");
+              }}
+              style={styles.backIcon}
+            >
+              <Ionicons name="arrow-back" size={24} color="#6155F5" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Complete Payment</Text>
+          </View>
 
-        <View style={styles.bottomSpacing} />
-      </ScrollView>
+          {/* Lesson Details Card */}
+          <View style={styles.lessonCard}>
+            <Text style={styles.lessonTitle}>{paymentDetails.lessonTitle}</Text>
+            <View style={styles.lessonDetails}>
+              <View style={styles.detailRow}>
+                <Ionicons name="book-outline" size={16} color="#666" />
+                <Text style={styles.detailText}>
+                  {paymentDetails.lesson.subject}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Ionicons name="person-outline" size={16} color="#666" />
+                <Text style={styles.detailText}>
+                  {paymentDetails.lesson.tutor}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Ionicons name="calendar-outline" size={16} color="#666" />
+                <Text style={styles.detailText}>
+                  {paymentDetails.lesson.dayOfWeek.charAt(0).toUpperCase() +
+                    paymentDetails.lesson.dayOfWeek.slice(1)}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Ionicons name="time-outline" size={16} color="#666" />
+                <Text style={styles.detailText}>
+                  {formatTime(paymentDetails.lesson.startTime)} -{" "}
+                  {formatTime(paymentDetails.lesson.endTime)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Payment Breakdown */}
+          <View style={styles.paymentCard}>
+            <Text style={styles.sectionTitle}>Payment Breakdown</Text>
+
+            <View style={styles.feeRow}>
+              <Text style={styles.feeLabel}>Lesson Fee</Text>
+              <Text style={styles.feeAmount}>
+                {formatCurrency(paymentDetails.lessonFee)}
+              </Text>
+            </View>
+
+            <View style={styles.feeRow}>
+              <Text style={styles.feeLabel}>
+                Platform Fee ({paymentDetails.platformFeePercentage}%)
+              </Text>
+              <Text style={styles.feeAmount}>
+                {formatCurrency(paymentDetails.platformFee)}
+              </Text>
+            </View>
+
+            <View style={styles.separator} />
+
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total Amount</Text>
+              <Text style={styles.totalAmount}>
+                {formatCurrency(paymentDetails.totalAmount)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Card Input */}
+          <View style={styles.cardContainer}>
+            <Text style={styles.sectionTitle}>Payment Method</Text>
+            <CardField
+              postalCodeEnabled={false}
+              placeholders={{
+                number: "4242 4242 4242 4242",
+              }}
+              cardStyle={{
+                backgroundColor: "#FFFFFF",
+                textColor: "#000000",
+                placeholderColor: "#999999",
+                borderColor: "#e9ecef",
+                borderWidth: 1,
+                borderRadius: 8,
+              }}
+              style={styles.cardFieldContainer}
+              onCardChange={(cardDetails) => {
+                setCardValid(cardDetails.complete);
+              }}
+            />
+            <Text style={styles.testCardNote}>
+              💡 Use test card: 4242 4242 4242 4242, any future date, any CVC
+            </Text>
+          </View>
+
+          {/* Payment Button */}
+          <TouchableOpacity
+            style={[
+              styles.payButton,
+              (!cardValid || processing) && styles.payButtonDisabled,
+            ]}
+            onPress={handlePayment}
+            disabled={!cardValid || processing}
+          >
+            {processing ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.payButtonText}>
+                Pay {formatCurrency(paymentDetails.totalAmount)}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.bottomSpacing} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
