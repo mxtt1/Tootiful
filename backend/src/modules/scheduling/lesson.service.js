@@ -219,7 +219,7 @@ class LessonService {
 
     } catch (error) {
       console.error(`Failed to update attendance ${attendanceId}:`, error);
-      throw new Error(`Failed to update attendance: ${error.message}`);
+      throw new Error(`Failed to update attendance: At least one tutor must be assigned`);
     }
   }
 

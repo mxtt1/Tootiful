@@ -100,6 +100,11 @@ export default function ManageLesson() {
     const [tutorConflicts, setTutorConflicts] = useState([]);
     const [checkingAvailability, setCheckingAvailability] = useState(false);
 
+
+    //Form Data error:
+    // Add validation state after your existing state declarations
+    const [attendanceFormErrors, setAttendanceFormErrors] = useState({});
+
     // Debounced search
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -531,9 +536,26 @@ export default function ManageLesson() {
         }
     };
 
+    const validateAttendanceForm = () => {
+        const errors = {};
+
+        if (!attendanceFormData.tutorId) {
+            errors.tutorId = "Please select a tutor for this session";
+        }
+
+        setAttendanceFormErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
     // Add function to update attendance
     const handleUpdateAttendance = async () => {
         if (!selectedAttendance) return;
+
+
+        //ADD: Validation check
+        if (!validateAttendanceForm()) {
+            return;
+        }
 
         setUpdatingAttendance(true);
 
@@ -1456,35 +1478,11 @@ export default function ManageLesson() {
                                     tutorId: value
                                 }))}
                                 searchable
-                                clearable
+                                clearable={false}
                                 description="Change the tutor for this specific session"
+                                error={attendanceFormErrors.tutorId}
+                                required
                             />
-
-                            {/* <Select
-                                label="Attendance Status"
-                                data={[
-                                    { value: "false", label: "Not Attended" },
-                                    { value: "true", label: "Attended" }
-                                ]}
-                                value={attendanceFormData.isAttended.toString()}
-                                onChange={(value) => setAttendanceFormData(prev => ({
-                                    ...prev,
-                                    isAttended: value === "true"
-                                }))}
-                                description="Mark whether the session was attended"
-                            />
-
-                            <Textarea
-                                label="Notes (Optional)"
-                                placeholder="Add any notes about this session..."
-                                value={attendanceFormData.notes}
-                                onChange={(e) => setAttendanceFormData(prev => ({
-                                    ...prev,
-                                    notes: e.target.value
-                                }))}
-                                rows={3}
-                                description="Optional notes about tutor changes, attendance, etc."
-                            /> */}
                         </Stack>
                     </div>
 
