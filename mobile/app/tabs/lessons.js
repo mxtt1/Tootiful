@@ -36,14 +36,14 @@ export default function LessonsScreen() {
 
   // Filter options
   const [availableSubjects, setAvailableSubjects] = useState([]);
-  const [availableLocations, setAvailableLocations] = useState([]);
+  const [availableAgencies, setAvailableAgencies] = useState([]);
   const [availableDays, setAvailableDays] = useState([]);
 
   // Filter dropdown states
   const [dropdownVisible, setDropdownVisible] = useState({
     subject: false,
     dayOfWeek: false,
-    location: false,
+    agency: false,
     timeOfDay: false,
   });
 
@@ -53,7 +53,7 @@ export default function LessonsScreen() {
     priceRange: "all",
     timeOfDay: "all",
     subject: "all",
-    location: "all",
+    agency: "all",
   });
 
   // Load lessons when screen is focused
@@ -121,10 +121,10 @@ export default function LessonsScreen() {
       );
     }
 
-    // Location filter
-    if (filters.location !== "all") {
+    // Agency filter
+    if (filters.agency !== "all") {
       filtered = filtered.filter(
-        (lesson) => lesson.agencyName === filters.location
+        (lesson) => lesson.agencyName === filters.agency
       );
     }
 
@@ -207,11 +207,11 @@ export default function LessonsScreen() {
     ].filter(Boolean);
     setAvailableSubjects(subjects);
 
-    // Extract unique locations/agencies
-    const locations = [
+    // Extract unique agencies
+    const agencies = [
       ...new Set(lessonsData.map((lesson) => lesson.agencyName)),
     ].filter(Boolean);
-    setAvailableLocations(locations);
+    setAvailableAgencies(agencies);
 
     // Extract unique days of week
     const days = [
@@ -224,7 +224,7 @@ export default function LessonsScreen() {
     setDropdownVisible((prev) => ({
       subject: false,
       dayOfWeek: false,
-      location: false,
+      agency: false,
       timeOfDay: false,
       [category]: !prev[category],
     }));
@@ -245,7 +245,7 @@ export default function LessonsScreen() {
     setDropdownVisible({
       subject: false,
       dayOfWeek: false,
-      location: false,
+      agency: false,
       timeOfDay: false,
     });
   };
@@ -601,62 +601,59 @@ export default function LessonsScreen() {
               )}
             </View>
 
-            {/* Location Dropdown */}
+            {/* Agency Dropdown */}
             <View style={styles.dropdownContainer}>
               <TouchableOpacity
                 style={[
                   styles.dropdownButton,
-                  filters.location !== "all" && styles.dropdownButtonActive,
+                  filters.agency !== "all" && styles.dropdownButtonActive,
                 ]}
-                onPress={() => toggleDropdown("location")}
+                onPress={() => toggleDropdown("agency")}
               >
                 <Text
                   style={[
                     styles.dropdownButtonText,
-                    filters.location !== "all" &&
-                      styles.dropdownButtonTextActive,
+                    filters.agency !== "all" && styles.dropdownButtonTextActive,
                   ]}
                 >
-                  {filters.location !== "all" ? filters.location : "Location"}
+                  {filters.agency !== "all" ? filters.agency : "Agency"}
                 </Text>
                 <Ionicons
-                  name={
-                    dropdownVisible.location ? "chevron-up" : "chevron-down"
-                  }
+                  name={dropdownVisible.agency ? "chevron-up" : "chevron-down"}
                   size={16}
-                  color={filters.location !== "all" ? "#8B5CF6" : "#666"}
+                  color={filters.agency !== "all" ? "#8B5CF6" : "#666"}
                 />
               </TouchableOpacity>
-              {dropdownVisible.location && (
+              {dropdownVisible.agency && (
                 <View style={styles.dropdownMenu}>
                   <TouchableOpacity
                     style={styles.dropdownItem}
-                    onPress={() => selectFilter("location", "all")}
+                    onPress={() => selectFilter("agency", "all")}
                   >
                     <Text
                       style={[
                         styles.dropdownItemText,
-                        filters.location === "all" &&
+                        filters.agency === "all" &&
                           styles.dropdownItemTextActive,
                       ]}
                     >
-                      All Locations
+                      All Agencies
                     </Text>
                   </TouchableOpacity>
-                  {availableLocations.map((location) => (
+                  {availableAgencies.map((agency) => (
                     <TouchableOpacity
-                      key={location}
+                      key={agency}
                       style={styles.dropdownItem}
-                      onPress={() => selectFilter("location", location)}
+                      onPress={() => selectFilter("agency", agency)}
                     >
                       <Text
                         style={[
                           styles.dropdownItemText,
-                          filters.location === location &&
+                          filters.agency === agency &&
                             styles.dropdownItemTextActive,
                         ]}
                       >
-                        {location}
+                        {agency}
                       </Text>
                     </TouchableOpacity>
                   ))}
