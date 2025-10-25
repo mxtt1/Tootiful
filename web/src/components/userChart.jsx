@@ -11,7 +11,32 @@ const GenericPieChart = ({
     innerRadius = 30,
     height = 250
 }) => {
-    // Calculate total for percentage display
+    // Handle undefined or empty data
+    if (!data || !Array.isArray(data) || data.length === 0) {
+        return (
+            <div className="pie-chart-container" style={{ 
+                width: '100%', 
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#666',
+                textAlign: 'center'
+            }}>
+                {title && (
+                    <h4 style={{ marginBottom: '10px', color: '#333' }}>
+                        {title}
+                    </h4>
+                )}
+                <div style={{ fontSize: '14px' }}>
+                    No data available
+                </div>
+            </div>
+        );
+    }
+
+    // data is guaranteed to be an array
     const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
 
     const renderCustomLabel = ({ name, value, percent }) => {

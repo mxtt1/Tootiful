@@ -1,43 +1,139 @@
 import React, { useState, useEffect } from 'react';
 import ApiClient from '../../api/apiClient';
-import UserPieChart from '../../components/userChart';
+import GenericPieChart from '../../components/userChart';
 import GrowthChart from '../../components/growthChart';
 import TransactionTable from '../../components/transactionTable';
 import { notifications } from "@mantine/notifications";
-import { FaMoneyBillAlt, FaChartLine, FaUsers, FaBook, FaGraduationCap } from 'react-icons/fa';  
+import { 
+  FaMoneyBillAlt, 
+  FaChartLine, 
+  FaUsers, 
+  FaBook, 
+  FaGraduationCap, 
+  FaBuilding,
+  FaArrowLeft
+} from 'react-icons/fa';  
 
 const AdminDashboard = () => {
     const [totalTutors, setTotalTutors] = useState(0);
     const [totalStudents, setTotalStudents] = useState(0);
-    const [totalAgencies, setTotalAgencies] = useState(10);
-    const [totalSubscriptions, setTotalSubscriptions] = useState(5);
-    const [totalRevenue, setTotalRevenue] = useState(116);
+    const [totalAgencies, setTotalAgencies] = useState(0);
+    const [totalSubscriptions, setTotalSubscriptions] = useState(0);
+    const [totalRevenue, setTotalRevenue] = useState(0);
+    const [revenueData, setRevenueData] = useState(null);
+    const [revenueByAgency, setRevenueByAgency] = useState([]);
+    const [missedSessionsRate, setMissedSessionsRate] = useState(0);
+    const [tutorMissedRates, setTutorMissedRates] = useState([]);
+    const [lessons, setLessons] = useState([]);
+    const [agencyStats, setAgencyStats] = useState([]);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('general');
 
+    // BREAKDOWN STATES
+    const [showTutorBreakdown, setShowTutorBreakdown] = useState(false);
+    const [showSubscriptionsDetail, setShowSubscriptionsDetail] = useState(false);
+    const [showAgencyRevenueBreakdown, setShowAgencyRevenueBreakdown] = useState(false);
+
+    // Add time range filter
+    const [selectedTimeRange, setSelectedTimeRange] = useState("this_month");
+    
+    // Time range options
+    const timeRangeOptions = [
+        { value: "today", label: "Today" },
+        { value: "this_week", label: "This Week" },
+        { value: "this_month", label: "This Month" },
+        { value: "this_year", label: "This Year" },
+        { value: "all_time", label: "All Time" }
+    ];
+
     useEffect(() => {
-        fetchAllTutors();
-        fetchAllStudents(); 
-    }, []);
+        fetchDashboardData();
+    }, [selectedTimeRange]);
+
+    const fetchDashboardData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            await fetchAllTutors();
+            await fetchAllStudents();
+            await fetchAllAgencies();
+            await fetchRevenueData();
+            await fetchMissedSessionData();
+            await fetchSubscriptionLessons();
+            await fetchAgencyStats();
+        } catch (error) {
+            console.error("Failed to load dashboard data:", error);
+            setError("Failed to load dashboard data. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchMissedSessionData = async () => {
+        try {
+            const res = await ApiClient.get('/analytics/admin/attendance');
+            
+            if (!res) {
+                console.log("NO RESPONSE from API");
+                return;
+            }
+            
+            const attendanceData = res?.data?.data || res?.data || {};
+            
+            if (!attendanceData || Object.keys(attendanceData).length === 0) {
+                console.log("Empty attendance data in response");
+                setMissedSessionsRate(0);
+                setTutorMissedRates([]);
+                return;
+            }
+
+            setMissedSessionsRate(attendanceData.missedSessionsRate || 0);
+            setTutorMissedRates(attendanceData.tutorMissedRates || []);
+            
+        } catch (err) {
+            console.error("ERROR in fetchMissedSessionData:", err);
+            setMissedSessionsRate(0);
+            setTutorMissedRates([]);
+        } 
+    };
+
+    const fetchSubscriptionLessons = async () => {
+        try {
+            const res = await ApiClient.get(`/analytics/admin/subscription-lessons?timeRange=${selectedTimeRange}`);
+            
+            const subscriptionData = res?.data?.data || res?.data || [];
+            setLessons(subscriptionData);
+        } catch (err) {
+            console.error("Error fetching subscription lessons:", err);
+        }
+    };
+
+    const fetchAgencyStats = async () => {
+        try {
+            const res = await ApiClient.get(`/analytics/admin/agency-stats?timeRange=${selectedTimeRange}`);
+            
+            const statsData = res?.data?.data || res?.data || [];
+            setAgencyStats(statsData);
+        } catch (err) {
+            console.error("Error fetching agency stats:", err);
+        }
+    };
 
     const fetchAllTutors = async () => {
         try {
             console.log("Fetching all tutors from backend...");
             const allTutors = await ApiClient.get('/tutors');
-            console.log('Tutors received: ', allTutors);
-
             setTotalTutors(allTutors.data.length || 0);
         } catch (error) {
             console.log("Error fetching tutors:", error);
             setError("Failed to load tutors data");
-                notifications.show({
+            notifications.show({
                 title: "Error",
                 message: "Failed to load tutors data",
                 color: "red",
             });
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -45,21 +141,682 @@ const AdminDashboard = () => {
         try {
             console.log("Fetching students from backend...");
             const allStudents = await ApiClient.get('/students');
-            console.log('Students receieved', allStudents);
-
             setTotalStudents(allStudents.data.length || 0);
         } catch (error) {
             console.log("Error fetching students:", error);
             setError("Failed to load students data");
-                notifications.show({
+            notifications.show({
                 title: "Error",
                 message: "Failed to load students data",
                 color: "red",
             });
-        } finally {
-            setLoading(false);
         }
     };
+
+    const fetchAllAgencies = async () => {
+        try {
+            console.log("Fetching agencies from backend...");
+            const allAgencies = await ApiClient.get('/agencies');
+            setTotalAgencies(allAgencies.data.length || 0);
+        } catch (error) {
+            console.log("Error fetching agencies:", error);
+            setError("Failed to load agencies data");
+            notifications.show({
+                title: "Error",
+                message: "Failed to load agencies data",
+                color: "red",
+            });
+        }
+    };
+
+    const fetchRevenueData = async () => {
+        try {
+            console.log("Fetching admin revenue data...");
+            const res = await ApiClient.get(`/analytics/admin/revenue-summary?timeRange=${selectedTimeRange}`);
+            
+            if (!res || !res.data) {
+                throw new Error("Invalid response from server");
+            }
+            
+            const revenueData = res.data.success ? res.data.data : res.data;
+            
+            if (!revenueData) {
+                throw new Error("No revenue data in response");
+            }
+            
+            setRevenueData(revenueData);
+            setTotalSubscriptions(revenueData.totalSubscriptions || 0);
+            
+            // Use PLATFORM REVENUE (platform fees) for total revenue
+            setTotalRevenue(revenueData.platformRevenue || 0);
+            
+            const agencyRevenue = revenueData.revenueByAgency || [];
+            setRevenueByAgency(agencyRevenue);
+            
+            console.log("Admin revenue data loaded:", revenueData);
+            
+        } catch (err) {
+            console.error("Error fetching revenue:", err);
+            setError(err.message || "Failed to load revenue data");
+            setRevenueData({ 
+                platformRevenue: 0,
+                totalAgencies: 0 
+            });
+            setTotalSubscriptions(0);
+            setTotalRevenue(0);
+            setRevenueByAgency([]);
+        }
+    };
+
+    // BREAKDOWN HANDLERS
+    const handleShowTutorBreakdown = () => {
+        setShowTutorBreakdown(true);
+    };
+
+    const handleBackToOverview = () => {
+        setShowTutorBreakdown(false);
+        setShowAgencyRevenueBreakdown(false);
+    };
+
+    const handleShowSubscriptionsDetail = () => {
+        setShowSubscriptionsDetail(true);
+    };
+
+    const handleBackToGeneral = () => {
+        setShowSubscriptionsDetail(false);
+        setShowAgencyRevenueBreakdown(false);
+    };
+
+    const handleShowAgencyRevenueBreakdown = () => {
+        setShowAgencyRevenueBreakdown(true);
+    };
+
+    // Prepare user distribution data
+    const userDistributionData = [
+        { name: 'Agencies', value: totalAgencies },
+        { name: 'Tutors', value: totalTutors },
+        { name: 'Students', value: totalStudents }
+    ].filter(item => item.value > 0);
+
+    // Filter Component
+    const FilterSection = () => (
+        <div style={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end', 
+            marginBottom: '1.5rem',
+            gap: '1rem'
+        }}>
+            <select
+                value={selectedTimeRange}
+                onChange={(e) => setSelectedTimeRange(e.target.value)}
+                style={{
+                    padding: '0.5rem 1rem',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '5px',
+                    backgroundColor: 'white',
+                    width: '200px',
+                    fontSize: '0.875rem'
+                }}
+            >
+                {timeRangeOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
+        </div>
+    );
+
+    // BREAKDOWN COMPONENTS
+
+    // Tutor Missed Sessions Breakdown Component
+    const TutorMissedSessionsBreakdown = () => {
+        const totalTutors = tutorMissedRates.length;
+        const totalSessions = tutorMissedRates.reduce((sum, tutor) => sum + tutor.totalSessions, 0);
+        const totalMissed = tutorMissedRates.reduce((sum, tutor) => sum + tutor.missedSessions, 0);
+
+        return (
+            <div>
+                <div style={{ marginBottom: "1.5rem" }}>
+                    <button
+                        onClick={handleBackToOverview}
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            padding: "0.5rem 1rem",
+                            backgroundColor: "#6155F5",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "5px",
+                            cursor: "pointer",
+                            fontSize: "0.875rem",
+                            marginBottom: "1rem"
+                        }}
+                    >
+                        <FaArrowLeft />
+                        Back to Overview
+                    </button>
+                    
+                    <div style={{ 
+                        backgroundColor: "white", 
+                        padding: "1.5rem", 
+                        borderRadius: "10px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+                    }}>
+                        <h2 style={{ margin: "0 0 0.5rem 0", color: "#333" }}>
+                            Tutor Missed Sessions Breakdown (All Agencies)
+                        </h2>
+                        <p style={{ color: "#6c757d", margin: 0, fontSize: "1.1rem", fontWeight: "500" }}>
+                            {totalTutors} tutors • {totalMissed} missed sessions out of {totalSessions} total
+                        </p>
+                        <p style={{ color: "#6c757d", margin: "0.5rem 0 0 0", fontSize: "0.875rem" }}>
+                            Overall Platform Rate: {missedSessionsRate}% • All Agencies
+                        </p>
+                    </div>
+                </div>
+
+                <div
+                    style={{
+                        backgroundColor: "white",
+                        padding: "1.5rem",
+                        borderRadius: "10px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                    }}
+                >
+                    <h3 style={{ margin: "0 0 1.5rem 0", color: "#333" }}>
+                        Tutor Performance Details
+                    </h3>
+                    
+                    {tutorMissedRates.length === 0 ? (
+                        <div style={{ textAlign: "center", color: "#6c757d", padding: "2rem" }}>
+                            <p>No tutor attendance data available</p>
+                        </div>
+                    ) : (
+                        <div style={{ display: "grid", gap: "1rem" }}>
+                            {tutorMissedRates.map((tutor, index) => (
+                                <div
+                                    key={tutor.tutorId || index}
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        padding: "1rem",
+                                        backgroundColor: "#f8f9fa",
+                                        borderRadius: "8px",
+                                        borderLeft: `4px solid ${tutor.missedRate === 0 ? '#28a745' : tutor.missedRate <= 10 ? '#ffc107' : '#dc3545'}`
+                                    }}
+                                >
+                                    <div style={{ flex: 1 }}>
+                                        <h4 style={{ margin: "0 0 0.25rem 0", color: "#333" }}>
+                                            {tutor.tutorName}
+                                        </h4>
+                                        <p style={{ margin: 0, color: "#6c757d", fontSize: "0.875rem" }}>
+                                            {tutor.agencyName} • {tutor.totalSessions} sessions • {tutor.missedSessions} missed
+                                        </p>
+                                    </div>
+                                    
+                                    <div style={{ textAlign: "right" }}>
+                                        <div 
+                                            style={{ 
+                                                fontSize: "1.25rem", 
+                                                fontWeight: "bold", 
+                                                color: tutor.missedRate === 0 ? '#28a745' : tutor.missedRate <= 10 ? '#ffc107' : '#dc3545'
+                                            }}
+                                        >
+                                            {tutor.missedRate}%
+                                        </div>
+                                        <div style={{ 
+                                            fontSize: "0.75rem", 
+                                            color: tutor.missedRate === 0 ? '#28a745' : tutor.missedRate <= 10 ? '#6c757d' : '#dc3545'
+                                        }}>
+                                            {tutor.missedRate === 0 ? 'Perfect' : tutor.missedRate <= 10 ? 'Good' : 'Needs Attention'}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    // Subscriptions Detail View Component
+    const SubscriptionsDetailView = () => {
+        const lessonsWithStudents = lessons
+            .filter(lesson => (lesson.paymentCount || 0) > 0)
+            .sort((a, b) => {
+                const countA = a.paymentCount || 0;
+                const countB = b.paymentCount || 0;
+                return countB - countA;
+            });
+
+        return (
+            <div>
+                <div style={{ marginBottom: "1.5rem" }}>
+                    <button
+                        onClick={handleBackToGeneral}
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            padding: "0.5rem 1rem",
+                            backgroundColor: "#6155F5",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "5px",
+                            cursor: "pointer",
+                            fontSize: "0.875rem",
+                            marginBottom: "1rem"
+                        }}
+                    >
+                        <FaArrowLeft />
+                        Back to Overview
+                    </button>
+                    
+                    <div style={{ 
+                        backgroundColor: "white", 
+                        padding: "1.5rem", 
+                        borderRadius: "10px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+                    }}>
+                        <h2 style={{ margin: "0 0 0.5rem 0", color: "#333" }}>
+                            Subscriptions Breakdown (All Agencies)
+                        </h2>
+                        <p style={{ color: "#6c757d", margin: 0, fontSize: "1.1rem", fontWeight: "500" }}>
+                            {totalSubscriptions} students across {lessonsWithStudents.length} lessons
+                        </p>
+                        <p style={{ color: "#6c757d", margin: "0.5rem 0 0 0", fontSize: "0.875rem" }}>
+                            Filtered by: {selectedTimeRange} • All Agencies
+                        </p>
+                    </div>
+                </div>
+
+                <div
+                    style={{
+                        backgroundColor: "white",
+                        padding: "1.5rem",
+                        borderRadius: "10px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                    }}
+                >
+                    <h3 style={{ margin: "0 0 1.5rem 0", color: "#333" }}>
+                        Lessons with Subscriptions
+                    </h3>
+                    
+                    {lessonsWithStudents.length === 0 ? (
+                        <div style={{ textAlign: "center", color: "#6c757d", padding: "2rem" }}>
+                            <p>No lessons with subscriptions found for the selected filters</p>
+                        </div>
+                    ) : (
+                        <div style={{ display: "grid", gap: "1rem" }}>
+                            {lessonsWithStudents.map((lesson, index) => (
+                                <div
+                                    key={lesson.id}
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        padding: "1rem",
+                                        backgroundColor: "#f8f9fa",
+                                        borderRadius: "8px",
+                                        borderLeft: `4px solid #28a745`
+                                    }}
+                                >
+                                    <div style={{ flex: 1 }}>
+                                        <h4 style={{ margin: "0 0 0.25rem 0", color: "#333" }}>
+                                            {lesson.title || `Lesson ${index + 1}`}
+                                        </h4>
+                                        <p style={{ margin: 0, color: "#6c757d", fontSize: "0.875rem" }}>
+                                            {lesson.subjectName} • {lesson.dayOfWeek} • {lesson.startTime} - {lesson.endTime}
+                                        </p>
+                                        <p style={{ margin: "0.25rem 0 0 0", color: "#6c757d", fontSize: "0.75rem" }}>
+                                            Agency: {lesson.agencyName} • Location: {lesson.locationAddress} • Tutor: {lesson.tutorName}
+                                        </p>
+                                    </div>
+                                    
+                                    <div style={{ textAlign: "right" }}>
+                                        <div style={{ 
+                                            fontSize: "1.25rem", 
+                                            fontWeight: "bold", 
+                                            color: "#28a745" 
+                                        }}>
+                                            {lesson.paymentCount || 0}
+                                        </div>
+                                        <div style={{ fontSize: "0.75rem", color: "#6c757d" }}>
+                                            students
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    // Agency Revenue Breakdown Component
+    const AgencyRevenueBreakdown = () => {
+        const totalPlatformRevenue = revenueByAgency.reduce((sum, agency) => sum + (agency.value || 0), 0);
+
+        return (
+            <div>
+                <div style={{ marginBottom: "1.5rem" }}>
+                    <button
+                        onClick={handleBackToGeneral}
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            padding: "0.5rem 1rem",
+                            backgroundColor: "#6155F5",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "5px",
+                            cursor: "pointer",
+                            fontSize: "0.875rem",
+                            marginBottom: "1rem"
+                        }}
+                    >
+                        <FaArrowLeft />
+                        Back to Overview
+                    </button>
+                    
+                    <div style={{ 
+                        backgroundColor: "white", 
+                        padding: "1.5rem", 
+                        borderRadius: "10px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+                    }}>
+                        <h2 style={{ margin: "0 0 0.5rem 0", color: "#333" }}>
+                            Platform Revenue Breakdown by Agency
+                        </h2>
+                        <p style={{ color: "#6c757d", margin: 0, fontSize: "1.1rem", fontWeight: "500" }}>
+                            ${totalPlatformRevenue.toLocaleString()} total platform revenue from {revenueByAgency.length} agencies
+                        </p>
+                        <p style={{ color: "#6c757d", margin: "0.5rem 0 0 0", fontSize: "0.875rem" }}>
+                            Based on platform fees only • Filtered by: {selectedTimeRange}
+                        </p>
+                    </div>
+                </div>
+
+                <div
+                    style={{
+                        backgroundColor: "white",
+                        padding: "1.5rem",
+                        borderRadius: "10px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                    }}
+                >
+                    <h3 style={{ margin: "0 0 1.5rem 0", color: "#333" }}>
+                        Agency Platform Revenue Details
+                    </h3>
+                    
+                    {revenueByAgency.length === 0 ? (
+                        <div style={{ textAlign: "center", color: "#6c757d", padding: "2rem" }}>
+                            <p>No agency revenue data available</p>
+                        </div>
+                    ) : (
+                        <div style={{ display: "grid", gap: "1rem" }}>
+                            {revenueByAgency.map((agency, index) => {
+                                const percentage = totalPlatformRevenue > 0 ? 
+                                    ((agency.value || 0) / totalPlatformRevenue * 100).toFixed(1) : 0;
+                                
+                                return (
+                                    <div
+                                        key={agency.name || index}
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            padding: "1rem",
+                                            backgroundColor: "#f8f9fa",
+                                            borderRadius: "8px",
+                                            borderLeft: `4px solid #6155F5`
+                                        }}
+                                    >
+                                        <div style={{ flex: 1 }}>
+                                            <h4 style={{ margin: "0 0 0.25rem 0", color: "#333" }}>
+                                                {agency.name}
+                                            </h4>
+                                            <p style={{ margin: 0, color: "#6c757d", fontSize: "0.875rem" }}>
+                                                {percentage}% of total platform revenue
+                                            </p>
+                                        </div>
+                                        
+                                        <div style={{ textAlign: "right" }}>
+                                            <div style={{ 
+                                                fontSize: "1.25rem", 
+                                                fontWeight: "bold", 
+                                                color: "#28a745" 
+                                            }}>
+                                                ${(agency.value || 0).toLocaleString()}
+                                            </div>
+                                            <div style={{ fontSize: "0.75rem", color: "#6c757d" }}>
+                                                platform fees
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Agency Revenue Pie Chart */}
+                {revenueByAgency.length > 0 && (
+                    <div style={{ 
+                        backgroundColor: "white",
+                        padding: "1.5rem",
+                        borderRadius: "10px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                        marginTop: "2rem"
+                    }}>
+                        <h3 style={{ margin: "0 0 1rem 0", color: "#333", textAlign: "center" }}>
+                            Platform Revenue Distribution by Agency
+                        </h3>
+                        <GenericPieChart 
+                            data={revenueByAgency.slice(0, 8)} // Show top 8 agencies
+                            title={null}
+                            colors={['#4285B4', '#EA4335', '#FBBC05', '#34A853', '#9B51E0', '#6155F5', '#28a745', '#ffc107']}
+                            showLabel={true}
+                            labelType="percentage"
+                            height={400}
+                        />
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // Clickable Cards
+    const renderSubscriptionsCard = () => (
+        <div
+            onClick={handleShowSubscriptionsDetail}
+            style={{
+                backgroundColor: "white",
+                padding: "1.25rem",
+                borderRadius: "10px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                minWidth: "200px",
+                maxWidth: "280px",
+                flex: "1 1 220px",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                border: "2px solid transparent",
+            }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(1.02)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                e.currentTarget.style.borderColor = "#6155F5";
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
+                e.currentTarget.style.borderColor = "transparent";
+            }}
+        >
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    marginBottom: "0.75rem",
+                }}
+            >
+                <FaBook
+                    style={{
+                        fontSize: "1.75rem",
+                        color: "#9334E6",
+                        marginRight: "0.75rem",
+                    }}
+                />
+                <div>
+                    <h3
+                        style={{
+                            fontSize: "1.25rem",
+                            fontWeight: "bold",
+                            color: "#333",
+                            margin: 0,
+                        }}
+                    >
+                        {totalSubscriptions}
+                    </h3>
+                    <p style={{ color: "#6c757d", margin: 0, fontSize: "0.875rem" }}>
+                        Total Subscriptions
+                    </p>
+                </div>
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "#6155F5" }}>
+                Click to view breakdown
+            </div>
+        </div>
+    );
+
+    const renderMissedSessionsCard = () => (
+        <div
+            onClick={handleShowTutorBreakdown}
+            style={{
+                backgroundColor: "white",
+                padding: "1.25rem",
+                borderRadius: "10px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                minWidth: "200px",
+                maxWidth: "280px",
+                flex: "1 1 220px",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                border: "2px solid transparent",
+            }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(1.02)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                e.currentTarget.style.borderColor = "#6155F5";
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
+                e.currentTarget.style.borderColor = "transparent";
+            }}
+        >
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    marginBottom: "0.75rem",
+                }}
+            >
+                <FaChartLine
+                    style={{
+                        fontSize: "1.75rem",
+                        color: "#dc3545",
+                        marginRight: "0.75rem",
+                    }}
+                />
+                <div>
+                    <h3
+                        style={{
+                            fontSize: "1.25rem",
+                            fontWeight: "bold",
+                            color: "#333",
+                            margin: 0,
+                        }}
+                    >
+                        {missedSessionsRate}%
+                    </h3>
+                    <p style={{ color: "#6c757d", margin: 0, fontSize: "0.875rem" }}>
+                        Missed Sessions Rate
+                    </p>
+                </div>
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "#6155F5" }}>
+                Click to view tutor breakdown
+            </div>
+        </div>
+    );
+
+    const renderTotalRevenueCard = () => (
+        <div
+            onClick={handleShowAgencyRevenueBreakdown}
+            style={{
+                backgroundColor: "white",
+                padding: "1.25rem",
+                borderRadius: "10px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                minWidth: "200px",
+                maxWidth: "280px",
+                flex: "1 1 220px",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                border: "2px solid transparent",
+            }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(1.02)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                e.currentTarget.style.borderColor = "#6155F5";
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
+                e.currentTarget.style.borderColor = "transparent";
+            }}
+        >
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    marginBottom: "0.75rem",
+                }}
+            >
+                <FaMoneyBillAlt
+                    style={{
+                        fontSize: "1.75rem",
+                        color: "#28a745",
+                        marginRight: "0.75rem",
+                    }}
+                />
+                <div>
+                    <h3
+                        style={{
+                            fontSize: "1.25rem",
+                            fontWeight: "bold",
+                            color: "#333",
+                            margin: 0,
+                        }}
+                    >
+                        ${totalRevenue?.toLocaleString()}
+                    </h3>
+                    <p style={{ color: "#6c757d", margin: 0, fontSize: "0.875rem" }}>
+                        Platform Revenue
+                    </p>
+                </div>
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "#6155F5" }}>
+                Click to view agency breakdown
+            </div>
+        </div>
+    );
 
     if (loading) {
         return (
@@ -68,6 +825,31 @@ const AdminDashboard = () => {
             </div>
         );
     };
+
+    // BREAKDOWN VIEWS
+    if (showTutorBreakdown) {
+        return (
+            <div style={{ padding: "2.5rem 2.5rem 2rem 2.5rem", width: "100%", boxSizing: "border-box" }}>
+                <TutorMissedSessionsBreakdown />
+            </div>
+        );
+    }
+
+    if (showSubscriptionsDetail) {
+        return (
+            <div style={{ padding: "2.5rem 2.5rem 2rem 2.5rem", width: "100%", boxSizing: "border-box" }}>
+                <SubscriptionsDetailView />
+            </div>
+        );
+    }
+
+    if (showAgencyRevenueBreakdown) {
+        return (
+            <div style={{ padding: "2.5rem 2.5rem 2rem 2.5rem", width: "100%", boxSizing: "border-box" }}>
+                <AgencyRevenueBreakdown />
+            </div>
+        );
+    }
 
     const TabNavigation = () => (
         <div style={{ 
@@ -82,7 +864,7 @@ const AdminDashboard = () => {
                 style={{
                     padding: '0.75rem 1.5rem',
                     border: 'none',
-                    borderBottom: activeTab === 'general' ? '#' : '2px solid transparent',
+                    borderBottom: activeTab === 'general' ? '2px solid #6155F5' : '2px solid transparent',
                     color: activeTab === 'general' ? '#6155F5' : '#6c757d',
                     fontWeight: activeTab === 'general' ? '600' : '400',
                     cursor: 'pointer',
@@ -98,7 +880,7 @@ const AdminDashboard = () => {
                 style={{
                     padding: '0.75rem 1.5rem',
                     border: 'none',
-                    borderBottom: activeTab === 'transactions' ? '#' : '2px solid transparent',
+                    borderBottom: activeTab === 'transactions' ? '2px solid #6155F5' : '2px solid transparent',
                     color: activeTab === 'transactions' ? '#6155F5' : '#6c757d',
                     fontWeight: activeTab === 'transactions' ? '600' : '400',
                     cursor: 'pointer',
@@ -118,7 +900,8 @@ const AdminDashboard = () => {
                 <div>
                     <h2 style={{ marginBottom: '1rem' }}>Admin Dashboard</h2>
                     
-                    {/* Tab Navigation */}
+                    <FilterSection />
+                    
                     <TabNavigation />
                     
                     {/* General Tab Content */}
@@ -144,7 +927,7 @@ const AdminDashboard = () => {
                                         display: 'grid', 
                                         gridTemplateColumns: 'repeat(3, 1fr)', 
                                         gap: '1.5rem',
-                                        flex: 1 // Added flex property
+                                        flex: 1
                                     }}>
                                         {/* TOTAL AGENCIES */}
                                         <div style={{ 
@@ -188,7 +971,7 @@ const AdminDashboard = () => {
                                                         borderRadius: '50%',
                                                         backgroundColor: 'rgba(66, 139, 202, 0.2)',
                                                     }}></div>
-                                                    <FaUsers style={{ 
+                                                    <FaBuilding style={{ 
                                                         fontSize: '18px', 
                                                         color: '#4285B4',
                                                         position: 'relative',
@@ -197,7 +980,7 @@ const AdminDashboard = () => {
                                                 </div>
                                             </div>
                                             <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0, color: '#0A0A0A' }}>
-                                                10
+                                                {totalAgencies}
                                             </p>
                                         </div>
 
@@ -298,7 +1081,7 @@ const AdminDashboard = () => {
                                                         borderRadius: '50%',
                                                         backgroundColor: 'rgba(251, 188, 5, 0.2)',
                                                     }}></div>
-                                                    <FaBook style={{ 
+                                                    <FaUsers style={{ 
                                                         fontSize: '18px', 
                                                         color: '#FBBC05',
                                                         position: 'relative',
@@ -312,122 +1095,21 @@ const AdminDashboard = () => {
                                         </div>
                                     </div>
 
-                                    {/* Row 2 */}
+                                    {/* Row 2 - CLICKABLE CARDS */}
                                     <div style={{ 
                                         display: 'grid', 
-                                        gridTemplateColumns: 'repeat(2, 1fr)', 
+                                        gridTemplateColumns: 'repeat(3, 1fr)', 
                                         gap: '1.5rem',
                                         flex: 1 
                                     }}>
-                                        {/* TOTAL SUBSCRIPTIONS */}
-                                        <div style={{ 
-                                            padding: '1.2rem', 
-                                            border: '1px solid #dee2e6', 
-                                            borderRadius: '8px', 
-                                            backgroundColor: 'white',
-                                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                            position: 'relative',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            justifyContent: 'space-between',
-                                            height: '100%' 
-                                        }}>
-                                            <div style={{ 
-                                                display: 'flex', 
-                                                justifyContent: 'space-between', 
-                                                alignItems: 'center', 
-                                                marginBottom: '0.8rem' 
-                                            }}>
-                                                <h3 style={{ 
-                                                    margin: 0, 
-                                                    color: '#0A0A0A', 
-                                                    fontWeight: 'normal',
-                                                    fontSize: '0.95rem'
-                                                }}>
-                                                    Total Subscriptions
-                                                </h3>
-                                                <div style={{
-                                                    position: 'relative',
-                                                    width: '36px',
-                                                    height: '36px',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center'
-                                                }}>
-                                                    <div style={{
-                                                        position: 'absolute',
-                                                        width: '36px',
-                                                        height: '36px',
-                                                        borderRadius: '50%',
-                                                        backgroundColor: 'rgba(52, 168, 83, 0.2)',
-                                                    }}></div>
-                                                    <FaChartLine style={{ 
-                                                        fontSize: '18px', 
-                                                        color: '#34A853',
-                                                        position: 'relative',
-                                                        zIndex: 1
-                                                    }} />
-                                                </div>
-                                            </div>
-                                            <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0, color: '#0A0A0A' }}>
-                                                {totalSubscriptions}
-                                            </p>
-                                        </div>
+                                        {/* CLICKABLE TOTAL REVENUE CARD */}
+                                        {renderTotalRevenueCard()}
                                         
-                                        {/* TOTAL REVENUE */}
-                                        <div style={{ 
-                                            padding: '1.2rem', 
-                                            border: '1px solid #dee2e6', 
-                                            borderRadius: '8px', 
-                                            backgroundColor: 'white', 
-                                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                            position: 'relative',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            justifyContent: 'space-between',
-                                            height: '100%'
-                                        }}>
-                                            <div style={{ 
-                                                display: 'flex', 
-                                                justifyContent: 'space-between', 
-                                                alignItems: 'center', 
-                                                marginBottom: '0.8rem' 
-                                            }}>
-                                                <h3 style={{ 
-                                                    margin: 0, 
-                                                    color: '#0A0A0A', 
-                                                    fontWeight: 'normal',
-                                                    fontSize: '0.95rem'
-                                                }}>
-                                                    Total Revenue
-                                                </h3>
-                                                <div style={{
-                                                    position: 'relative',
-                                                    width: '36px',
-                                                    height: '36px',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center'
-                                                }}>
-                                                    <div style={{
-                                                        position: 'absolute',
-                                                        width: '36px',
-                                                        height: '36px',
-                                                        borderRadius: '50%',
-                                                        backgroundColor: 'rgba(155, 81, 224, 0.2)',
-                                                    }}></div>
-                                                    <FaMoneyBillAlt style={{ 
-                                                        fontSize: '18px', 
-                                                        color: '#9B51E0',
-                                                        position: 'relative',
-                                                        zIndex: 1
-                                                    }} />
-                                                </div>
-                                            </div>
-                                            <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0, color: '#0A0A0A' }}>
-                                                ${totalRevenue}
-                                            </p>
-                                        </div>
+                                        {/* CLICKABLE SUBSCRIPTIONS CARD */}
+                                        {renderSubscriptionsCard()}
+                                        
+                                        {/* CLICKABLE MISSED SESSIONS CARD */}
+                                        {renderMissedSessionsCard()}
                                     </div>
                                 </div>
 
@@ -462,37 +1144,80 @@ const AdminDashboard = () => {
                                             width: '100%', 
                                             height: '100%',
                                         }}>
-                                            <UserPieChart tutors={totalTutors} students={totalStudents} agencies={totalAgencies} />
+                                            <GenericPieChart 
+                                                data={userDistributionData}
+                                                title={null}
+                                                colors={['#4285B4', '#EA4335', '#FBBC05']}
+                                                showLabel={true}
+                                                labelType="percentage"
+                                                height={300}
+                                            />
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Area Chart */}
+                            {/* GROWTH CHARTS */}
                             <div style={{ 
+                                display: 'grid', 
+                                gridTemplateColumns: '1fr 1fr', 
+                                gap: '2rem',
+                                marginBottom: '1.5rem' 
+                            }}>
+                                {/* Platform Revenue Growth Chart */}
+                                <div style={{ 
                                 padding: '1.5rem', 
                                 border: '1px solid #dee2e6', 
                                 borderRadius: '8px', 
                                 backgroundColor: 'white', 
                                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                marginBottom: '1.5rem' 
-                            }}>
+                                }}>
                                 <h3 style={{ 
                                     margin: '0 0 1rem 0', 
                                     color: '#0A0A0A', 
                                     fontWeight: 'normal', 
                                     textAlign: 'center' 
-                                }}>Subscription Growth
+                                }}>
+                                    Platform Revenue Growth
                                 </h3>
-                                <GrowthChart />
+                                <GrowthChart 
+                                    dataType="revenue" 
+                                    timeRange={selectedTimeRange}  
+                                    currentValue={totalRevenue}
+                                    isAdmin={true} // Add this prop for admin context
+                                />
+                                </div>
+
+                                {/* Subscription Growth Chart */}
+                                <div style={{ 
+                                padding: '1.5rem', 
+                                border: '1px solid #dee2e6', 
+                                borderRadius: '8px', 
+                                backgroundColor: 'white', 
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                }}>
+                                <h3 style={{ 
+                                    margin: '0 0 1rem 0', 
+                                    color: '#0A0A0A', 
+                                    fontWeight: 'normal', 
+                                    textAlign: 'center' 
+                                }}>
+                                    Subscription Growth
+                                </h3>
+                                <GrowthChart 
+                                    dataType="subscriptions" 
+                                    timeRange={selectedTimeRange}  
+                                    currentValue={totalSubscriptions}
+                                    isAdmin={true} // Add this prop for admin context
+                                />
+                                </div>
                             </div>
                         </div>
                     )}
-                    
+                
                     {/* Transactions Tab Content */}
                     {activeTab === 'transactions' && (
                         <div>
-                            {/* Transaction Table */}
                             <div style={{ 
                                 padding: '1.5rem', 
                                 border: '1px solid #dee2e6', 

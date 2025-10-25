@@ -25,7 +25,9 @@ const AgencyDashboard = () => {
   const [totalStudents, setTotalStudents] = useState(0);
   const [revenueData, setRevenueData] = useState(null);
   const [totalSubscriptions, setTotalSubscriptions] = useState(0);
-  const [attendanceRate, setAttendanceRate] = useState(0);
+  const [missedSessionsRate, setMissedSessionsRate] = useState(0);
+  const [showTutorBreakdown, setShowTutorBreakdown] = useState(false);
+  const [tutorMissedRates, setTutorMissedRates] = useState([]); // store tutor data
   const [gradeLevelRevenue, setGradeLevelRevenue] = useState([]);
   const [subjectRevenueByGrade, setSubjectRevenueByGrade] = useState({});
   const [selectedGradeLevel, setSelectedGradeLevel] = useState(null);
@@ -43,23 +45,67 @@ const AgencyDashboard = () => {
   
   // Time range options
   const timeRangeOptions = [
+    { value: "today", label: "Today" },
+    { value: "this_week", label: "This Week" },
     { value: "this_month", label: "This Month" },
-    { value: "last_month", label: "Last Month" },
-    { value: "this_quarter", label: "This Quarter" },
-    { value: "last_quarter", label: "Last Quarter" },
     { value: "this_year", label: "This Year" },
-    { value: "last_year", label: "Last Year" },
     { value: "all_time", label: "All Time" }
   ];
 
   // Get agencyId from user context
   const agencyId = user?.userType === "agency" ? user.id : user?.agencyId;
 
-  const getSubjectName = (subjectId) => {
-    if (!subjectId) return 'No subject';
-    if (!subjects || subjects.length === 0) return 'Loading...';
-    const subject = subjects.find(s => s.id === subjectId);
-    return subject ? `${subject.name} (${subject.gradeLevel})` : `Subject ID: ${subjectId}`;
+  // Helper function that mimics backend logic
+  const determineIfSessionIsMissed = (session, lesson, now = new Date()) => {
+    // If already attended, it's not missed
+    if (session.isAttended) {
+      return false;
+    }
+
+    // If session has status field, use it directly
+    if (session.status === 'missed') {
+      return true;
+    }
+
+    // Calculate marking window similar to backend
+    try {
+      const markingWindow = calculateMarkingWindow(session.date, lesson.startTime, lesson.endTime);
+      
+      // If current time is after marking window and not attended, it's missed
+      return now > markingWindow.windowEnd;
+    } catch (error) {
+      console.error("Error calculating marking window:", error);
+      // Fallback: if session date is in past and not attended, consider missed
+      const sessionDate = new Date(session.date);
+      return sessionDate < now && !session.isAttended;
+    }
+  };
+
+  // Helper function to calculate marking window (similar to backend)
+  const calculateMarkingWindow = (dateStr, startTime, endTime) => {
+    const ONE_HOUR_IN_MS = 60 * 60 * 1000;
+
+    if (!dateStr || !startTime || !endTime) {
+      throw new Error('Missing values for marking window calculation');
+    }
+
+    const parseDateTime = (timeStr) => {
+      const dateTime = new Date(`${dateStr}T${timeStr}`);
+      if (Number.isNaN(dateTime.getTime())) {
+        throw new Error('Invalid date/time');
+      }
+      return dateTime;
+    };
+
+    const startDateTime = parseDateTime(startTime);
+    const endDateTime = parseDateTime(endTime);
+
+    return {
+      windowStart: new Date(startDateTime.getTime() - ONE_HOUR_IN_MS),
+      windowEnd: new Date(endDateTime.getTime() + ONE_HOUR_IN_MS),
+      startDateTime,
+      endDateTime
+    };
   };
 
   // Prepare user distribution data for GenericPieChart
@@ -98,34 +144,33 @@ const AgencyDashboard = () => {
   }, [agencyId]);
 
   useEffect(() => {
-    if (agencyId) {
-      const fetchDashboardData = async () => {
-        try {
-          setLoading(true);
-          setError(null);
-          
-          await Promise.all([
-            fetchAllTutors(),
-            fetchAllStudents(),
-            fetchRevenueData(),
-            fetchAttendanceData(),
-            fetchLessonData(),
-            fetchSubjects()
-          ]);
-        } catch (error) {
-          console.error("Failed to load dashboard data:", error);
-          setError("Failed to load dashboard data. Please try again.");
-        } finally {
-          setLoading(false);
-        }
-      };
+    if (!agencyId) {
+      console.error("No agencyId available");
+      setError("Unable to load dashboard: No agency ID found");
+      setLoading(false);
+      return;
+    }
+    
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
       
-      fetchDashboardData();
-    } else {
-      console.error("No agencyId found for user:", user);
-      setError("No agency ID found. Please contact support.");
+      await fetchAllTutors();
+      await fetchAllStudents();
+      await fetchRevenueData();
+      await fetchMissedSessionData();
+      await fetchSubscriptionLessons();
+      await fetchSubjects();
+    } catch (error) {
+      console.error("Failed to load dashboard data:", error);
+      setError("Failed to load dashboard data. Please try again.");
+    } finally {
       setLoading(false);
     }
+  };
+    
+    fetchDashboardData();
   }, [agencyId, selectedLocation, selectedTimeRange]);
 
   const fetchSubjects = async () => {
@@ -143,7 +188,6 @@ const AgencyDashboard = () => {
     }
   };
 
-  // added location and timerage filters to all the fetch functions below
   const fetchAllTutors = async () => {
     try {
       const res = await ApiClient.get(`/tutors?agencyId=${agencyId}${selectedLocation !== 'all' ? `&location=${selectedLocation}` : ''}`);
@@ -170,28 +214,47 @@ const AgencyDashboard = () => {
     try {
       const res = await ApiClient.get(`/analytics/agency/${agencyId}/revenue-summary?timeRange=${selectedTimeRange}${selectedLocation !== 'all' ? `&location=${selectedLocation}` : ''}`);
       
-      if (!res) {
-        throw new Error("No response from server");
+      if (!res || !res.data) {
+        throw new Error("Invalid response from server");
       }
       
-      const revenueData = res.data?.data || res.data;
+      // Consistent data extraction
+      const revenueData = res.data.success ? res.data.data : res.data;
       
-      if (revenueData) {
-        setRevenueData(revenueData);
-        setTotalSubscriptions(revenueData.totalSubscriptions || 0);
-        
-        const gradeRevenue = revenueData.revenueByGradeLevel || revenueData.gradeLevelRevenue || [];
-        setGradeLevelRevenue(gradeRevenue);
-        
-        const subjectRevenue = revenueData.subjectRevenueByGrade || revenueData.subjectsByGrade || {};
-        setSubjectRevenueByGrade(subjectRevenue);
-      } else {
-        console.warn("No revenue data found in response");
-        setError("No revenue data available");
+      if (!revenueData) {
+        throw new Error("No revenue data in response");
       }
+      
+      setRevenueData(revenueData);
+      setTotalSubscriptions(revenueData.totalSubscriptions || 0);
+      
+      const gradeRevenue = revenueData.revenueByGradeLevel || revenueData.gradeLevelRevenue || [];
+      setGradeLevelRevenue(gradeRevenue);
+      
+      const subjectRevenue = revenueData.subjectRevenueByGrade || revenueData.subjectsByGrade || {};
+      setSubjectRevenueByGrade(subjectRevenue);
+      
     } catch (err) {
       console.error("Error fetching revenue:", err);
-      setError("Failed to load revenue data");
+      setError(err.message || "Failed to load revenue data");
+      // Set default empty values
+      setRevenueData({ studentRevenue: 0, netRevenue: 0, tutorPaymentsPaid: 0 });
+      setTotalSubscriptions(0);
+      setGradeLevelRevenue([]);
+      setSubjectRevenueByGrade({});
+    }
+  };
+
+  const fetchSubscriptionLessons = async () => {
+    try {
+      const res = await ApiClient.get(`/analytics/agency/${agencyId}/subscription-lessons?timeRange=${selectedTimeRange}${selectedLocation !== 'all' ? `&location=${selectedLocation}` : ''}`);
+      
+      const subscriptionData = res?.data?.data || res?.data || [];
+      setLessons(subscriptionData);
+    } catch (err) {
+      console.error("Error fetching subscription lessons:", err);
+      // Fallback to regular lesson fetch
+      fetchLessonData();
     }
   };
 
@@ -206,52 +269,163 @@ const AgencyDashboard = () => {
     }
   };
 
-  const fetchAttendanceData = async () => {
+  const fetchMissedSessionData = async () => {
     try {
-      const res = await ApiClient.get(`/lessons/agency/${agencyId}/attendance${selectedLocation !== 'all' ? `?location=${selectedLocation}` : ''}`);
-      const attendanceData = res?.data?.data || res?.data || [];
+
+      // Test the API call directly first
+      const testUrl = `/analytics/agency/${agencyId}/attendance${selectedLocation !== 'all' ? `?location=${selectedLocation}` : ''}`;
+
+      const res = await ApiClient.get(testUrl);
+    
       
-      if (!attendanceData || attendanceData.length === 0) {
-        setAttendanceRate(0);
+      if (!res) {
+        console.log("NO RESPONSE from API");
+        return;
+      }
+      
+      const attendanceData = res?.data?.data || res?.data || {};
+      console.log("Processed attendance data:", attendanceData);
+      
+      if (!attendanceData || Object.keys(attendanceData).length === 0) {
+        console.log("Empty attendance data in response");
+        setMissedSessionsRate(0);
+        setTutorMissedRates([]);
         return;
       }
 
-      let totalSessions = 0;
-      let presentCount = 0;
-
-      // loop thru each lesson
-      attendanceData.forEach(lesson => {
-        // Get sessions from different possible field names
-        const sessions = lesson.allSessions || lesson.instances || lesson.sessions || [];
-        
-        // Loop through each session in the lesson
-        sessions.forEach(session => {
-          totalSessions++; // Count every session
-          
-          // Check if student was present using multiple indicators:
-          if (session.isAttended === true) {
-            presentCount++;
-          // check session status
-          } else if (session.status === 'present' || session.status === 'completed') {
-            presentCount++;
-          }
-        });
-      });
-
-      // Calculate percentage
-      // Attendance Rate = (Present Sessions ÷ Total Sessions) × 100
-      const rate = totalSessions > 0 ? (presentCount / totalSessions) * 100 : 0;
-      setAttendanceRate(Math.round(rate));
-
+      setMissedSessionsRate(attendanceData.missedSessionsRate || 0);
+      setTutorMissedRates(attendanceData.tutorMissedRates || []);
+      
     } catch (err) {
-      console.error("Failed to fetch attendance data:", err);
-      notifications.show({
-        title: "Error",
-        message: err.response?.data?.message || "Failed to load attendance records",
-        color: "red",
-      });
-      setAttendanceRate(0);
+      console.error("ERROR in fetchMissedSessionData:", err);
+      console.error("Error message:", err.message);
+      console.error("Error response:", err.response);
+      setMissedSessionsRate(0);
+      setTutorMissedRates([]);
     } 
+  };
+
+  // Add this missing handler function
+  const handleBackToOverview = () => {
+    setShowTutorBreakdown(false);
+  };
+
+  // Add this missing handler function for tutor breakdown
+  const handleShowTutorBreakdown = () => {
+    setShowTutorBreakdown(true);
+  };
+
+  // Tutor missed session breakdown view - FIXED VERSION
+  const TutorMissedSessionsBreakdown = () => {
+    const totalTutors = tutorMissedRates.length;
+    const totalSessions = tutorMissedRates.reduce((sum, tutor) => sum + tutor.totalSessions, 0);
+    const totalMissed = tutorMissedRates.reduce((sum, tutor) => sum + tutor.missedSessions, 0);
+
+    return (
+      <div>
+        <div style={{ marginBottom: "1.5rem" }}>
+          <button
+            onClick={handleBackToOverview}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              padding: "0.5rem 1rem",
+              backgroundColor: "#6155F5",
+              color: "white",
+              border: "none",
+              borderRadius: "5px",
+              cursor: "pointer",
+              fontSize: "0.875rem",
+              marginBottom: "1rem"
+            }}
+          >
+            <FaArrowLeft />
+            Back to Overview
+          </button>
+          
+          <div style={{ 
+            backgroundColor: "white", 
+            padding: "1.5rem", 
+            borderRadius: "10px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+            <h2 style={{ margin: "0 0 0.5rem 0", color: "#333" }}>
+              Tutor Missed Sessions Breakdown
+            </h2>
+            <p style={{ color: "#6c757d", margin: 0, fontSize: "1.1rem", fontWeight: "500" }}>
+              {totalTutors} tutors • {totalMissed} missed sessions out of {totalSessions} total
+            </p>
+            <p style={{ color: "#6c757d", margin: "0.5rem 0 0 0", fontSize: "0.875rem" }}>
+              Overall Agency Rate: {missedSessionsRate}% • {selectedLocation === 'all' ? 'All Locations' : selectedLocation}
+            </p>
+          </div>
+        </div>
+
+        <div
+          style={{
+            backgroundColor: "white",
+            padding: "1.5rem",
+            borderRadius: "10px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+          }}
+        >
+          <h3 style={{ margin: "0 0 1.5rem 0", color: "#333" }}>
+            Tutor Performance Details
+          </h3>
+          
+          {tutorMissedRates.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#6c757d", padding: "2rem" }}>
+              <p>No tutor attendance data available for the selected filters</p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: "1rem" }}>
+              {tutorMissedRates.map((tutor, index) => (
+                <div
+                  key={tutor.tutorId || index}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "1rem",
+                    backgroundColor: "#f8f9fa",
+                    borderRadius: "8px",
+                    borderLeft: `4px solid ${tutor.missedRate === 0 ? '#28a745' : tutor.missedRate <= 10 ? '#ffc107' : '#dc3545'}`
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ margin: "0 0 0.25rem 0", color: "#333" }}>
+                      {tutor.tutorName}
+                    </h4>
+                    <p style={{ margin: 0, color: "#6c757d", fontSize: "0.875rem" }}>
+                      {tutor.totalSessions} sessions • {tutor.missedSessions} missed
+                    </p>
+                  </div>
+                  
+                  <div style={{ textAlign: "right" }}>
+                    <div 
+                      style={{ 
+                        fontSize: "1.25rem", 
+                        fontWeight: "bold", 
+                        color: tutor.missedRate === 0 ? '#28a745' : tutor.missedRate <= 10 ? '#ffc107' : '#dc3545'
+                      }}
+                    >
+                      {tutor.missedRate}%
+                    </div>
+                    <div style={{ 
+                      fontSize: "0.75rem", 
+                      color: tutor.missedRate === 0 ? '#28a745' : tutor.missedRate <= 10 ? '#6c757d' : '#dc3545'
+                    }}>
+                      {tutor.missedRate === 0 ? 'Perfect' : tutor.missedRate <= 10 ? 'Good' : 'Needs Attention'}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   // Filter Component
@@ -272,8 +446,9 @@ const AgencyDashboard = () => {
         placeholder="Select time range"
         style={{ width: "200px" }}
       />
-    </Group>
-  );
+
+  </Group>
+);
 
   const handleShowSubscriptionsDetail = () => {
     setShowSubscriptionsDetail(true);
@@ -282,6 +457,69 @@ const AgencyDashboard = () => {
   const handleBackToRevenue = () => {
     setShowSubscriptionsDetail(false);
   };
+
+  // In your revenue section, add the clickable missed sessions card:
+  const renderMissedSessionsCard = () => (
+    <div
+      onClick={handleShowTutorBreakdown}
+      style={{
+        backgroundColor: "white",
+        padding: "1.25rem",
+        borderRadius: "10px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+        minWidth: "200px",
+        maxWidth: "280px",
+        flex: "1 1 220px",
+        cursor: "pointer",
+        transition: "all 0.2s ease",
+        border: "2px solid transparent",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "scale(1.02)";
+        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+        e.currentTarget.style.borderColor = "#6155F5";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "scale(1)";
+        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
+        e.currentTarget.style.borderColor = "transparent";
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          marginBottom: "0.75rem",
+        }}
+      >
+        <FaChartLine
+          style={{
+            fontSize: "1.75rem",
+            color: "#dc3545",
+            marginRight: "0.75rem",
+          }}
+        />
+        <div>
+          <h3
+            style={{
+              fontSize: "1.25rem",
+              fontWeight: "bold",
+              color: "#333",
+              margin: 0,
+            }}
+          >
+            {missedSessionsRate}%
+          </h3>
+          <p style={{ color: "#6c757d", margin: 0, fontSize: "0.875rem" }}>
+            Missed Sessions Rate
+          </p>
+        </div>
+      </div>
+      <div style={{ fontSize: "0.75rem", color: "#6155F5" }}>
+        Click to view tutor breakdown
+      </div>
+    </div>
+  );
 
   // Grade Level Revenue Cards Component
   const GradeLevelRevenueCards = () => {
@@ -388,8 +626,14 @@ const AgencyDashboard = () => {
   };
 
   const SubscriptionsDetailView = () => {
-    const lessonsWithStudents = lessons.filter(lesson => (lesson.currentCap || 0) > 0);
-    const calculatedTotal = lessonsWithStudents.reduce((sum, lesson) => sum + (lesson.currentCap || 0), 0);
+    const lessonsWithStudents = lessons
+      .filter(lesson => (lesson.paymentCount || 0) > 0)
+      .sort((a, b) => {
+        // Sort by payment count (descending)
+        const countA = a.paymentCount || 0;
+        const countB = b.paymentCount || 0;
+        return countB - countA;
+      });
 
     return (
       <div>
@@ -424,7 +668,10 @@ const AgencyDashboard = () => {
               Subscriptions Breakdown
             </h2>
             <p style={{ color: "#6c757d", margin: 0, fontSize: "1.1rem", fontWeight: "500" }}>
-              {calculatedTotal} students across {lessonsWithStudents.length} lessons
+              {totalSubscriptions} students across {lessonsWithStudents.length} lessons
+            </p>
+            <p style={{ color: "#6c757d", margin: "0.5rem 0 0 0", fontSize: "0.875rem" }}>
+              Filtered by: {selectedTimeRange} • {selectedLocation === 'all' ? 'All Locations' : selectedLocation}
             </p>
           </div>
         </div>
@@ -438,13 +685,12 @@ const AgencyDashboard = () => {
           }}
         >
           <h3 style={{ margin: "0 0 1.5rem 0", color: "#333" }}>
-            Active Lessons with Enrolled Students
+            Lessons with Subscriptions
           </h3>
           
           {lessonsWithStudents.length === 0 ? (
             <div style={{ textAlign: "center", color: "#6c757d", padding: "2rem" }}>
-              <p>No lessons with enrolled students found</p>
-              <p style={{ fontSize: "0.875rem" }}>All {lessons.length} lessons have 0 students enrolled</p>
+              <p>No lessons with subscriptions found for the selected filters</p>
             </div>
           ) : (
             <div style={{ display: "grid", gap: "1rem" }}>
@@ -466,7 +712,10 @@ const AgencyDashboard = () => {
                       {lesson.title || `Lesson ${index + 1}`}
                     </h4>
                     <p style={{ margin: 0, color: "#6c757d", fontSize: "0.875rem" }}>
-                      {getSubjectName(lesson.subjectId)} • {lesson.dayOfWeek} • {lesson.startTime} - {lesson.endTime}
+                      {lesson.subjectName} • {lesson.dayOfWeek} • {lesson.startTime} - {lesson.endTime}
+                    </p>
+                    <p style={{ margin: "0.25rem 0 0 0", color: "#6c757d", fontSize: "0.75rem" }}>
+                      Location: {lesson.locationAddress} • Tutor: {lesson.tutorName}
                     </p>
                   </div>
                   
@@ -476,7 +725,7 @@ const AgencyDashboard = () => {
                       fontWeight: "bold", 
                       color: "#28a745" 
                     }}>
-                      {lesson.currentCap || 0}
+                      {lesson.paymentCount || 0}
                     </div>
                     <div style={{ fontSize: "0.75rem", color: "#6c757d" }}>
                       students
@@ -598,6 +847,17 @@ const AgencyDashboard = () => {
       </button>
     </div>
   );
+
+  // Then in your revenue tab render:
+  if (showTutorBreakdown) {
+    return (
+      <Container size="xl" py="xl" style={{ background: "linear-gradient(to bottom, #C7D3FF, #9B95E2)", minHeight: "100vh", margin: 0, padding: 0, maxWidth: "100%" }}>
+        <div style={{ padding: "2.5rem 2.5rem 2rem 2.5rem", width: "100%", boxSizing: "border-box" }}>
+          <TutorMissedSessionsBreakdown />
+        </div>
+      </Container>
+    );
+  }
 
   return (
     <Container 
@@ -996,48 +1256,8 @@ const AgencyDashboard = () => {
                       </div>
                     </div>
 
-                    <div
-                      style={{
-                        backgroundColor: "white",
-                        padding: "1.25rem",
-                        borderRadius: "10px",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                        minWidth: "200px",
-                        maxWidth: "280px",
-                        flex: "1 1 220px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          marginBottom: "0.75rem",
-                        }}
-                      >
-                        <FaChartLine
-                          style={{
-                            fontSize: "1.75rem",
-                            color: "#6155F5",
-                            marginRight: "0.75rem",
-                          }}
-                        />
-                        <div>
-                          <h3
-                            style={{
-                              fontSize: "1.25rem",
-                              fontWeight: "bold",
-                              color: "#333",
-                              margin: 0,
-                            }}
-                          >
-                            {attendanceRate}%
-                          </h3>
-                          <p style={{ color: "#6c757d", margin: 0, fontSize: "0.875rem" }}>
-                            Attendance Rate
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                    {/* REPLACED: Use the new clickable missed sessions card */}
+                    {renderMissedSessionsCard()}
                   </div>
 
                   <GradeLevelRevenueCards />

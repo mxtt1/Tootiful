@@ -11,7 +11,8 @@ import agencyAdminRoutes from "./modules/user-management/agencyAdmin.routes.js";
 import lessonRoutes from "./modules/scheduling/lesson.routes.js";
 import tutorPaymentRoutes from "./modules/payment/tutorPayment.route.js";
 import paymentRoutes from "./modules/payment/payment.routes.js";
-import analyticsRoutes from "./modules/analytics/agency.analytics.routes.js";
+import adminAnalyticsRoutes from "./modules/analytics/admin.analytics.routes.js";
+import agencyAnalyticsRoutes from "./modules/analytics/agency.analytics.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import "./models/index.js";
 
@@ -52,7 +53,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/agency-admins", agencyAdminRoutes);
 app.use("/api/tutorPayments", tutorPaymentRoutes); //tutor payment routes
 app.use("/api/payments", paymentRoutes); //student payment routes
-app.use("/api/analytics", analyticsRoutes); //agency analytics routes
+app.use("/api/analytics", agencyAnalyticsRoutes); // Agency analytics
+app.use("/api/analytics", adminAnalyticsRoutes);  // Admin analytics 
 
 // Global Error Handler Middleware
 app.use(errorHandler);
@@ -82,6 +84,7 @@ const startServer = async () => {
       console.log(
         `Agency-admins API: http://localhost:${PORT}/api/agency-admins`
       );
+      console.log(`Admin Analytics: http://localhost:${PORT}/api/analytics/admin`);
     });
   } catch (error) {
     console.error("Unable to start server:", error);
