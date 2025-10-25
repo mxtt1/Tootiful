@@ -177,8 +177,6 @@ export default function ViewTutorProfileScreen() {
                   </Text>
                 </View>
               )}
-              {/* Online indicator */}
-              {tutor.isOnline && <View style={styles.onlineIndicator} />}
             </View>
 
             <View style={styles.profileInfo}>

@@ -249,16 +249,6 @@ export const agenciesStyles = StyleSheet.create({
     color: "#666",
     textAlign: "center",
   },
-  agencyGridDescription: {
-    marginBottom: 8,
-    flex: 1,
-  },
-  agencyGridDescriptionText: {
-    fontSize: 11,
-    color: "#666",
-    lineHeight: 16,
-    textAlign: "center",
-  },
   agencyGridViewButton: {
     backgroundColor: "#8B5CF6",
     paddingVertical: 10,

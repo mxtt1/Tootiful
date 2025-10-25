@@ -82,17 +82,6 @@ export const tutorProfileStyles = StyleSheet.create({
     fontWeight: "bold",
     color: "#8B5CF6",
   },
-  onlineIndicator: {
-    position: "absolute",
-    bottom: 5,
-    right: 5,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#10B981",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
   profileInfo: {
     flex: 1,
   },

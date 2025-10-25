@@ -67,17 +67,6 @@ export const tutorsStyles = StyleSheet.create({
     fontWeight: "bold",
     color: "#FFFFFF",
   },
-  onlineIndicator: {
-    position: "absolute",
-    bottom: 2,
-    right: 2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#10B981",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
   tutorInfo: {
     flex: 1,
   },
@@ -99,13 +88,6 @@ export const tutorsStyles = StyleSheet.create({
   ratingText: {
     fontSize: 14,
     color: "#6B7280",
-  },
-  onlineStatus: {
-    alignItems: "flex-end",
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "500",
   },
   subjectsContainer: {
     marginBottom: 15,

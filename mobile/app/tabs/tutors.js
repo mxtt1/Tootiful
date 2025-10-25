@@ -7,7 +7,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
-  Image
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState, useEffect } from "react";
@@ -112,11 +112,14 @@ export default function TutorsScreen() {
         isOnline: Math.random() > 0.3, // Mock online status
       }));
 
-      console.log("Tutor images:", apiTutors.map(t => ({
-        name: `${t.firstName} ${t.lastName}`,
-        hasImage: !!t.image,
-        imageUrl: t.image
-      })));
+      console.log(
+        "Tutor images:",
+        apiTutors.map((t) => ({
+          name: `${t.firstName} ${t.lastName}`,
+          hasImage: !!t.image,
+          imageUrl: t.image,
+        }))
+      );
 
       setTutors(apiTutors);
       setFilteredTutors(apiTutors);
@@ -237,23 +240,23 @@ export default function TutorsScreen() {
                 onPress={() => handleTutorPress(tutor)}
               >
                 <View style={styles.tutorHeader}>
-                  <View style={styles.tutorImageContainer}>       
+                  <View style={styles.tutorImageContainer}>
                     {tutor.image ? (
                       <Image
-                        source={{ uri: tutor.image + '?t=' + Date.now() }}
+                        source={{ uri: tutor.image + "?t=" + Date.now() }}
                         style={styles.tutorImagePlaceholder}
-                        onError={(e) => console.log('Image failed to load:', tutor.image)}
+                        onError={(e) =>
+                          console.log("Image failed to load:", tutor.image)
+                        }
                       />
                     ) : (
-                    <View style={styles.tutorImagePlaceholder}>
-                      <Text style={styles.tutorImageText}>
-                        {tutor.firstName[0]}
-                        {tutor.lastName[0]}
-                      </Text>
-                    </View>
+                      <View style={styles.tutorImagePlaceholder}>
+                        <Text style={styles.tutorImageText}>
+                          {tutor.firstName[0]}
+                          {tutor.lastName[0]}
+                        </Text>
+                      </View>
                     )}
-                    {/* Online indicator */}
-                    {tutor.isOnline && <View style={styles.onlineIndicator} />}
                   </View>
 
                   <View style={styles.tutorInfo}>
@@ -269,17 +272,6 @@ export default function TutorsScreen() {
                         {tutor.rating} ({tutor.totalReviews} reviews)
                       </Text>
                     </View>
-                  </View>
-
-                  <View style={styles.onlineStatus}>
-                    <Text
-                      style={[
-                        styles.statusText,
-                        { color: tutor.isOnline ? "#10B981" : "#6B7280" },
-                      ]}
-                    >
-                      {tutor.isOnline ? "Online" : "Offline"}
-                    </Text>
                   </View>
                 </View>
 

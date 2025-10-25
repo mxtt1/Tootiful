@@ -402,18 +402,6 @@ export default function AgenciesScreen() {
                     </Text>
                   </View>
 
-                  {/* About Us Section */}
-                  {agency.aboutUs && (
-                    <View style={styles.agencyGridDescription}>
-                      <Text
-                        style={styles.agencyGridDescriptionText}
-                        numberOfLines={2}
-                      >
-                        {agency.aboutUs}
-                      </Text>
-                    </View>
-                  )}
-
                   {/* View Details Button */}
                   <TouchableOpacity
                     style={styles.agencyGridViewButton}
