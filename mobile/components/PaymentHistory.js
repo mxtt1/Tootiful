@@ -24,11 +24,8 @@ export default function PaymentHistory({ userId }) {
       }
 
       const response = await apiClient.get(`/payments/student?studentId=${userId}`);
-      console.log("Payment history response:", response);
-      console.log("response.data:", response.data);
       // response.data should be {success: true, data: [...]}
-      const paymentsArray = response.data.data || response.data || [];
-      console.log("Payments array:", paymentsArray);
+      const paymentsArray = response.data || [];
       setPayments(paymentsArray);
     } catch (error) {
       console.error("Error fetching payment history:", error);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, use } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Modal,
   ScrollView,
   RefreshControl,
+  Alert,
 } from "react-native";
 import apiClient from "../../services/apiClient";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,7 +16,6 @@ import { useFocusEffect } from "expo-router";
 import authService from "../../services/authService";
 import lessonService from "../../services/lessonService";
 import { jwtDecode } from "jwt-decode";
-import PaymentHistory from "../../components/PaymentHistory";
 import {
   studentTimetableStyles as styles
 } from "../styles/studentTimetableStyles.js";
@@ -30,6 +30,9 @@ export default function StudentTimetable() {
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [studentId, setStudentId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [unenrolling, setUnenrolling] = useState(false);
+  const [showUnenrollModal, setShowUnenrollModal] = useState(false);
+  const [lessonToUnenroll, setLessonToUnenroll] = useState(null);
 
   // Helper to normalize dayOfWeek from API to grid format
   const normalizeDay = (day) => {
@@ -180,9 +183,134 @@ export default function StudentTimetable() {
     });
   };
 
+  const handleUnenrollPress = (lesson) => {
+    setLessonToUnenroll(lesson);
+    setShowUnenrollModal(true);
+  };
+
+  const confirmUnenroll = async () => {
+    if (!lessonToUnenroll || !studentId) return;
+
+    try {
+      setUnenrolling(true);
+      setShowUnenrollModal(false);
+
+      await lessonService.unenrollStudentFromLesson(
+        studentId,
+        lessonToUnenroll.id
+      );
+
+      Alert.alert(
+        "Success",
+        "You have successfully unenrolled from this lesson!",
+        [{ text: "OK" }]
+      );
+
+      // Refresh lessons
+      fetchLessons();
+      setLessonToUnenroll(null);
+    } catch (error) {
+      console.error("Unenrollment error:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to unenroll from lesson";
+
+      Alert.alert("Error", errorMessage);
+    } finally {
+      setUnenrolling(false);
+    }
+  };
+
+  const formatTime = (time) => {
+    if (!time) return "";
+    const [hours, minutes] = time.split(":");
+    const hour12 = hours % 12 || 12;
+    const ampm = hours < 12 ? "AM" : "PM";
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  const renderEnrolledClassesList = () => {
+    if (lessons.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <Ionicons name="calendar-outline" size={64} color="#D1D5DB" />
+          <Text style={styles.emptyTitle}>No Enrolled Classes</Text>
+          <Text style={styles.emptySubtitle}>
+            Browse lessons to enroll in your first class
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.classList}>
+        {lessons.map((lesson) => (
+          <View key={lesson.id} style={styles.classCard}>
+            <View style={styles.classCardHeader}>
+              <View style={styles.classIconContainer}>
+                <Ionicons name="book" size={24} color="#8B5CF6" />
+              </View>
+              <View style={styles.classInfo}>
+                <Text style={styles.classTitle}>{lesson.title}</Text>
+                <Text style={styles.classSubject}>
+                  {lesson.subject.gradeLevel} {lesson.subject.name}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.classDetails}>
+              <View style={styles.classDetailRow}>
+                <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+                <Text style={styles.classDetailText}>
+                  {lesson.dayOfWeek} • {formatTime(lesson.startTime)} - {formatTime(lesson.endTime)}
+                </Text>
+              </View>
+
+              <View style={styles.classDetailRow}>
+                <Ionicons name="location-outline" size={16} color="#6B7280" />
+                <Text style={styles.classDetailText}>
+                  {lesson.location.address}
+                </Text>
+              </View>
+
+              <View style={styles.classDetailRow}>
+                <Ionicons name="person-outline" size={16} color="#6B7280" />
+                <Text style={styles.classDetailText}>
+                  {lesson.tutor
+                    ? `${lesson.tutor.firstName} ${lesson.tutor.lastName}`
+                    : "Not assigned"}
+                </Text>
+              </View>
+
+              <View style={styles.classDetailRow}>
+                <Ionicons name="business-outline" size={16} color="#6B7280" />
+                <Text style={styles.classDetailText}>
+                  {lesson.agency.name}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.unenrollButton,
+                unenrolling && styles.unenrollButtonDisabled,
+              ]}
+              onPress={() => handleUnenrollPress(lesson)}
+              disabled={unenrolling}
+            >
+              <Ionicons name="exit-outline" size={18} color="#EF4444" />
+              <Text style={styles.unenrollButtonText}>Unenroll</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Weekly Timetable</Text>
+      <Text style={styles.header}>My Schedule</Text>
       {loading ? (
         <ActivityIndicator size="large" color="#8B5CF6" />
       ) : (
@@ -196,27 +324,35 @@ export default function StudentTimetable() {
             />
           }
         >
-          <ScrollView horizontal style={{ minHeight: 350 }}>
-            <View>
-              {/* Header row for time slots */}
-              <View style={styles.timeHeaderRow}>
-                <Text style={styles.dayLabel}></Text>
-                {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => (
-                  <View key={i + START_HOUR} style={styles.colHeader}>
-                    <Text style={styles.timeLabel}>{`${i + START_HOUR
-                      }:00`}</Text>
-                  </View>
-                ))}
+          {/* Timetable Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Weekly Timetable</Text>
+            <ScrollView horizontal style={{ minHeight: 350 }}>
+              <View>
+                {/* Header row for time slots */}
+                <View style={styles.timeHeaderRow}>
+                  <Text style={styles.dayLabel}></Text>
+                  {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => (
+                    <View key={i + START_HOUR} style={styles.colHeader}>
+                      <Text style={styles.timeLabel}>{`${i + START_HOUR
+                        }:00`}</Text>
+                    </View>
+                  ))}
+                </View>
+                {/* Timetable grid: days as rows */}
+                {renderGrid()}
               </View>
-              {/* Timetable grid: days as rows */}
-              {renderGrid()}
-            </View>
-          </ScrollView>
+            </ScrollView>
+          </View>
 
-          {/* Payment History Section */}
-          <PaymentHistory userId={studentId} />
+          {/* Enrolled Classes List Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Enrolled Classes</Text>
+            {renderEnrolledClassesList()}
+          </View>
         </ScrollView>
       )}
+
       {/* Lesson details modal */}
       <Modal visible={!!selectedLesson} transparent animationType="slide">
         <View style={styles.modalOverlay}>
@@ -275,6 +411,50 @@ export default function StudentTimetable() {
                 </View>
               </>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Unenroll Confirmation Modal */}
+      <Modal visible={showUnenrollModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmModalContent}>
+            <View style={styles.confirmModalHeader}>
+              <Ionicons name="warning-outline" size={48} color="#EF4444" />
+              <Text style={styles.confirmModalTitle}>Confirm Unenrollment</Text>
+            </View>
+
+            <View style={styles.confirmModalBody}>
+              <Text style={styles.confirmModalText}>
+                Are you sure you want to unenroll from{" "}
+                <Text style={styles.confirmModalBold}>
+                  {lessonToUnenroll?.title}
+                </Text>
+                ?
+              </Text>
+              <Text style={styles.confirmModalWarning}>
+                Please note: No refunds will be given for unenrolling from this lesson.
+              </Text>
+            </View>
+
+            <View style={styles.confirmModalFooter}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  setShowUnenrollModal(false);
+                  setLessonToUnenroll(null);
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={confirmUnenroll}
+              >
+                <Text style={styles.confirmButtonText}>Unenroll</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

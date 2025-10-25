@@ -17,6 +17,7 @@ import { myProfileStyles as styles } from "../styles/myProfileStyles";
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
 import { jwtDecode } from "jwt-decode";
+import PaymentHistory from "../../components/PaymentHistory";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -276,6 +277,9 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
         </View>
+
+        {/* Payment History Section - Only for students */}
+        <PaymentHistory userId={currentUser.id} />
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
