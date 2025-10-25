@@ -1,52 +1,15 @@
 // Lesson and Attendance imports
 import Lesson from './lesson.model.js';
 import Attendance from './attendance.model.js';
+import StudentLesson from './studentLesson.model.js';
 import StudentPayment from './studentPayment.model.js';
 import TutorPayment from './tutorPayment.model.js';
 
-// StudentLesson join table
-const StudentLesson = sequelize.define('StudentLesson', {
-  studentId: {
-    type: DataTypes.UUID,
-    primaryKey: true,
-    references: { model: User, key: 'id' },
-    onDelete: 'CASCADE',
-    allowNull: false,
-  },
-  lessonId: {
-    type: DataTypes.UUID,
-    primaryKey: true,
-    references: { model: Lesson, key: 'id' },
-    onDelete: 'CASCADE',
-    allowNull: false,
-  },
-  startDate: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    validate: {
-      isDate: true
-    }
-  },
-  endDate: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    validate: {
-      isDate: true,
-      isAfterStartDate(value) {
-        if (this.startDate && value <= this.startDate) {
-          throw new Error('End date must be after start date');
-        }
-      }
-    }
-  }
-}, {
-  tableName: 'student_lesson',
-  timestamps: true
-});
-
-// Associations for lessons
-User.belongsToMany(Lesson, { through: StudentLesson, foreignKey: 'studentId', otherKey: 'lessonId', as: 'studentLessons' });
-Lesson.belongsToMany(User, { through: StudentLesson, foreignKey: 'lessonId', otherKey: 'studentId', as: 'students' });
+// StudentLesson direct associations
+StudentLesson.belongsTo(User, { foreignKey: 'studentId', as: 'student' });
+StudentLesson.belongsTo(Lesson, { foreignKey: 'lessonId', as: 'lesson' });
+User.hasMany(StudentLesson, { foreignKey: 'studentId', as: 'enrollments' });
+Lesson.hasMany(StudentLesson, { foreignKey: 'lessonId', as: 'enrollments' });
 
 // Tutor-Lesson association
 User.hasMany(Lesson, { foreignKey: 'tutorId', as: 'tutorLessons' });

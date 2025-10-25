@@ -156,10 +156,9 @@ export default function TutorManagement() {
         setLoading(true);
         setError(null);
         try {
-            const offset = (page - 1) * limit;
             const params = {
+                page: page.toString(),      // ← Send 'page' instead of 'offset'
                 limit: limit.toString(),
-                offset: offset.toString(),
                 search: debouncedSearch
             };
             const res = await apiClient.get(`/tutors?agencyId=${agencyId}&${new URLSearchParams(params).toString()}`);

@@ -1,4 +1,4 @@
-import { User, Agency, Lesson, Location } from "../../models/index.js";
+import { User, Agency, Lesson, Location, StudentLesson } from "../../models/index.js";
 import { Op } from "sequelize";
 import bcrypt from "bcrypt";
 import gradeLevelEnum from "../../util/enum/gradeLevelEnum.js";
@@ -149,7 +149,7 @@ class StudentService {
     // Check if email already exists in Agency table
     const existingAgency = await Agency.findOne({ where: { email: studentData.email } });
     if (existingAgency) {
-        throw new Error('Agency with this email already exists');
+      throw new Error('Agency with this email already exists');
     }
     return await User.create({ ...studentData, role: "student" });
   }
@@ -176,18 +176,23 @@ class StudentService {
     // location filtering
     const include = [];
     if (location && location !== 'all') {
-        include.push({
-            model: Lesson,
-            as: 'studentLessons',
-            include: [{
-                model: Location,
-                as: 'location',
-                where: { address: location },
-                required: true
-            }],
-            required: true, // only include students with lessons at this location
-            attributes: [] // Just for filtering
-        });
+      include.push({
+        model: StudentLesson,
+        as: 'enrollments',
+        include: [{
+          model: Lesson,
+          as: 'lesson',
+          include: [{
+            model: Location,
+            as: 'location',
+            where: { address: location },
+            required: true
+          }],
+          required: true
+        }],
+        required: true, // only include students with lessons at this location
+        attributes: [] // Just for filtering
+      });
     }
 
     const queryOptions = {

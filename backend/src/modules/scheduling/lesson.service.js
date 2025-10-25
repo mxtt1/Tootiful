@@ -836,46 +836,50 @@ class LessonService {
     }
 
     const today = new Date().setUTCHours(0, 0, 0, 0);
-    // Common include for all lesson info
-    const lessonInclude = [
-      {
-        model: Subject,
-        as: "subject",
-        attributes: ["id", "name", "gradeLevel", "category", "description"],
-      },
-      {
-        model: Location,
-        as: "location",
-        attributes: ["id", "address"],
-      },
-      {
-        model: Agency,
-        as: "agency",
-        attributes: ["id", "name"],
-      },
-      {
-        model: User,
-        as: "tutor",
-        attributes: ["id", "firstName", "lastName"],
-        required: false,
-      },
-    ];
-
+    
+    // Build where clause for StudentLesson
+    const studentLessonWhere = { studentId };
     if (ongoing) {
-      return await student.getStudentLessons({
-        include: lessonInclude,
-        through: {
-          where: {
-            startDate: { [Op.lte]: today },
-            endDate: { [Op.gte]: today },
-          },
-        },
-      });
-    } else {
-      return await student.getStudentLessons({
-        include: lessonInclude,
-      });
+      studentLessonWhere.startDate = { [Op.lte]: today };
+      studentLessonWhere.endDate = { [Op.gte]: today };
     }
+
+    // Fetch enrollments with lesson details
+    const enrollments = await StudentLesson.findAll({
+      where: studentLessonWhere,
+      include: [
+        {
+          model: Lesson,
+          as: 'lesson',
+          include: [
+            {
+              model: Subject,
+              as: "subject",
+              attributes: ["id", "name", "gradeLevel", "category", "description"],
+            },
+            {
+              model: Location,
+              as: "location",
+              attributes: ["id", "address"],
+            },
+            {
+              model: Agency,
+              as: "agency",
+              attributes: ["id", "name"],
+            },
+            {
+              model: User,
+              as: "tutor",
+              attributes: ["id", "firstName", "lastName"],
+              required: false,
+            },
+          ],
+        },
+      ],
+    });
+
+    // Extract just the lessons from enrollments
+    return enrollments.map(enrollment => enrollment.lesson);
   }
 
   async enrolStudentInLesson(studentId, lessonId) {
@@ -942,18 +946,24 @@ class LessonService {
       }
 
       // Check for time clash
-      const currentLessons = await student.getStudentLessons({
-        joinTableAttributes: ["startDate", "endDate"],
-        through: {
-          where: {
-            startDate: { [Op.lte]: today },
-            endDate: { [Op.gte]: today },
-          },
+      const currentEnrollments = await StudentLesson.findAll({
+        where: {
+          studentId: student.id,
+          startDate: { [Op.lte]: today },
+          endDate: { [Op.gte]: today },
         },
+        include: [
+          {
+            model: Lesson,
+            as: 'lesson',
+            attributes: ['id', 'dayOfWeek', 'startTime', 'endTime'],
+          },
+        ],
         transaction,
       });
 
-      for (const otherLesson of currentLessons) {
+      for (const enrollment of currentEnrollments) {
+        const otherLesson = enrollment.lesson;
         if (
           otherLesson.dayOfWeek === lesson.dayOfWeek &&
           lesson.startTime < otherLesson.endTime &&
@@ -982,10 +992,13 @@ class LessonService {
 
 
       // Enrol student and update lesson's currentCap
-      await student.addStudentLesson(lesson, {
-        through: { startDate: today, endDate: endDate },
-        transaction,
-      });
+      await StudentLesson.create({
+        studentId: student.id,
+        lessonId: lesson.id,
+        startDate: today,
+        endDate: endDate,
+      }, { transaction });
+      
       lesson.currentCap = currentCapacity + 1;
       await lesson.save({ transaction });
 

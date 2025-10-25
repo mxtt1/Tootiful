@@ -1,4 +1,4 @@
-import { User, Subject, TutorSubject, Agency, Lesson, Location, Attendance } from '../../models/index.js';
+import { User, Subject, TutorSubject, Agency, Lesson, Location, Attendance, StudentLesson } from '../../models/index.js';
 import { Op } from 'sequelize';
 import sequelize from '../../config/database.js';
 import bcrypt from 'bcrypt';
@@ -76,12 +76,12 @@ export default class TutorService {
         // Handle multivalued parameters - convert to arrays if needed
         const subjects = Array.isArray(subject) ? subject : (subject ? [subject] : []);
 
-        const result = await this.getTutors({ 
-            page, 
-            limit, 
-            active, 
-            minRate, 
-            maxRate, 
+        const result = await this.getTutors({
+            page,
+            limit,
+            active,
+            minRate,
+            maxRate,
             subjects,
             agencyId,
             search,
@@ -111,9 +111,9 @@ export default class TutorService {
 
             if (!subjectId) {
                 console.warn('Missing subjectId in request');
-                return res.status(400).json({ 
+                return res.status(400).json({
                     success: false,
-                    message: "subjectId is required" 
+                    message: "subjectId is required"
                 });
             }
 
@@ -157,7 +157,7 @@ export default class TutorService {
 
     async handleCreateTutor(req, res) {
         const tutorData = req.body;
-    
+
         // If password not provided, generate a random one, then email it to the tutor
         let generatedPassword = null;
         if (!tutorData.password) {
@@ -173,7 +173,7 @@ export default class TutorService {
         res.status(201).json(tutorResponse);
 
         // user is created with isActive=false (default). Send verification email.
-        await createAndEmailVerificationLink({ user: newTutor, email: newTutor.email, generatedPassword: generatedPassword  });
+        await createAndEmailVerificationLink({ user: newTutor, email: newTutor.email, generatedPassword: generatedPassword });
 
     }
 
@@ -195,14 +195,14 @@ export default class TutorService {
         const { password, ...tutorResponse } = updatedTutor.toJSON();
         // Check if email was changed
         const emailChanged =
-        !!(tutorData?.email) && tutorData.email !== updatedTutor.email;
+            !!(tutorData?.email) && tutorData.email !== updatedTutor.email;
 
         res.status(200).json({
-        ...tutorResponse,
-        requiresEmailVerification: emailChanged,
-        ...(emailChanged
-            ? { message: "Email updated. A verification link has been sent to your new address." }
-            : {}),
+            ...tutorResponse,
+            requiresEmailVerification: emailChanged,
+            ...(emailChanged
+                ? { message: "Email updated. A verification link has been sent to your new address." }
+                : {}),
         });
     }
 
@@ -252,7 +252,7 @@ export default class TutorService {
     }
 
     async getTutors(options = {}) {
-        const { 
+        const {
             page,
             limit,
             active,
@@ -261,7 +261,7 @@ export default class TutorService {
             subjects = [],
             agencyId,
             search,
-            location, 
+            location,
         } = options;
         const where = { role: 'tutor' };
 
@@ -300,7 +300,7 @@ export default class TutorService {
 
         // filter by agencyId
         if (agencyId !== undefined) {
-          where.agencyId = agencyId;
+            where.agencyId = agencyId;
         }
 
         // filter by active status
@@ -312,26 +312,26 @@ export default class TutorService {
         if (minRate !== undefined || maxRate !== undefined) {
             include[0].through = {
                 where: {}
-            };  
+            };
 
             // both min and max rate provided
-            if (minRate !== undefined && maxRate !== undefined) {     
+            if (minRate !== undefined && maxRate !== undefined) {
                 include[0].through.where.hourlyRate = {
                     [Op.between]: [parseFloat(minRate), parseFloat(maxRate)]
                 };
-            // only min rate provided
+                // only min rate provided
             } else if (minRate !== undefined) {
                 include[0].through.where.hourlyRate = {
                     [Op.gte]: parseFloat(minRate)
                 };
-            // only max rate provided
+                // only max rate provided
             } else if (maxRate !== undefined) {
                 include[0].through.where.hourlyRate = {
                     [Op.lte]: parseFloat(maxRate)
                 };
             }
-            
-            include[0].required = true; 
+
+            include[0].required = true;
         }
 
         // filter by subjects
@@ -348,7 +348,7 @@ export default class TutorService {
                 };
             }
 
-            
+
             include[0].where = subjectWhere;
             include[0].required = true;
         }
@@ -368,8 +368,8 @@ export default class TutorService {
 
     async getAvailableTutorsForSubject(subjectId, agencyId = null) {
         console.log(`Finding available tutors for subject ${subjectId}, agency: ${agencyId || 'any'}`);
-        const where = { 
-            role: 'tutor', 
+        const where = {
+            role: 'tutor',
             isActive: true,
             isSuspended: false
         };
@@ -379,7 +379,7 @@ export default class TutorService {
         }
 
         const tutors = await User.findAll({
-            where, 
+            where,
             include: [
                 {
                     model: Subject,
@@ -457,25 +457,25 @@ export default class TutorService {
 
             // Enforce uniqueness only if email is changing
             if (updateData.email) {
-            const existing = await User.findOne({
-                where: { email: updateData.email },
-                transaction,
-            });
-            if (existing && existing.id !== id) {
-                throw new Error("Email already exists for another user");
-            }
+                const existing = await User.findOne({
+                    where: { email: updateData.email },
+                    transaction,
+                });
+                if (existing && existing.id !== id) {
+                    throw new Error("Email already exists for another user");
+                }
             }
 
             const tutor = await this.getTutorById(id);
 
             // If no email change -> normal update
             if (!updateData.email || updateData.email === tutor.email) {
-            await tutor.update(updateData, { transaction });
+                await tutor.update(updateData, { transaction });
             } else {
                 // same email change workflow:
                 // 1) mark inactive and store pending email
                 tutor.isActive = false;
-                tutor.pendingEmail = updateData.email;        
+                tutor.pendingEmail = updateData.email;
                 await tutor.save({ transaction });
                 // 2) send verify link to NEW email
                 await createAndEmailVerificationLink({ user: tutor, email: updateData.email });
@@ -491,17 +491,17 @@ export default class TutorService {
                 const currentSubjectIds = currentSubjects.map(subject => subject.id);
 
                 // subjects to remove
-                const subjectsToRemove = currentSubjectIds.filter(id => 
+                const subjectsToRemove = currentSubjectIds.filter(id =>
                     !subjects.some(subject => subject.subjectId === id)
                 );
-                
+
                 // subjects to add
-                const subjectsToAdd = subjects.filter(subject => 
+                const subjectsToAdd = subjects.filter(subject =>
                     !currentSubjectIds.includes(subject.subjectId)
                 );
-                
+
                 // subjects to update (existing subjects)
-                const subjectsToUpdate = subjects.filter(subject => 
+                const subjectsToUpdate = subjects.filter(subject =>
                     currentSubjectIds.includes(subject.subjectId)
                 );
 
@@ -513,10 +513,10 @@ export default class TutorService {
                 // add subjects
                 for (const subject of subjectsToAdd) {
                     await this.addSubjectToTutor(
-                        id, 
-                        subject.subjectId, 
-                        subject.experienceLevel, 
-                        subject.hourlyRate, 
+                        id,
+                        subject.subjectId,
+                        subject.experienceLevel,
+                        subject.hourlyRate,
                         transaction
                     );
                 }
@@ -526,21 +526,21 @@ export default class TutorService {
                     // Check if there are actual changes to update
                     const currentSubject = currentSubjects.find(s => s.id === subject.subjectId);
                     const tutorSubject = currentSubject.TutorSubject;
-                    
+
                     if (subject.hourlyRate !== undefined && subject.hourlyRate !== tutorSubject.hourlyRate) {
                         await this.updateTutorSubjectRate(
-                            id, 
-                            subject.subjectId, 
-                            subject.hourlyRate, 
+                            id,
+                            subject.subjectId,
+                            subject.hourlyRate,
                             transaction
                         );
                     }
-                    
+
                     if (subject.experienceLevel !== undefined && subject.experienceLevel !== tutorSubject.experienceLevel) {
                         await this.updateTutorSubjectExperience(
-                            id, 
-                            subject.subjectId, 
-                            subject.experienceLevel, 
+                            id,
+                            subject.subjectId,
+                            subject.experienceLevel,
                             transaction
                         );
                     }
@@ -566,15 +566,15 @@ export default class TutorService {
         if (existingRelation) {
             throw new Error('Tutor already teaches this subject');
         }
-    
+
         const createOptions = {
             tutorId,
             subjectId,
-            experienceLevel, 
+            experienceLevel,
             hourlyRate
         };
         if (transaction) createOptions.transaction = transaction;
-        
+
         await TutorSubject.create(createOptions);
         return await this.getTutorById(tutorId);
     }
@@ -582,15 +582,15 @@ export default class TutorService {
     async updateTutorSubjectExperience(tutorId, subjectId, experienceLevel, transaction = null) {
         const options = { where: { tutorId, subjectId } };
         if (transaction) options.transaction = transaction;
-        
+
         const relation = await TutorSubject.findOne(options);
         if (!relation) {
             throw new Error('Tutor does not teach this subject');
         }
-        
+
         const updateOptions = { experienceLevel };
         if (transaction) updateOptions.transaction = transaction;
-        
+
         await relation.update(updateOptions);
         return await this.getTutorById(tutorId);
     }
@@ -598,15 +598,15 @@ export default class TutorService {
     async updateTutorSubjectRate(tutorId, subjectId, hourlyRate, transaction = null) {
         const options = { where: { tutorId, subjectId } };
         if (transaction) options.transaction = transaction;
-        
+
         const relation = await TutorSubject.findOne(options);
         if (!relation) {
             throw new Error('Tutor does not teach this subject');
         }
-        
+
         const updateOptions = { hourlyRate };
         if (transaction) updateOptions.transaction = transaction;
-        
+
         await relation.update(updateOptions);
         return await this.getTutorById(tutorId);
     }
@@ -614,7 +614,7 @@ export default class TutorService {
     async removeSubjectFromTutor(tutorId, subjectId, transaction = null) {
         const options = { where: { tutorId, subjectId } };
         if (transaction) options.transaction = transaction;
-        
+
         const deleted = await TutorSubject.destroy(options);
         if (deleted === 0) {
             throw new Error('Tutor does not teach this subject');
@@ -967,15 +967,13 @@ export default class TutorService {
                     },
                     include: [
                         {
-                            model: Lesson,
-                            as: "studentLessons",
+                            model: StudentLesson,
+                            as: "enrollments",
                             where: {
-                                id: lessonId,
+                                lessonId: lessonId,
                             },
-                            attributes: ["id"],
-                            through: {
-                                attributes: ["startDate", "endDate"],
-                            },
+                            attributes: ["startDate", "endDate"],
+                            required: true,
                         },
                     ],
                     attributes: ["id", "firstName", "lastName", "email", "phone", "gender", "gradeLevel"],
