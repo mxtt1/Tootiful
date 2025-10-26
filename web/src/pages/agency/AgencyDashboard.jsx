@@ -1247,7 +1247,7 @@ const AgencyDashboard = () => {
                             {totalSubscriptions}
                           </h3>
                           <p style={{ color: "#6c757d", margin: 0, fontSize: "0.875rem" }}>
-                            Total Subscriptions
+                            Total Paid Enrollments
                           </p>
                         </div>
                       </div>

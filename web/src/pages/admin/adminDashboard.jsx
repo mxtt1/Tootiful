@@ -422,7 +422,7 @@ const AdminDashboard = () => {
                         boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
                     }}>
                         <h2 style={{ margin: "0 0 0.5rem 0", color: "#333" }}>
-                            Subscriptions Breakdown (All Agencies)
+                            Paid Enrollments Breakdown (All Agencies)
                         </h2>
                         <p style={{ color: "#6c757d", margin: 0, fontSize: "1.1rem", fontWeight: "500" }}>
                             {totalSubscriptions} students across {lessonsWithStudents.length} lessons
@@ -442,12 +442,12 @@ const AdminDashboard = () => {
                     }}
                 >
                     <h3 style={{ margin: "0 0 1.5rem 0", color: "#333" }}>
-                        Lessons with Subscriptions
+                        Lessons with Paid Enrollments
                     </h3>
                     
                     {lessonsWithStudents.length === 0 ? (
                         <div style={{ textAlign: "center", color: "#6c757d", padding: "2rem" }}>
-                            <p>No lessons with subscriptions found for the selected filters</p>
+                            <p>No lessons with paid enrollments found for the selected filters</p>
                         </div>
                     ) : (
                         <div style={{ display: "grid", gap: "1rem" }}>
@@ -684,7 +684,7 @@ const AdminDashboard = () => {
                         {totalSubscriptions}
                     </h3>
                     <p style={{ color: "#6c757d", margin: 0, fontSize: "0.875rem" }}>
-                        Total Subscriptions
+                        Total Paid Enrollments
                     </p>
                 </div>
             </div>
