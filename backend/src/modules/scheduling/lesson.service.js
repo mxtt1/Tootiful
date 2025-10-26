@@ -878,8 +878,12 @@ class LessonService {
       ],
     });
 
-    // Extract just the lessons from enrollments
-    return enrollments.map(enrollment => enrollment.lesson);
+    // Flatten the lesson data and include enrollment dates
+    return enrollments.map(enrollment => ({
+      ...enrollment.lesson.toJSON(),
+      startDate: enrollment.startDate,
+      endDate: enrollment.endDate,
+    }));
   }
 
   async enrolStudentInLesson(studentId, lessonId) {
