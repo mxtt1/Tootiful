@@ -296,6 +296,13 @@ export default function StudentTimetable() {
                   {lesson.agency.name}
                 </Text>
               </View>
+
+              <View style={styles.classDetailRow}>
+                <Ionicons name="time-outline" size={16} color="#6B7280" />
+                <Text style={styles.classDetailText}>
+                  Ends On: {lesson.endDate ? lesson.endDate : 'N/A'}
+                </Text>
+              </View>
             </View>
 
             <TouchableOpacity
