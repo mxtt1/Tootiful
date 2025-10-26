@@ -199,6 +199,11 @@ export const studentTimetableStyles = StyleSheet.create({
         color: "#374151",
         flex: 1,
     },
+    tutorLink: {
+        color: "#8B5CF6",
+        textDecorationLine: "underline",
+        fontWeight: "500",
+    },
     unenrollButton: {
         flexDirection: "row",
         alignItems: "center",

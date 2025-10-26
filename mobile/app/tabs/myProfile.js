@@ -5,12 +5,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  SafeAreaView,
   ActivityIndicator,
   RefreshControl,
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
 import { myProfileStyles as styles } from "../styles/myProfileStyles";
@@ -26,6 +26,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showPaymentHistory, setShowPaymentHistory] = useState(false);
 
   // Fetch current user data
   useEffect(() => {
@@ -221,8 +222,6 @@ export default function ProfileScreen() {
                 </Text>
               </View>
             )}
-            {/* Online indicator */}
-            <View style={styles.onlineIndicator} />
           </View>
 
           <Text style={styles.userName}>
@@ -253,15 +252,12 @@ export default function ProfileScreen() {
 
         {/* Menu Options */}
         <View style={styles.menuContainer}>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => router.push('/tabs/studentTimetable')}
+          >
             <Ionicons name="book-outline" size={24} color="#374151" />
             <Text style={styles.menuText}>My courses</Text>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="card-outline" size={24} color="#374151" />
-            <Text style={styles.menuText}>Payment</Text>
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
 
@@ -276,10 +272,24 @@ export default function ProfileScreen() {
             <Text style={styles.menuText}>Settings</Text>
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => setShowPaymentHistory(!showPaymentHistory)}
+          >
+            <Ionicons name="card-outline" size={24} color="#374151" />
+            <Text style={styles.menuText}>Payment History</Text>
+            <Ionicons 
+              name={showPaymentHistory ? "chevron-down" : "chevron-forward"} 
+              size={20} 
+              color="#9CA3AF" 
+            />
+          </TouchableOpacity>
+
         </View>
 
-        {/* Payment History Section - Only for students */}
-        <PaymentHistory userId={currentUser.id} />
+        {/* Payment History Section - Only show when toggled */}
+        {showPaymentHistory && <PaymentHistory userId={currentUser.id} />}
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
