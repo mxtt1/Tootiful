@@ -223,6 +223,11 @@ export const lessonsStyles = StyleSheet.create({
     color: "#374151",
     marginBottom: 4,
   },
+  tutorLink: {
+    color: "#8B5CF6",
+    textDecorationLine: "underline",
+    fontWeight: "500",
+  },
   description: {
     fontSize: 14,
     color: "#6B7280",

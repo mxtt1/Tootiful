@@ -805,9 +805,22 @@ export default function LessonsScreen() {
                     {selectedLesson.tutorFullName && (
                       <View style={styles.detailSection}>
                         <Text style={styles.sectionTitle}>Instructor</Text>
-                        <Text style={styles.detailText}>
-                          {selectedLesson.tutorFullName}
-                        </Text>
+                        {selectedLesson.tutorId ? (
+                          <TouchableOpacity
+                            onPress={() => {
+                              setModalVisible(false);
+                              router.push(`/viewTutorProfile?id=${selectedLesson.tutorId}`);
+                            }}
+                          >
+                            <Text style={[styles.detailText, styles.tutorLink]}>
+                              {selectedLesson.tutorFullName}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <Text style={styles.detailText}>
+                            {selectedLesson.tutorFullName}
+                          </Text>
+                        )}
                       </View>
                     )}
 

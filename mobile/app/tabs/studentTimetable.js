@@ -12,7 +12,7 @@ import {
 import apiClient from "../../services/apiClient";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import authService from "../../services/authService";
 import lessonService from "../../services/lessonService";
 import { jwtDecode } from "jwt-decode";
@@ -25,6 +25,7 @@ const START_HOUR = 8;
 const END_HOUR = 22;
 
 export default function StudentTimetable() {
+  const router = useRouter();
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedLesson, setSelectedLesson] = useState(null);
@@ -276,11 +277,17 @@ export default function StudentTimetable() {
 
               <View style={styles.classDetailRow}>
                 <Ionicons name="person-outline" size={16} color="#6B7280" />
-                <Text style={styles.classDetailText}>
-                  {lesson.tutor
-                    ? `${lesson.tutor.firstName} ${lesson.tutor.lastName}`
-                    : "Not assigned"}
-                </Text>
+                {lesson.tutor ? (
+                  <TouchableOpacity
+                    onPress={() => router.push(`/viewTutorProfile?id=${lesson.tutor.id}`)}
+                  >
+                    <Text style={[styles.classDetailText, styles.tutorLink]}>
+                      {`${lesson.tutor.firstName} ${lesson.tutor.lastName}`}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={styles.classDetailText}>Not assigned</Text>
+                )}
               </View>
 
               <View style={styles.classDetailRow}>
@@ -395,11 +402,20 @@ export default function StudentTimetable() {
 
                   <View style={styles.infoRow}>
                     <Ionicons name="person-outline" size={20} color="#666" />
-                    <Text style={styles.infoText}>
-                      {selectedLesson.tutor
-                        ? `${selectedLesson.tutor.firstName} ${selectedLesson.tutor.lastName}`
-                        : "Not assigned"}
-                    </Text>
+                    {selectedLesson.tutor ? (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedLesson(null);
+                          router.push(`/viewTutorProfile?id=${selectedLesson.tutor.id}`);
+                        }}
+                      >
+                        <Text style={[styles.infoText, styles.tutorLink]}>
+                          {`${selectedLesson.tutor.firstName} ${selectedLesson.tutor.lastName}`}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <Text style={styles.infoText}>Not assigned</Text>
+                    )}
                   </View>
 
                   <View style={styles.infoRow}>
