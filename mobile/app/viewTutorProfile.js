@@ -60,6 +60,12 @@ export default function ViewTutorProfileScreen() {
   };
 
   const handleRefresh = () => {
+    // Close all dropdowns and clear their data
+    setExpandedSubjects({});
+    setSubjectLessons({});
+    setLoadingLessons({});
+    
+    // Fetch fresh tutor data
     fetchTutorData();
   };
 
@@ -107,9 +113,10 @@ export default function ViewTutorProfileScreen() {
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
-  const getDayName = (dayNumber) => {
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    return days[dayNumber] || 'Unknown';
+  const getDayName = (dayOfWeek) => {
+    if (!dayOfWeek) return 'Unknown';
+    // Capitalize first letter of the lowercase day name from database
+    return dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
   };
 
   const handleEnrollInLesson = async (lesson) => {
