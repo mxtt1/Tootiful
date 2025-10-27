@@ -1,4 +1,4 @@
-import { Lesson, Subject, StudentPayment, Location, TutorPayment, User, Attendance } from '../../models/index.js';
+import { Lesson, Subject, StudentPayment, Location, User, Attendance } from '../../models/index.js';
 import gradeLevelEnum from "../../util/enum/gradeLevelEnum.js";   
 import { Op } from 'sequelize';
 
@@ -163,62 +163,99 @@ class AgencyAnalyticsService {
     // TUTOR PAYMENT IMPLEMENTATION
     async getTutorPayments(agencyId, filters = {}) {
         try {
-            const { timeRange = 'this_month', location } = filters;
+            const { timeRange = 'all_time', location } = filters;
 
-            // Get monthly tutor payments directly
-            const paymentWhereClause = { agencyId };
-            
+            // Build base query - only paid sessions
+            const attendanceWhereClause = {
+                isPaid: true
+            };
+
+            // Apply time range
             if (timeRange !== 'all_time') {
                 const dateRange = this.getDateRangeForTimePeriod(timeRange);
-                paymentWhereClause.paymentDate = {
+                attendanceWhereClause.date = {
                     [Op.between]: [dateRange.start, dateRange.end]
                 };
             }
 
-            const tutorPayments = await TutorPayment.findAll({
-                where: paymentWhereClause,
+            // Build location include properly
+            const locationInclude = location && location !== 'all' 
+                ? [{
+                    model: Location,
+                    as: 'location',
+                    where: { address: location },
+                    required: true
+                }]
+                : [{
+                    model: Location,
+                    as: 'location',
+                    required: false
+                }];
+
+            // Get all paid attendance records
+            const paidAttendances = await Attendance.findAll({
+                where: attendanceWhereClause,
                 include: [
                     {
-                        model: User,
-                        as: 'tutor',
-                        attributes: ['id', 'firstName', 'lastName', 'email']
+                        model: Lesson,
+                        as: 'lesson',
+                        where: { 
+                            agencyId, 
+                            isActive: true 
+                        },
+                        required: true,
+                        include: [
+                            ...locationInclude,
+                            {
+                                model: User,
+                                as: 'tutor',
+                                where: { agencyId }, // Ensure tutor belongs to agency
+                                required: true,
+                                attributes: ['id', 'firstName', 'lastName', 'email']
+                            }
+                        ]
                     }
                 ],
-                order: [['paymentDate', 'DESC']]
+                order: [['date', 'DESC']]
             });
 
-            // Group by tutor for the time period
+            // Group by tutor and calculate totals
             const tutorPaymentsMap = {};
             
-            tutorPayments.forEach(payment => {
-                const tutorId = payment.tutorId;
+            paidAttendances.forEach(attendance => {
+                const tutorId = attendance.tutorId;
+                const tutor = attendance.lesson.tutor;
                 
                 if (!tutorPaymentsMap[tutorId]) {
                     tutorPaymentsMap[tutorId] = {
                         tutorId,
-                        tutorName: payment.tutor ? 
-                            `${payment.tutor.firstName} ${payment.tutor.lastName}` : 
-                            'Unknown Tutor',
+                        tutorName: tutor ? 
+                            `${tutor.firstName} ${tutor.lastName}` : 'Unknown Tutor',
                         totalPayments: 0,
-                        paymentCount: 0,
+                        paidSessions: 0,
                         payments: []
                     };
                 }
 
-                tutorPaymentsMap[tutorId].totalPayments += parseFloat(payment.paymentAmount || 0);
-                tutorPaymentsMap[tutorId].paymentCount++;
+                const sessionAmount = parseFloat(attendance.lesson.tutorRate || 0);
+                
+                tutorPaymentsMap[tutorId].totalPayments += sessionAmount;
+                tutorPaymentsMap[tutorId].paidSessions++;
                 tutorPaymentsMap[tutorId].payments.push({
-                    paymentId: payment.id,
-                    amount: parseFloat(payment.paymentAmount || 0),
-                    paymentDate: payment.paymentDate,
-                    createdAt: payment.createdAt
+                    attendanceId: attendance.id,
+                    lessonId: attendance.lessonId,
+                    lessonTitle: attendance.lesson.title,
+                    date: attendance.date,
+                    amount: sessionAmount,
+                    location: attendance.lesson.location?.address,
+                    isAttended: attendance.isAttended
                 });
             });
 
             return Object.values(tutorPaymentsMap);
             
         } catch (error) {
-            console.error('Get tutor payments:', error);
+            console.error('Get tutor payments from attendance:', error);
             throw error;
         }
     }
@@ -227,46 +264,12 @@ class AgencyAnalyticsService {
         try {
             const { timeRange = 'all_time', location } = filters;
 
-            // Step 1: Get lessons based on location filter
-            const lessonWhereClause = { 
-                agencyId,
-                isActive: true
-            };
-
-            let lessonInclude = [];
-            if (location && location !== 'all') {
-                lessonInclude.push({
-                    model: Location,
-                    as: 'location',
-                    where: { address: location },
-                    required: true
-                });
-            }
-
-            const lessons = await Lesson.findAll({
-                where: lessonWhereClause,
-                include: lessonInclude,
-                attributes: ['id', 'tutorRate', 'title'],
-                raw: true
-            });
-
-            const lessonIds = lessons.map(lesson => lesson.id);
-            const lessonRates = {};
-            const lessonTitles = {};
-            lessons.forEach(lesson => {
-                lessonRates[lesson.id] = parseFloat(lesson.tutorRate || 0);
-                lessonTitles[lesson.id] = lesson.title;
-            });
-
-            // Step 2: Get attendance records for this specific tutor
             const attendanceWhereClause = {
-                lessonId: {
-                    [Op.in]: lessonIds
-                },
                 tutorId: tutorId,
                 isPaid: true
             };
 
+            // Apply time range
             if (timeRange !== 'all_time') {
                 const dateRange = this.getDateRangeForTimePeriod(timeRange);
                 attendanceWhereClause.date = {
@@ -274,18 +277,37 @@ class AgencyAnalyticsService {
                 };
             }
 
-            const attendanceRecords = await Attendance.findAll({
+            // Build location include properly
+            const locationInclude = location && location !== 'all' 
+                ? [{
+                    model: Location,
+                    as: 'location',
+                    where: { address: location },
+                    required: true
+                }]
+                : [{
+                    model: Location,
+                    as: 'location',
+                    required: false
+                }];
+
+            const paidSessions = await Attendance.findAll({
                 where: attendanceWhereClause,
                 include: [
                     {
                         model: Lesson,
                         as: 'lesson',
-                        attributes: ['id'],
+                        where: { 
+                            agencyId, 
+                            isActive: true 
+                        },
+                        required: true,
                         include: [
+                            ...locationInclude,
                             {
-                                model: Location,
-                                as: 'location',
-                                attributes: ['id', 'address']
+                                model: Subject,
+                                as: 'subject',
+                                attributes: ['id', 'name']
                             }
                         ]
                     }
@@ -293,29 +315,35 @@ class AgencyAnalyticsService {
                 order: [['date', 'DESC']]
             });
 
-            // Step 3: Get tutor info
-            const tutor = await User.findByPk(tutorId, {
+            // Format sessions
+            const sessions = paidSessions.map(attendance => ({
+                attendanceId: attendance.id,
+                lessonId: attendance.lessonId,
+                lessonTitle: attendance.lesson.title,
+                subject: attendance.lesson.subject?.name,
+                date: attendance.date,
+                rate: parseFloat(attendance.lesson.tutorRate || 0),
+                location: attendance.lesson.location?.address,
+                isAttended: attendance.isAttended,
+                paymentStatus: 'Paid'
+            }));
+
+            // Calculate totals
+            const totalAmount = sessions.reduce((sum, session) => sum + session.rate, 0);
+            const totalSessions = sessions.length;
+
+            // Get tutor info and verify they belong to agency
+            const tutor = await User.findOne({
+                where: { 
+                    id: tutorId,
+                    agencyId: agencyId 
+                },
                 attributes: ['id', 'firstName', 'lastName', 'email', 'phone']
             });
 
             if (!tutor) {
-                throw new Error('Tutor not found');
+                throw new Error('Tutor not found in this agency');
             }
-
-            // Step 4: Format response
-            const sessions = attendanceRecords.map(record => ({
-                attendanceId: record.id,
-                lessonId: record.lessonId,
-                lessonTitle: lessonTitles[record.lessonId] || 'Unknown Lesson',
-                date: record.date,
-                location: record.lesson?.location?.address || 'Unknown Location',
-                rate: lessonRates[record.lessonId] || 0,
-                isAttended: record.isAttended,
-                paymentStatus: 'Paid' // Since we filtered by isPaid = true
-            }));
-
-            const totalAmount = sessions.reduce((sum, session) => sum + session.rate, 0);
-            const totalSessions = sessions.length;
 
             return {
                 tutor: {
@@ -329,7 +357,7 @@ class AgencyAnalyticsService {
                     totalAmount: Math.round(totalAmount * 100) / 100,
                     averageRate: totalSessions > 0 ? Math.round((totalAmount / totalSessions) * 100) / 100 : 0,
                     timeRange,
-                    location
+                    location: location || 'all'
                 },
                 sessions,
                 filters: {
@@ -339,8 +367,8 @@ class AgencyAnalyticsService {
             };
 
         } catch (error) {
-            console.error('Get tutor payment details:', error);
-            throw new Error(`Failed to get tutor payment details: ${error.message}`);
+            console.error('Get tutor payment details from attendance:', error);
+            throw error;
         }
     }
 
@@ -1250,54 +1278,36 @@ class AgencyAnalyticsService {
                 }]
             });
 
-            // 2. Get tutor payments - FIXED: Filter by location through attendance/lessons
-            let tutorPayments;
-            
-            if (location && location !== 'all') {
-                // If location filter is applied, join with lessons and filter by location
-                tutorPayments = await TutorPayment.findAll({
-                    where: {
-                        agencyId: agencyId,
-                        ...(timeRange !== 'all_time' && {
-                            paymentDate: {
-                                [Op.between]: [this.getDateRangeForTimePeriod(timeRange).start, this.getDateRangeForTimePeriod(timeRange).end]
-                            }
-                        })
-                    },
-                    include: [{
-                        model: Attendance,
-                        as: 'attendance',
-                        required: true,
-                        include: [{
-                            model: Lesson,
-                            as: 'lesson',
-                            required: true,
-                            include: [{
-                                model: Location,
-                                as: 'location',
-                                where: { address: location },
-                                required: true
-                            }]
-                        }]
-                    }]
-                });
-            } else {
-                // No location filter - get all tutor payments for agency
-                const tutorPaymentWhereClause = {
-                    agencyId: agencyId,
-                };
-                
-                if (timeRange !== 'all_time') {
-                    const dateRange = this.getDateRangeForTimePeriod(timeRange);
-                    tutorPaymentWhereClause.paymentDate = {
-                        [Op.between]: [dateRange.start, dateRange.end]
-                    };
-                }
+            // 2. REPLACED: Get tutor payments from Attendance table instead of TutorPayment
+            const attendanceWhereClause = {
+                isPaid: true
+            };
 
-                tutorPayments = await TutorPayment.findAll({
-                    where: tutorPaymentWhereClause
-                });
+            // Apply time range to attendance
+            if (timeRange !== 'all_time') {
+                const dateRange = this.getDateRangeForTimePeriod(timeRange);
+                attendanceWhereClause.date = {
+                    [Op.between]: [dateRange.start, dateRange.end]
+                };
             }
+
+            // Build location filter for attendance
+            let attendanceInclude = [{
+                model: Lesson,
+                as: 'lesson',
+                where: { 
+                    agencyId,
+                    isActive: true,
+                    id: { [Op.in]: agencyLessonIds } // Use the location-filtered lesson IDs
+                },
+                required: true
+            }];
+
+            // Get paid attendance records (these represent tutor payments)
+            const paidAttendances = await Attendance.findAll({
+                where: attendanceWhereClause,
+                include: attendanceInclude
+            });
 
             // Count ALL student payment records (not unique students)
             const totalSubscriptions = studentPayments.length;
@@ -1320,9 +1330,11 @@ class AgencyAnalyticsService {
                 return total + parseFloat(payment.platformFee || 0);
             }, 0);
 
-            // Calculate tutor payments
-            const totalPaidToTutors = tutorPayments.reduce((total, payment) => {
-                return total + parseFloat(payment.paymentAmount || 0);
+            // REPLACED: Calculate tutor payments from attendance records
+            const totalPaidToTutors = paidAttendances.reduce((total, attendance) => {
+                // Use the lesson's tutorRate for payment calculation
+                const lessonRate = parseFloat(attendance.lesson?.tutorRate || 0);
+                return total + lessonRate;
             }, 0);
 
             // Calculate net revenue (student revenue minus tutor payments)
@@ -1340,7 +1352,7 @@ class AgencyAnalyticsService {
                 netRevenue: Math.round(netRevenue),
                 totalSubscriptions: totalSubscriptions,
                 totalLessons: lessons.length,  
-                paidSessions: tutorPayments.length,
+                paidSessions: paidAttendances.length, // Now using attendance count
 
                 // Data for charts
                 revenueByGradeLevel,
@@ -1351,7 +1363,7 @@ class AgencyAnalyticsService {
                 ...summary,
                 filters: { timeRange, location },
                 studentPaymentsCount: studentPayments.length,
-                tutorPaymentsCount: tutorPayments.length,
+                paidAttendancesCount: paidAttendances.length, // Updated log
                 lessonsCount: lessons.length
             });            
             return summary;

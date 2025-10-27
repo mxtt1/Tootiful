@@ -33,8 +33,8 @@ class LessonService {
 
   async handleGetLessonsByAgencyId(req, res) {
     const { id } = req.params;
-    const { location } = req.query; 
-    console.log(`Fetching lessons for agency: ${id}, location: ${location}`);   
+    const { location } = req.query;
+    console.log(`Fetching lessons for agency: ${id}, location: ${location}`);
 
     const lessons = await this.getAllLessonsByAgencyId(id, location); // Fetch all lessons for the agency
     console.log(`Retrieved ${lessons.length} lessons for agency ${id}`);
@@ -260,7 +260,7 @@ class LessonService {
   async handleGetAgencyAttendance(req, res) {
     try {
       const { id: agencyId } = req.params;
-      const { location } = req.query; 
+      const { location } = req.query;
       console.log(`Fetching agency-wide attendance for agency: ${agencyId}, location: ${location}`);
       const agencyAttendance = await this.getAgencyAttendance(agencyId, location);
 
@@ -580,7 +580,7 @@ class LessonService {
   async getAllLessonsByAgencyId(agencyId, location = 'all') {
     try {
       console.log(`Fetching lessons for agency: ${agencyId}, location: ${location}`);
-      
+
       // Define include array first
       const include = [
         {
@@ -728,13 +728,21 @@ class LessonService {
 
 
   //Helper function for generating attendance: 
-  async generateAttendanceDates(lessonId, tutorId, dayOfWeek, transaction, monthsAhead) {
+  async generateAttendanceDates(lessonId, tutorId, dayOfWeek, transaction, startDate, endDate) {
     try {
       console.log(`Generating attendance dates for lesson ${lessonId}, day: ${dayOfWeek}`);
 
-      const start = new Date();
-      const end = new Date();
-      end.setMonth(start.getMonth() + monthsAhead);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      //Validate dates
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        throw new Error('Invalid start or end date provided');
+      }
+
+      if (start > end) {
+        throw new Error('Start date must be before or equal to end date');
+      }
 
       const dayIndex = {
         sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
@@ -752,7 +760,7 @@ class LessonService {
         if (currentDate.getDay() === dayIndex) {
           attendances.push({
             lessonId: lessonId,
-            tutorId: tutorId || null, // ✅ Ensure null if undefined
+            tutorId: tutorId || null, // Ensure null if undefined
             date: currentDate.toISOString().slice(0, 10),
             isAttended: false
           });
@@ -764,7 +772,7 @@ class LessonService {
       console.log("Sample record:", JSON.stringify(attendances[0], null, 2)); // ✅ DEBUG
 
       if (attendances.length > 0) {
-        // ✅ Try creating one record at a time to isolate the issue
+        // Try creating one record at a time to isolate the issue
         const createdRecords = [];
         for (const attendance of attendances) {
           try {
@@ -848,7 +856,7 @@ class LessonService {
     }
 
     const today = new Date().setUTCHours(0, 0, 0, 0);
-    
+
     // Build where clause for StudentLesson
     const studentLessonWhere = { studentId };
     if (ongoing) {
@@ -1002,7 +1010,7 @@ class LessonService {
           if (!lesson.tutorId) {
             throw new Error("Cannot generate attendance - no tutor assigned");
           }
-          await this.generateAttendanceDates(lesson.id, lesson.tutorId, lesson.dayOfWeek, transaction, 1);
+          await this.generateAttendanceDates(lesson.id, lesson.tutorId, lesson.dayOfWeek, transaction, lesson.startDate, lesson.endDate);
         }
       }
 
@@ -1014,7 +1022,7 @@ class LessonService {
         startDate: today,
         endDate: endDate,
       }, { transaction });
-      
+
       lesson.currentCap = currentCapacity + 1;
       await lesson.save({ transaction });
 
