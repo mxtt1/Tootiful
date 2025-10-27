@@ -4,12 +4,16 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  ActivityIndicator,
   Image,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
 import { useState, useEffect } from "react";
 import tutorService from "../services/tutorService.js";
+import lessonService from "../services/lessonService.js";
+import authService from "../services/authService.js";
 import { tutorProfileStyles as styles } from "./styles/tutorProfileStyles";
 
 export default function ViewTutorProfileScreen() {
@@ -17,6 +21,9 @@ export default function ViewTutorProfileScreen() {
   const [tutor, setTutor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expandedSubjects, setExpandedSubjects] = useState({});
+  const [subjectLessons, setSubjectLessons] = useState({});
+  const [loadingLessons, setLoadingLessons] = useState({});
 
   useEffect(() => {
     fetchTutorData();
@@ -27,52 +34,103 @@ export default function ViewTutorProfileScreen() {
       setLoading(true);
       setError(null);
 
-      console.log("🔄 Fetching fresh tutor data for ID:", id);
-      // Try to fetch from API first
       const response = await tutorService.getTutorById(id || 1);
 
-      // Use real API data, only add mock data for fields not available in API
       const tutorData = {
         ...response,
-        // Only mock data for fields that aren't implemented in the API yet
         age: response.age || 35,
         rating: response.rating || 4.5,
-        totalReviews:
-          response.totalReviews || Math.floor(Math.random() * 50) + 10,
-        isOnline: response.isOnline !== undefined ? response.isOnline : true,
-        // Use API data directly for these fields that can be updated
+        totalReviews: response.totalReviews || Math.floor(Math.random() * 50) + 10,
         education: response.education || "University Graduate",
-        aboutMe:
-          response.aboutMe ||
-          `I am a passionate ${
-            response.subjects?.[0]?.name || "subject"
-          } tutor with extensive experience helping students excel in their studies.`,
-        firstName: response.firstName,
-        lastName: response.lastName,
-        phone: response.phone,
-        image: response.image || null,
+        aboutMe: response.aboutMe || `I am a passionate ${response.subjects?.[0]?.name || "subject"} tutor with extensive experience helping students excel in their studies.`,
         subjects: response.subjects || [],
       };
 
       setTutor(tutorData);
-      console.log("✅ Fetched fresh tutor data:", tutorData);
     } catch (error) {
-      console.warn("⚠️ API failed:", error.message);
+      console.error("Error fetching tutor data:", error.message);
       setError("Failed to load tutor profile. Please try again.");
-      // Don't fallback to mock data - show error state instead
     } finally {
       setLoading(false);
     }
   };
 
   const handleBackPress = () => {
-    // Specifically navigate back to the tutors tab
     router.push("/tabs/tutors");
   };
 
   const handleRefresh = () => {
-    // Force refresh the tutor data
     fetchTutorData();
+  };
+
+  const toggleSubject = async (subjectId) => {
+    const isExpanded = expandedSubjects[subjectId];
+
+    setExpandedSubjects(prev => ({
+      ...prev,
+      [subjectId]: !isExpanded
+    }));
+
+    // If expanding and we haven't loaded lessons yet, fetch them
+    if (!isExpanded && !subjectLessons[subjectId]) {
+      try {
+        setLoadingLessons(prev => ({ ...prev, [subjectId]: true }));
+
+        const lessonsData = await lessonService.getAllLessons({
+          tutorId: id,
+          subjectId: subjectId
+        });
+
+        setSubjectLessons(prev => ({
+          ...prev,
+          [subjectId]: lessonsData || []
+        }));
+      } catch (error) {
+        console.error('Error fetching lessons:', error);
+        setSubjectLessons(prev => ({
+          ...prev,
+          [subjectId]: []
+        }));
+      } finally {
+        setLoadingLessons(prev => ({ ...prev, [subjectId]: false }));
+      }
+    }
+  };
+
+  const formatTime = (time) => {
+    if (!time) return '';
+    // Convert 24h format to 12h format
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const getDayName = (dayNumber) => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[dayNumber] || 'Unknown';
+  };
+
+  const handleEnrollInLesson = async (lesson) => {
+    try {
+      if (!authService.isAuthenticated()) {
+        Alert.alert("Login Required", "Please log in to enroll in lessons.", [
+          { text: "Cancel", style: "cancel" },
+          { text: "Login", onPress: () => router.push("/login") },
+        ]);
+        return;
+      }
+
+      // Navigate to lesson enrollment/payment
+      router.push({
+        pathname: "/payment",
+        params: { lessonId: lesson.id },
+      });
+    } catch (error) {
+      console.error("Error handling lesson enrollment:", error);
+      Alert.alert("Error", "Failed to process enrollment. Please try again.");
+    }
   };
 
   const renderStars = (rating) => {
@@ -117,8 +175,8 @@ export default function ViewTutorProfileScreen() {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <Text style={styles.errorText}>Tutor not found</Text>
-        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-          <Text style={styles.backButtonText}>Go Back</Text>
+        <TouchableOpacity style={styles.primaryButton} onPress={handleBackPress}>
+          <Text style={styles.primaryButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -165,9 +223,7 @@ export default function ViewTutorProfileScreen() {
                     uri: tutor.image + `?timestamp=${Date.now()}`,
                   }}
                   style={styles.profileImagePlaceholder}
-                  onError={(e) =>
-                    console.log("Image failed to load:", tutor.image)
-                  }
+                  onError={() => console.error("Image failed to load")}
                 />
               ) : (
                 <View style={styles.profileImagePlaceholder}>
@@ -201,48 +257,140 @@ export default function ViewTutorProfileScreen() {
         {/* About Me Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About Me</Text>
-          <Text style={styles.aboutText}>{tutor.aboutMe}</Text>
+          <Text style={styles.sectionText}>{tutor.aboutMe}</Text>
         </View>
 
         {/* Education Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Education</Text>
-          <Text style={styles.educationText}>{tutor.education}</Text>
+          <Text style={styles.sectionText}>{tutor.education}</Text>
         </View>
 
         {/* Subjects of Expertise */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Subjects of Expertise</Text>
           {tutor.subjects && tutor.subjects.length > 0 ? (
-            tutor.subjects.map((subject, index) => (
-              <View key={index} style={styles.subjectItem}>
-                <View style={styles.subjectMainInfo}>
-                  <Text style={styles.subjectName}>{subject.name}</Text>
-                  <Text style={styles.subjectGrade}>
-                    {subject.gradeLevel || "All Levels"}
-                  </Text>
+            tutor.subjects.map((subject, index) => {
+              const isExpanded = expandedSubjects[subject.id];
+              const lessons = subjectLessons[subject.id] || [];
+              const isLoadingLessons = loadingLessons[subject.id];
+
+              return (
+                <View key={subject.id} style={styles.subjectAccordion}>
+                  <TouchableOpacity
+                    style={styles.subjectHeader}
+                    onPress={() => toggleSubject(subject.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.subjectHeaderLeft}>
+                      <View style={styles.subjectMainInfo}>
+                        <Text style={styles.subjectName}>{subject.name}</Text>
+                        <Text style={styles.subjectGrade}>
+                          {subject.gradeLevel || "All Levels"}
+                        </Text>
+                      </View>
+                      <View style={styles.subjectDetails}>
+                        <Text style={styles.subjectLevel}>
+                          {(
+                            subject.experienceLevel ||
+                            subject.TutorSubject?.experienceLevel ||
+                            "intermediate"
+                          )
+                            .charAt(0)
+                            .toUpperCase() +
+                            (
+                              subject.experienceLevel ||
+                              subject.TutorSubject?.experienceLevel ||
+                              "intermediate"
+                            ).slice(1)}
+                        </Text>
+                        <Text style={styles.subjectRate}>
+                          ${subject.TutorSubject?.hourlyRate || 45}/hr
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons
+                      name={isExpanded ? "chevron-up" : "chevron-down"}
+                      size={24}
+                      color="#8B5CF6"
+                    />
+                  </TouchableOpacity>
+
+                  {/* Expanded Lessons List */}
+                  {isExpanded && (
+                    <View style={styles.lessonsContainer}>
+                      {isLoadingLessons ? (
+                        <View style={styles.loadingContainer}>
+                          <ActivityIndicator size="small" color="#8B5CF6" />
+                          <Text style={styles.loadingText}>Loading lessons...</Text>
+                        </View>
+                      ) : lessons.length > 0 ? (
+                        lessons.map((lesson, lessonIndex) => (
+                          <View key={lessonIndex} style={styles.lessonCard}>
+                            <View style={styles.lessonHeader}>
+                              <Text style={styles.lessonTitle}>{lesson.title}</Text>
+                              <Text style={styles.lessonRate}>${lesson.studentRate}/month</Text>
+                            </View>
+
+                            <View style={styles.lessonDetailsRow}>
+                              <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+                              <Text style={styles.lessonDetail}>
+                                {getDayName(lesson.dayOfWeek)}
+                              </Text>
+                            </View>
+
+                            <View style={styles.lessonDetailsRow}>
+                              <Ionicons name="time-outline" size={16} color="#6B7280" />
+                              <Text style={styles.lessonDetail}>
+                                {formatTime(lesson.startTime)} - {formatTime(lesson.endTime)}
+                              </Text>
+                            </View>
+
+                            <View style={styles.lessonDetailsRow}>
+                              <Ionicons name="location-outline" size={16} color="#6B7280" />
+                              <Text style={styles.lessonDetail}>
+                                {lesson.locationAddress || 'Location not specified'}
+                              </Text>
+                            </View>
+
+                            <View style={styles.lessonDetailsRow}>
+                              <Ionicons name="people-outline" size={16} color="#6B7280" />
+                              <Text style={styles.lessonDetail}>
+                                {lesson.currentCap || 0}/{lesson.totalCap} students
+                              </Text>
+                            </View>
+
+                            {lesson.description && (
+                              <Text style={styles.lessonDescription}>
+                                {lesson.description}
+                              </Text>
+                            )}
+
+                            {/* Enrollment Button */}
+                            {lesson.isActive && (
+                              <TouchableOpacity
+                                style={styles.enrollButton}
+                                onPress={() => handleEnrollInLesson(lesson)}
+                              >
+                                <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
+                                <Text style={styles.enrollButtonText}>Enroll Now</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        ))
+                      ) : (
+                        <View style={styles.noLessonsContainer}>
+                          <Ionicons name="calendar-outline" size={40} color="#D1D5DB" />
+                          <Text style={styles.noLessonsText}>
+                            No lessons available for this subject
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
                 </View>
-                <View style={styles.subjectDetails}>
-                  <Text style={styles.subjectLevel}>
-                    {(
-                      subject.experienceLevel ||
-                      subject.TutorSubject?.experienceLevel ||
-                      "intermediate"
-                    )
-                      .charAt(0)
-                      .toUpperCase() +
-                      (
-                        subject.experienceLevel ||
-                        subject.TutorSubject?.experienceLevel ||
-                        "intermediate"
-                      ).slice(1)}
-                  </Text>
-                  <Text style={styles.subjectRate}>
-                    ${subject.TutorSubject?.hourlyRate || 45}/hr
-                  </Text>
-                </View>
-              </View>
-            ))
+              );
+            })
           ) : (
             <Text style={styles.noSubjects}>No subjects listed</Text>
           )}
@@ -265,14 +413,9 @@ export default function ViewTutorProfileScreen() {
 
         {/* Action Buttons for Students */}
         <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity style={styles.messageButton}>
+          <TouchableOpacity style={styles.primaryButton}>
             <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.messageButtonText}>Send Message</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.bookButton}>
-            <Ionicons name="calendar-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.bookButtonText}>Book Session</Text>
+            <Text style={styles.primaryButtonText}>Send Message</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

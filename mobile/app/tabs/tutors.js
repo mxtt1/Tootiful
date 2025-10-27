@@ -4,7 +4,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
   ActivityIndicator,
   RefreshControl,
   Image,
@@ -193,7 +192,7 @@ export default function TutorsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         {/* Search Header */}
         <View style={styles.searchContainer}>
@@ -324,6 +323,6 @@ export default function TutorsScreen() {
           </ScrollView>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }

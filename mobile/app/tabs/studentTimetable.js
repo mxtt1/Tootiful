@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import apiClient from "../../services/apiClient";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import authService from "../../services/authService";
 import lessonService from "../../services/lessonService";
@@ -52,45 +51,134 @@ export default function StudentTimetable() {
   };
 
   // Helper to convert "HH:mm:ss" to minutes since midnight
-  function timeToMinutes(timeStr) {
-    const [h, m, s] = timeStr.split(":").map(Number);
+  const timeToMinutes = (timeStr) => {
+    const [h, m] = timeStr.split(":").map(Number);
     return h * 60 + m;
-  }
+  };
+
+  // Calculate lesson position and width for timetable grid
+  const calculateLessonDimensions = (lesson) => {
+    const startMin = timeToMinutes(lesson.startTime);
+    const endMin = timeToMinutes(lesson.endTime);
+    const dayStartMin = START_HOUR * 60;
+    const dayEndMin = END_HOUR * 60;
+    const totalDayMinutes = (END_HOUR - START_HOUR) * 60;
+
+    // Clamp lesson times to grid boundaries
+    const clampedStart = Math.max(startMin, dayStartMin);
+    const clampedEnd = Math.min(endMin, dayEndMin);
+
+    // Calculate position and width as percentages
+    const left = ((clampedStart - dayStartMin) / totalDayMinutes) * 100;
+    const width = ((clampedEnd - clampedStart) / totalDayMinutes) * 100;
+
+    return { left, width };
+  };
+
+  // Render lesson blocks for a specific day
+  const renderLessonBlocks = (day) => {
+    return lessons
+      .filter((l) => l.dayOfWeek === day)
+      .map((lesson) => {
+        const { left, width } = calculateLessonDimensions(lesson);
+        
+        return (
+          <TouchableOpacity
+            key={lesson.id}
+            style={[
+              styles.lessonBlock,
+              {
+                position: "absolute",
+                left: `${left}%`,
+                width: `${width}%`,
+                top: 6,
+                bottom: 6,
+                zIndex: 2,
+              },
+            ]}
+            onPress={() => setSelectedLesson(lesson)}
+          >
+            <Text style={styles.lessonText}>{lesson.title}</Text>
+          </TouchableOpacity>
+        );
+      });
+  };
+
+  // Render vertical hour grid lines
+  const renderGridLines = () => {
+    const gridLineCount = END_HOUR - START_HOUR + 1;
+    
+    return Array.from({ length: gridLineCount }).map((_, i) => (
+      <View
+        key={i}
+        style={{
+          position: "absolute",
+          left: `${(i / (END_HOUR - START_HOUR)) * 100}%`,
+          top: 0,
+          bottom: 0,
+          width: 1,
+          backgroundColor: "#E5E7EB",
+          zIndex: 1,
+        }}
+      />
+    ));
+  };
+
+  // Build timetable grid: rows = days, columns = hours
+  const renderGrid = () => {
+    return DAYS.map((day) => (
+      <View key={day} style={styles.dayRow}>
+        <Text style={styles.dayLabel}>{day}</Text>
+        <View style={styles.dayRowGrid}>
+          {renderLessonBlocks(day)}
+          {renderGridLines()}
+        </View>
+      </View>
+    ));
+  };
 
   // Fetch lessons from API
   const fetchLessons = async () => {
-    // Get the authenticated user's ID
-    let userId = null;
-    if (studentId === null && authService.isAuthenticated()) {
-      const token = authService.getCurrentToken();
-      if (token) {
-        try {
-          const decoded = jwtDecode(token);
-          userId = decoded.userId;
-        } catch (error) {
-          console.error("Error decoding token:", error);
+    try {
+      // Get student ID from token if not already set
+      if (studentId === null && authService.isAuthenticated()) {
+        const token = authService.getCurrentToken();
+        if (token) {
+          try {
+            const decoded = jwtDecode(token);
+            setStudentId(decoded.userId);
+          } catch (error) {
+            console.error("Error decoding token:", error);
+          }
         }
       }
-    }
-    setStudentId(userId);
 
-    try {
-      const res = await lessonService.getStudentLessons(studentId !== null ? studentId : userId, true);
-      // Normalize dayOfWeek for each lesson
-      const lessonsNormalized = res.map((lesson) => ({
+      const currentStudentId = studentId || (authService.isAuthenticated() && 
+        jwtDecode(authService.getCurrentToken())?.userId);
+
+      if (!currentStudentId) {
+        setLessons([]);
+        return;
+      }
+
+      const res = await lessonService.getStudentLessons(currentStudentId, true);
+      
+      // Normalize day names for grid display
+      const normalizedLessons = res.map((lesson) => ({
         ...lesson,
         dayOfWeek: normalizeDay(lesson.dayOfWeek),
       }));
-      setLessons(lessonsNormalized);
+      
+      setLessons(normalizedLessons);
     } catch (err) {
-      console.log("Error fetching lessons:", err);
+      console.error("Error fetching lessons:", err);
       setLessons([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setLoading(false);
-    setRefreshing(false);
   };
 
-  // Fetch lessons when studentId is set
   useEffect(() => {
     fetchLessons();
   }, []);
@@ -101,88 +189,6 @@ export default function StudentTimetable() {
       fetchLessons();
     }, [])
   );
-
-  // Build timetable grid: rows = days, columns = hours
-  const renderGrid = () => {
-    const cols = [];
-    for (let hour = START_HOUR; hour < END_HOUR; hour++) {
-      cols.push(
-        <View key={hour} style={styles.colHeader}>
-          <Text style={styles.timeLabel}>{`${hour}:00`}</Text>
-        </View>
-      );
-    }
-
-    return DAYS.map((day) => {
-      // For each day, render a row
-      return (
-        <View key={day} style={styles.dayRow}>
-          <Text style={styles.dayLabel}>{day}</Text>
-          <View style={styles.dayRowGrid}>
-
-            {/* Render lesson blocks for this day, positioned and sized proportionally */}
-            {lessons
-              .filter((l) => l.dayOfWeek === day)
-              .map((lesson) => {
-                const startMin = timeToMinutes(lesson.startTime);
-                const endMin = timeToMinutes(lesson.endTime);
-                const dayStartMin = START_HOUR * 60;
-                const dayEndMin = END_HOUR * 60;
-                // Clamp lesson to grid
-                const clampedStart = Math.max(startMin, dayStartMin);
-                const clampedEnd = Math.min(endMin, dayEndMin);
-                const left =
-                  ((clampedStart - dayStartMin) /
-                    ((END_HOUR - START_HOUR) * 60)) *
-                  100;
-                const width =
-                  ((clampedEnd - clampedStart) /
-                    ((END_HOUR - START_HOUR) * 60)) *
-                  100;
-                return (
-                  <TouchableOpacity
-                    key={lesson.id}
-                    style={[
-                      styles.lessonBlock,
-                      {
-                        position: "absolute",
-                        left: `${left}%`,
-                        width: `${width}%`,
-                        top: 6,
-                        bottom: 6,
-                        zIndex: 2,
-                      },
-                    ]}
-                    onPress={() => setSelectedLesson(lesson)}
-                  >
-                    <Text style={styles.lessonText}>{lesson.title}</Text>
-                    <Text style={styles.lessonTime}>
-                      {lesson.startTime} - {lesson.endTime}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-
-            {/* Render hour grid lines */}
-            {Array.from({ length: END_HOUR - START_HOUR + 1 }).map((_, i) => (
-              <View
-                key={i}
-                style={{
-                  position: "absolute",
-                  left: `${(i / (END_HOUR - START_HOUR)) * 100}%`,
-                  top: 0,
-                  bottom: 0,
-                  width: 1,
-                  backgroundColor: "#E5E7EB",
-                  zIndex: 1,
-                }}
-              />
-            ))}
-          </View>
-        </View>
-      );
-    });
-  };
 
   const handleUnenrollPress = (lesson) => {
     setLessonToUnenroll(lesson);
@@ -323,7 +329,7 @@ export default function StudentTimetable() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Text style={styles.header}>My Schedule</Text>
       {loading ? (
         <ActivityIndicator size="large" color="#8B5CF6" />
@@ -481,6 +487,6 @@ export default function StudentTimetable() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }

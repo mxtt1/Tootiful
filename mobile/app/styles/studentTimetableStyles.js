@@ -74,11 +74,6 @@ export const studentTimetableStyles = StyleSheet.create({
         fontSize: 14,
         textAlign: "center"
     },
-    lessonTime: {
-        color: "#E0E7FF",
-        fontSize: 11,
-        textAlign: "center"
-    },
     modalOverlay: {
         flex: 1,
         backgroundColor: "rgba(0,0,0,0.5)",

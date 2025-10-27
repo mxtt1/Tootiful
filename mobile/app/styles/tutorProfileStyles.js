@@ -48,8 +48,8 @@ export const tutorProfileStyles = StyleSheet.create({
     fontWeight: "bold",
     color: "#FFFFFF",
   },
-  headerRight: {
-    width: 40, // To balance the back button
+  refreshButton: {
+    padding: 8,
   },
   content: {
     flex: 1,
@@ -133,23 +133,10 @@ export const tutorProfileStyles = StyleSheet.create({
     color: "#374151",
     marginBottom: 12,
   },
-  aboutText: {
+  sectionText: {
     fontSize: 16,
     color: "#6B7280",
     lineHeight: 24,
-  },
-  educationText: {
-    fontSize: 16,
-    color: "#6B7280",
-    lineHeight: 24,
-  },
-  subjectItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
   },
   subjectMainInfo: {
     flex: 1,
@@ -187,6 +174,106 @@ export const tutorProfileStyles = StyleSheet.create({
     color: "#9CA3AF",
     fontStyle: "italic",
   },
+  // Accordion styles
+  subjectAccordion: {
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  subjectHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    backgroundColor: "#FAFAFA",
+  },
+  subjectHeaderLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  lessonsContainer: {
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  lessonCard: {
+    backgroundColor: "#F9FAFB",
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  lessonHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  lessonTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+    flex: 1,
+  },
+  lessonRate: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#10B981",
+    marginLeft: 12,
+  },
+  lessonDetailsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  lessonDetail: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginLeft: 8,
+  },
+  lessonDescription: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginTop: 8,
+    fontStyle: "italic",
+    lineHeight: 20,
+  },
+  enrollButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#10B981",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  enrollButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  noLessonsContainer: {
+    alignItems: "center",
+    padding: 32,
+  },
+  noLessonsText: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    marginTop: 12,
+    textAlign: "center",
+  },
   ratingContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -203,9 +290,25 @@ export const tutorProfileStyles = StyleSheet.create({
     fontSize: 14,
     color: "#6B7280",
   },
-  hourlyRate: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#8B5CF6",
+  actionButtonsContainer: {
+    flexDirection: "row",
+    marginHorizontal: 20,
+    marginVertical: 20,
+    gap: 12,
+  },
+  primaryButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#8B5CF6",
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

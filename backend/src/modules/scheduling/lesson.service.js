@@ -21,7 +21,8 @@ class LessonService {
 
   // Handler methods for routes
   async handleGetAllLessons(req, res) {
-    const lessons = await this.getAllLessons();
+    const { tutorId, subjectId } = req.query;
+    const lessons = await this.getAllLessons({ tutorId, subjectId });
     console.log(`Retrieved ${lessons.length} lessons`);
 
     res.status(200).json({
@@ -391,8 +392,19 @@ class LessonService {
 
 
   // getAllLessons with related data for better frontend filtering and display
-  async getAllLessons() {
+  async getAllLessons(filters = {}) {
     try {
+      const { tutorId, subjectId } = filters;
+      
+      // Build where clause
+      const whereClause = { isActive: true };
+      if (tutorId) {
+        whereClause.tutorId = tutorId;
+      }
+      if (subjectId) {
+        whereClause.subjectId = subjectId;
+      }
+
       const lessons = await Lesson.findAll({
         include: [
           {
@@ -419,7 +431,7 @@ class LessonService {
             required: false, // Allow lessons without assigned tutors
           },
         ],
-        where: { isActive: true },
+        where: whereClause,
         order: [["createdAt", "DESC"]],
       });
 

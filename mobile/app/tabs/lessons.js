@@ -11,7 +11,6 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { jwtDecode } from "jwt-decode";
@@ -439,18 +438,18 @@ export default function LessonsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#8B5CF6" />
           <Text style={styles.loadingText}>Loading lessons...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
     <TouchableWithoutFeedback onPress={closeAllDropdowns}>
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Available Lessons</Text>
@@ -902,7 +901,7 @@ export default function LessonsScreen() {
             </View>
           </View>
         </Modal>
-      </SafeAreaView>
+      </View>
     </TouchableWithoutFeedback>
   );
 }

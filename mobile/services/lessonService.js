@@ -2,9 +2,16 @@ import apiClient from "./apiClient.js";
 
 class LessonService {
   // Get all available lessons
-  async getAllLessons() {
+  async getAllLessons(filters = {}) {
     try {
-      const response = await apiClient.get("/lessons");
+      const queryParams = new URLSearchParams();
+      if (filters.tutorId) queryParams.append('tutorId', filters.tutorId);
+      if (filters.subjectId) queryParams.append('subjectId', filters.subjectId);
+      
+      const queryString = queryParams.toString();
+      const url = queryString ? `/lessons?${queryString}` : '/lessons';
+      
+      const response = await apiClient.get(url);
       return response.data;
     } catch (error) {
       console.error("Error fetching lessons:", error);

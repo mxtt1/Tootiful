@@ -10,7 +10,6 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
 import { myProfileStyles as styles } from "../styles/myProfileStyles";
@@ -154,7 +153,7 @@ export default function ProfileScreen() {
   // Show loading state
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         <View
           style={[
             styles.container,
@@ -166,7 +165,7 @@ export default function ProfileScreen() {
             Loading profile...
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -178,7 +177,7 @@ export default function ProfileScreen() {
   // Safety check for currentUser
   if (!currentUser) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         <View
           style={[
             styles.container,
@@ -189,12 +188,12 @@ export default function ProfileScreen() {
             No user data available
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <ScrollView
         style={styles.container}
         refreshControl={
@@ -296,6 +295,6 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

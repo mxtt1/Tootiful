@@ -4,7 +4,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
   ActivityIndicator,
   RefreshControl,
   Image,
@@ -237,18 +236,18 @@ export default function AgenciesScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#8B5CF6" />
           <Text style={styles.loadingText}>Loading agencies...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (error) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={64} color="#dc3545" />
           <Text style={styles.errorText}>{error}</Text>
@@ -256,281 +255,279 @@ export default function AgenciesScreen() {
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
     <TouchableWithoutFeedback onPress={closeAllDropdowns}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.container}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Tutoring Agencies</Text>
-            <Text style={styles.headerSubtitle}>
-              {totalAgencies > 0
-                ? `Found ${totalAgencies} agencies`
-                : "Discover verified tutoring agencies"}
-            </Text>
-          </View>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Tutoring Agencies</Text>
+          <Text style={styles.headerSubtitle}>
+            {totalAgencies > 0
+              ? `Found ${totalAgencies} agencies`
+              : "Discover verified tutoring agencies"}
+          </Text>
+        </View>
 
-          {/* Search */}
-          <View style={styles.searchContainer}>
-            <View style={styles.searchInputContainer}>
-              <Ionicons name="search" size={20} color="#9CA3AF" />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search agencies..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
+        {/* Search */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchInputContainer}>
+            <Ionicons name="search" size={20} color="#9CA3AF" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search agencies..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor="#9CA3AF"
+            />
           </View>
+        </View>
 
-          {/* Filter Dropdowns */}
-          <View style={styles.filtersContainer}>
-            <View style={styles.dropdownsRow}>
-              {/* Location Dropdown */}
-              <View style={styles.dropdownContainer}>
-                <TouchableOpacity
+        {/* Filter Dropdowns */}
+        <View style={styles.filtersContainer}>
+          <View style={styles.dropdownsRow}>
+            {/* Location Dropdown */}
+            <View style={styles.dropdownContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.dropdownButton,
+                  filters.location !== "all" && styles.dropdownButtonActive,
+                ]}
+                onPress={() => toggleDropdown("location")}
+              >
+                <Text
                   style={[
-                    styles.dropdownButton,
-                    filters.location !== "all" && styles.dropdownButtonActive,
+                    styles.dropdownButtonText,
+                    filters.location !== "all" &&
+                    styles.dropdownButtonTextActive,
                   ]}
-                  onPress={() => toggleDropdown("location")}
                 >
-                  <Text
-                    style={[
-                      styles.dropdownButtonText,
-                      filters.location !== "all" &&
-                        styles.dropdownButtonTextActive,
-                    ]}
+                  {filters.location !== "all" ? filters.location : "Location"}
+                </Text>
+                <Ionicons
+                  name={
+                    dropdownVisible.location ? "chevron-up" : "chevron-down"
+                  }
+                  size={16}
+                  color={filters.location !== "all" ? "#8B5CF6" : "#666"}
+                />
+              </TouchableOpacity>
+              {dropdownVisible.location && (
+                <View style={styles.dropdownMenu}>
+                  <TouchableOpacity
+                    style={styles.dropdownItem}
+                    onPress={() => selectFilter("location", "all")}
                   >
-                    {filters.location !== "all" ? filters.location : "Location"}
-                  </Text>
-                  <Ionicons
-                    name={
-                      dropdownVisible.location ? "chevron-up" : "chevron-down"
-                    }
-                    size={16}
-                    color={filters.location !== "all" ? "#8B5CF6" : "#666"}
-                  />
-                </TouchableOpacity>
-                {dropdownVisible.location && (
-                  <View style={styles.dropdownMenu}>
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        filters.location === "all" &&
+                        styles.dropdownItemTextActive,
+                      ]}
+                    >
+                      All Locations
+                    </Text>
+                  </TouchableOpacity>
+                  {locations.map((location, index) => (
                     <TouchableOpacity
+                      key={`${location}-${index}`}
                       style={styles.dropdownItem}
-                      onPress={() => selectFilter("location", "all")}
+                      onPress={() => selectFilter("location", location)}
                     >
                       <Text
                         style={[
                           styles.dropdownItemText,
-                          filters.location === "all" &&
-                            styles.dropdownItemTextActive,
+                          filters.location === location &&
+                          styles.dropdownItemTextActive,
                         ]}
                       >
-                        All Locations
+                        {location}
                       </Text>
                     </TouchableOpacity>
-                    {locations.map((location, index) => (
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+
+        {/* Agencies Grid */}
+        <ScrollView
+          style={styles.agenciesList}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={["#8B5CF6"]}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.agenciesGrid}>
+            {paginatedAgencies.map((agency) => (
+              <TouchableOpacity
+                key={agency.id}
+                style={styles.agencyGridCard}
+                onPress={() => handleAgencyPress(agency)}
+              >
+                <View style={styles.agencyGridImageContainer}>
+                  {agency.image ? (
+                    <Image
+                      source={{ uri: agency.image }}
+                      style={styles.agencyGridImage}
+                      onError={(e) =>
+                        console.log("Image failed to load:", agency.image)
+                      }
+                    />
+                  ) : (
+                    <View style={styles.agencyGridImagePlaceholder}>
+                      <Text style={styles.agencyGridImageText}>
+                        {getAgencyInitials(agency.name)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.agencyGridInfo}>
+                  <Text style={styles.agencyGridName} numberOfLines={1}>
+                    {agency.name}
+                  </Text>
+                  <Text style={styles.agencyGridEmail} numberOfLines={1}>
+                    {agency.email}
+                  </Text>
+                </View>
+
+                {/* View Details Button */}
+                <TouchableOpacity
+                  style={styles.agencyGridViewButton}
+                  onPress={() => handleAgencyPress(agency)}
+                >
+                  <Text style={styles.agencyGridViewButtonText}>View</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {totalAgencies === 0 && !loading && (
+            <View style={styles.noResultsContainer}>
+              <Ionicons name="business" size={64} color="#D1D5DB" />
+              <Text style={styles.noResultsText}>No agencies found</Text>
+              <Text style={styles.noResultsSubtext}>
+                Try searching with different keywords or check back later for
+                new agencies
+              </Text>
+            </View>
+          )}
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <View style={styles.paginationContainer}>
+              <Text style={styles.paginationInfo}>
+                Showing {(currentPage - 1) * AGENCIES_PER_PAGE + 1} -{" "}
+                {Math.min(currentPage * AGENCIES_PER_PAGE, totalAgencies)} of{" "}
+                {totalAgencies} agencies
+              </Text>
+
+              <View style={styles.paginationControls}>
+                <TouchableOpacity
+                  style={[
+                    styles.paginationButton,
+                    currentPage === 1 && styles.paginationButtonDisabled,
+                  ]}
+                  onPress={goToPreviousPage}
+                  disabled={currentPage === 1}
+                >
+                  <Ionicons
+                    name="chevron-back"
+                    size={20}
+                    color={currentPage === 1 ? "#ccc" : "#8B5CF6"}
+                  />
+                </TouchableOpacity>
+
+                <View style={styles.pageNumbers}>
+                  {Array.from({ length: totalPages }, (_, index) => {
+                    const pageNumber = index + 1;
+                    const isCurrentPage = pageNumber === currentPage;
+
+                    // Show first page, last page, current page, and pages around current
+                    const showPage =
+                      pageNumber === 1 ||
+                      pageNumber === totalPages ||
+                      Math.abs(pageNumber - currentPage) <= 1;
+
+                    if (!showPage) {
+                      // Show ellipsis for gaps
+                      if (pageNumber === 2 && currentPage > 4) {
+                        return (
+                          <Text
+                            key={`ellipsis-${pageNumber}`}
+                            style={styles.ellipsis}
+                          >
+                            ...
+                          </Text>
+                        );
+                      }
+                      if (
+                        pageNumber === totalPages - 1 &&
+                        currentPage < totalPages - 3
+                      ) {
+                        return (
+                          <Text
+                            key={`ellipsis-${pageNumber}`}
+                            style={styles.ellipsis}
+                          >
+                            ...
+                          </Text>
+                        );
+                      }
+                      return null;
+                    }
+
+                    return (
                       <TouchableOpacity
-                        key={`${location}-${index}`}
-                        style={styles.dropdownItem}
-                        onPress={() => selectFilter("location", location)}
+                        key={pageNumber}
+                        style={[
+                          styles.pageButton,
+                          isCurrentPage && styles.pageButtonActive,
+                        ]}
+                        onPress={() => goToPage(pageNumber)}
                       >
                         <Text
                           style={[
-                            styles.dropdownItemText,
-                            filters.location === location &&
-                              styles.dropdownItemTextActive,
+                            styles.pageButtonText,
+                            isCurrentPage && styles.pageButtonTextActive,
                           ]}
                         >
-                          {location}
+                          {pageNumber}
                         </Text>
                       </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
-            </View>
-          </View>
-
-          {/* Agencies Grid */}
-          <ScrollView
-            style={styles.agenciesList}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                colors={["#8B5CF6"]}
-              />
-            }
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.agenciesGrid}>
-              {paginatedAgencies.map((agency) => (
-                <TouchableOpacity
-                  key={agency.id}
-                  style={styles.agencyGridCard}
-                  onPress={() => handleAgencyPress(agency)}
-                >
-                  <View style={styles.agencyGridImageContainer}>
-                    {agency.image ? (
-                      <Image
-                        source={{ uri: agency.image }}
-                        style={styles.agencyGridImage}
-                        onError={(e) =>
-                          console.log("Image failed to load:", agency.image)
-                        }
-                      />
-                    ) : (
-                      <View style={styles.agencyGridImagePlaceholder}>
-                        <Text style={styles.agencyGridImageText}>
-                          {getAgencyInitials(agency.name)}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={styles.agencyGridInfo}>
-                    <Text style={styles.agencyGridName} numberOfLines={1}>
-                      {agency.name}
-                    </Text>
-                    <Text style={styles.agencyGridEmail} numberOfLines={1}>
-                      {agency.email}
-                    </Text>
-                  </View>
-
-                  {/* View Details Button */}
-                  <TouchableOpacity
-                    style={styles.agencyGridViewButton}
-                    onPress={() => handleAgencyPress(agency)}
-                  >
-                    <Text style={styles.agencyGridViewButtonText}>View</Text>
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {totalAgencies === 0 && !loading && (
-              <View style={styles.noResultsContainer}>
-                <Ionicons name="business" size={64} color="#D1D5DB" />
-                <Text style={styles.noResultsText}>No agencies found</Text>
-                <Text style={styles.noResultsSubtext}>
-                  Try searching with different keywords or check back later for
-                  new agencies
-                </Text>
-              </View>
-            )}
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <View style={styles.paginationContainer}>
-                <Text style={styles.paginationInfo}>
-                  Showing {(currentPage - 1) * AGENCIES_PER_PAGE + 1} -{" "}
-                  {Math.min(currentPage * AGENCIES_PER_PAGE, totalAgencies)} of{" "}
-                  {totalAgencies} agencies
-                </Text>
-
-                <View style={styles.paginationControls}>
-                  <TouchableOpacity
-                    style={[
-                      styles.paginationButton,
-                      currentPage === 1 && styles.paginationButtonDisabled,
-                    ]}
-                    onPress={goToPreviousPage}
-                    disabled={currentPage === 1}
-                  >
-                    <Ionicons
-                      name="chevron-back"
-                      size={20}
-                      color={currentPage === 1 ? "#ccc" : "#8B5CF6"}
-                    />
-                  </TouchableOpacity>
-
-                  <View style={styles.pageNumbers}>
-                    {Array.from({ length: totalPages }, (_, index) => {
-                      const pageNumber = index + 1;
-                      const isCurrentPage = pageNumber === currentPage;
-
-                      // Show first page, last page, current page, and pages around current
-                      const showPage =
-                        pageNumber === 1 ||
-                        pageNumber === totalPages ||
-                        Math.abs(pageNumber - currentPage) <= 1;
-
-                      if (!showPage) {
-                        // Show ellipsis for gaps
-                        if (pageNumber === 2 && currentPage > 4) {
-                          return (
-                            <Text
-                              key={`ellipsis-${pageNumber}`}
-                              style={styles.ellipsis}
-                            >
-                              ...
-                            </Text>
-                          );
-                        }
-                        if (
-                          pageNumber === totalPages - 1 &&
-                          currentPage < totalPages - 3
-                        ) {
-                          return (
-                            <Text
-                              key={`ellipsis-${pageNumber}`}
-                              style={styles.ellipsis}
-                            >
-                              ...
-                            </Text>
-                          );
-                        }
-                        return null;
-                      }
-
-                      return (
-                        <TouchableOpacity
-                          key={pageNumber}
-                          style={[
-                            styles.pageButton,
-                            isCurrentPage && styles.pageButtonActive,
-                          ]}
-                          onPress={() => goToPage(pageNumber)}
-                        >
-                          <Text
-                            style={[
-                              styles.pageButtonText,
-                              isCurrentPage && styles.pageButtonTextActive,
-                            ]}
-                          >
-                            {pageNumber}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.paginationButton,
-                      currentPage === totalPages &&
-                        styles.paginationButtonDisabled,
-                    ]}
-                    onPress={goToNextPage}
-                    disabled={currentPage === totalPages}
-                  >
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color={currentPage === totalPages ? "#ccc" : "#8B5CF6"}
-                    />
-                  </TouchableOpacity>
+                    );
+                  })}
                 </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.paginationButton,
+                    currentPage === totalPages &&
+                    styles.paginationButtonDisabled,
+                  ]}
+                  onPress={goToNextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color={currentPage === totalPages ? "#ccc" : "#8B5CF6"}
+                  />
+                </TouchableOpacity>
               </View>
-            )}
-          </ScrollView>
-        </View>
-      </SafeAreaView>
-    </TouchableWithoutFeedback>
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    </TouchableWithoutFeedback >
   );
 }
