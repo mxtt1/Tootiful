@@ -23,6 +23,7 @@ export default function AgencyDetailsScreen() {
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expandedSubjects, setExpandedSubjects] = useState({});
 
   useEffect(() => {
     if (id) {
@@ -82,6 +83,25 @@ export default function AgencyDetailsScreen() {
       console.error("❌ Error handling lesson enrollment:", error);
       Alert.alert("Error", "Failed to process enrollment. Please try again.");
     }
+  };
+
+  const toggleSubjectExpansion = (subjectName) => {
+    setExpandedSubjects((prev) => ({
+      ...prev,
+      [subjectName]: !prev[subjectName],
+    }));
+  };
+
+  const groupLessonsBySubject = () => {
+    const grouped = {};
+    lessons.forEach((lesson) => {
+      const subjectKey = lesson.subjectName || "Other";
+      if (!grouped[subjectKey]) {
+        grouped[subjectKey] = [];
+      }
+      grouped[subjectKey].push(lesson);
+    });
+    return grouped;
   };
 
   const formatTime = (time) => {
@@ -202,77 +222,131 @@ export default function AgencyDetailsScreen() {
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Available Lessons</Text>
             {lessons.length > 0 ? (
-              lessons.map((lesson) => (
-                <View key={lesson.id} style={styles.lessonCard}>
-                  <Text style={styles.lessonTitle}>{lesson.title}</Text>
-                  <View style={styles.lessonDetails}>
-                    <View style={styles.lessonDetailRow}>
-                      <View style={styles.lessonDetailIcon}>
-                        <Ionicons name="book-outline" size={16} color="#666" />
-                      </View>
-                      <Text style={styles.lessonDetailText}>
-                        Subject:{" "}
-                        {lesson.subjectName && lesson.subjectGradeLevel
-                          ? `${lesson.subjectName} - ${lesson.subjectGradeLevel}`
-                          : lesson.subjectName || "N/A"}
-                      </Text>
-                    </View>
-                    <View style={styles.lessonDetailRow}>
-                      <View style={styles.lessonDetailIcon}>
-                        <Ionicons
-                          name="calendar-outline"
-                          size={16}
-                          color="#666"
-                        />
-                      </View>
-                      <Text style={styles.lessonDetailText}>
-                        {lesson.dayOfWeek?.charAt(0).toUpperCase() +
-                          lesson.dayOfWeek?.slice(1)}
-                      </Text>
-                    </View>
-                    <View style={styles.lessonDetailRow}>
-                      <View style={styles.lessonDetailIcon}>
-                        <Ionicons name="time-outline" size={16} color="#666" />
-                      </View>
-                      <Text style={styles.lessonDetailText}>
-                        {formatTime(lesson.startTime)} -{" "}
-                        {formatTime(lesson.endTime)}
-                      </Text>
-                    </View>
-                    <View style={styles.lessonDetailRow}>
-                      <View style={styles.lessonDetailIcon}>
-                        <Ionicons name="cash-outline" size={16} color="#666" />
-                      </View>
-                      <Text style={styles.lessonDetailText}>
-                        ${lesson.studentRate || "N/A"} per session
-                      </Text>
-                    </View>
-                    {lesson.locationAddress && (
-                      <View style={styles.lessonDetailRow}>
-                        <View style={styles.lessonDetailIcon}>
-                          <Ionicons
-                            name="location-outline"
-                            size={16}
-                            color="#666"
-                          />
-                        </View>
-                        <Text style={styles.lessonDetailText}>
-                          {lesson.locationAddress}
+              (() => {
+                const groupedLessons = groupLessonsBySubject();
+                return Object.keys(groupedLessons).map((subjectName) => (
+                  <View key={subjectName} style={styles.subjectGroup}>
+                    {/* Subject Header - Collapsible */}
+                    <TouchableOpacity
+                      style={styles.subjectHeader}
+                      onPress={() => toggleSubjectExpansion(subjectName)}
+                    >
+                      <View style={styles.subjectHeaderContent}>
+                        <Text style={styles.subjectHeaderText}>
+                          {subjectName}
                         </Text>
+                        <Text style={styles.subjectLessonCount}>
+                          {groupedLessons[subjectName].length} lesson
+                          {groupedLessons[subjectName].length !== 1 ? "s" : ""}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name={
+                          expandedSubjects[subjectName]
+                            ? "chevron-up"
+                            : "chevron-down"
+                        }
+                        size={20}
+                        color="#8B5CF6"
+                      />
+                    </TouchableOpacity>
+
+                    {/* Lessons under this subject - Collapsible Content */}
+                    {expandedSubjects[subjectName] && (
+                      <View style={styles.subjectLessons}>
+                        {groupedLessons[subjectName].map((lesson) => (
+                          <View key={lesson.id} style={styles.lessonCard}>
+                            <Text style={styles.lessonTitle}>
+                              {lesson.title}
+                            </Text>
+                            <View style={styles.lessonDetails}>
+                              <View style={styles.lessonDetailRow}>
+                                <View style={styles.lessonDetailIcon}>
+                                  <Ionicons
+                                    name="book-outline"
+                                    size={16}
+                                    color="#666"
+                                  />
+                                </View>
+                                <Text style={styles.lessonDetailText}>
+                                  Subject:{" "}
+                                  {lesson.subjectName &&
+                                  lesson.subjectGradeLevel
+                                    ? `${lesson.subjectName} - ${lesson.subjectGradeLevel}`
+                                    : lesson.subjectName || "N/A"}
+                                </Text>
+                              </View>
+                              <View style={styles.lessonDetailRow}>
+                                <View style={styles.lessonDetailIcon}>
+                                  <Ionicons
+                                    name="calendar-outline"
+                                    size={16}
+                                    color="#666"
+                                  />
+                                </View>
+                                <Text style={styles.lessonDetailText}>
+                                  {lesson.dayOfWeek?.charAt(0).toUpperCase() +
+                                    lesson.dayOfWeek?.slice(1)}
+                                </Text>
+                              </View>
+                              <View style={styles.lessonDetailRow}>
+                                <View style={styles.lessonDetailIcon}>
+                                  <Ionicons
+                                    name="time-outline"
+                                    size={16}
+                                    color="#666"
+                                  />
+                                </View>
+                                <Text style={styles.lessonDetailText}>
+                                  {formatTime(lesson.startTime)} -{" "}
+                                  {formatTime(lesson.endTime)}
+                                </Text>
+                              </View>
+                              <View style={styles.lessonDetailRow}>
+                                <View style={styles.lessonDetailIcon}>
+                                  <Ionicons
+                                    name="cash-outline"
+                                    size={16}
+                                    color="#666"
+                                  />
+                                </View>
+                                <Text style={styles.lessonDetailText}>
+                                  ${lesson.studentRate || "N/A"} per session
+                                </Text>
+                              </View>
+                              {lesson.locationAddress && (
+                                <View style={styles.lessonDetailRow}>
+                                  <View style={styles.lessonDetailIcon}>
+                                    <Ionicons
+                                      name="location-outline"
+                                      size={16}
+                                      color="#666"
+                                    />
+                                  </View>
+                                  <Text style={styles.lessonDetailText}>
+                                    {lesson.locationAddress}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+
+                            {lesson.isActive && (
+                              <TouchableOpacity
+                                style={styles.enrollButton}
+                                onPress={() => handleEnrollInLesson(lesson)}
+                              >
+                                <Text style={styles.enrollButtonText}>
+                                  Enroll Now
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        ))}
                       </View>
                     )}
                   </View>
-
-                  {lesson.isActive && (
-                    <TouchableOpacity
-                      style={styles.enrollButton}
-                      onPress={() => handleEnrollInLesson(lesson)}
-                    >
-                      <Text style={styles.enrollButtonText}>Enroll Now</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))
+                ));
+              })()
             ) : (
               <View style={styles.emptyState}>
                 <Ionicons name="book-outline" size={48} color="#D1D5DB" />

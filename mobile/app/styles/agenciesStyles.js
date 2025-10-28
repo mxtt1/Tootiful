@@ -646,4 +646,39 @@ export const agencyDetailsStyles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
   },
+  // Accordion/Collapsible Subject Styles
+  subjectGroup: {
+    marginBottom: 8,
+  },
+  subjectHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#f1f3f4",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 4,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  subjectHeaderContent: {
+    flex: 1,
+  },
+  subjectHeaderText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#8B5CF6",
+    marginBottom: 2,
+  },
+  subjectLessonCount: {
+    fontSize: 12,
+    color: "#666",
+  },
+  subjectLessons: {
+    paddingLeft: 8,
+  },
 });

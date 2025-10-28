@@ -228,7 +228,7 @@ export const tutorProfileStyles = StyleSheet.create({
   lessonRate: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#10B981",
+    color: "#F59E0B",
     marginLeft: 12,
   },
   lessonDetailsRow: {
@@ -252,7 +252,7 @@ export const tutorProfileStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#10B981",
+    backgroundColor: "#8B5CF6",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
