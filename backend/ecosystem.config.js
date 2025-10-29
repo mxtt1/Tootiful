@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   apps: [{
     name: 'tuition-backend',
     script: 'src/app.js',
