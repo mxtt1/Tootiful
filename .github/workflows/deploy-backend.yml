@@ -95,7 +95,7 @@ jobs:
               pm2 reload tuition-backend --update-env
             else
               echo "Starting new application..."
-              pm2 start ~/tutiful-backend/ecosystem.config.js
+              pm2 start ~/tutiful-backend/ecosystem.config.cjs
               pm2 save
             fi
             
