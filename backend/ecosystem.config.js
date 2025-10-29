@@ -2,8 +2,6 @@ export default {
   apps: [{
     name: 'tuition-backend',
     script: 'src/app.js',
-    interpreter: '/home/ec2-user/.nvm/versions/node/v20.*/bin/node',
-    interpreter_args: '',
     instances: 1,
     exec_mode: 'cluster',
     env: {
