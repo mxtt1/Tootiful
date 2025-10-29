@@ -19,6 +19,22 @@ import "./models/index.js";
 // Load environment variables
 dotenv.config();
 
+// Validate required environment variables
+const requiredEnvVars = [
+  'DATABASE_URL',
+  'JWT_ACCESS_SECRET',
+  'STRIPE_SECRET_KEY',
+  'SMTP_USER',
+  'SMTP_PASS',
+  'MAIL_FROM_EMAIL'
+];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+  console.error('Missing required environment variables:', missingEnvVars.join(', '));
+  process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -27,10 +43,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser()); // Add cookie parser middleware
 
-// Proper CORS middleware for credentials support
+// CORS middleware - Allow all origins for now (mobile app + local frontend)
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: true, // Allow all origins
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: [
@@ -76,16 +92,43 @@ const startServer = async () => {
     console.log("Database connection has been established successfully.");
 
     // Start the server
-    app.listen(PORT, "0.0.0.0", () => {
+    const server = app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server is running on port ${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`Health check: http://localhost:${PORT}/health`);
       console.log(`Students API: http://localhost:${PORT}/api/students`);
       console.log(`Tutors API: http://localhost:${PORT}/api/tutors`);
-      console.log(
-        `Agency-admins API: http://localhost:${PORT}/api/agency-admins`
-      );
+      console.log(`Agency-admins API: http://localhost:${PORT}/api/agency-admins`);
       console.log(`Admin Analytics: http://localhost:${PORT}/api/analytics/admin`);
     });
+
+    // Graceful shutdown
+    const shutdown = async (signal) => {
+      console.log(`\n${signal} received. Starting graceful shutdown...`);
+
+      server.close(async () => {
+        console.log('HTTP server closed.');
+
+        try {
+          await sequelize.close();
+          console.log('Database connection closed.');
+          process.exit(0);
+        } catch (error) {
+          console.error('Error during shutdown:', error);
+          process.exit(1);
+        }
+      });
+
+      // Force shutdown after 30 seconds
+      setTimeout(() => {
+        console.error('Forced shutdown after timeout');
+        process.exit(1);
+      }, 30000);
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+
   } catch (error) {
     console.error("Unable to start server:", error);
     process.exit(1);
