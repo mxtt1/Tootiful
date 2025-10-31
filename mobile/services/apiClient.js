@@ -3,12 +3,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Read API base URL from environment variable with fallback
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || "http://10.0.2.2:3000/api";
+  process.env.EXPO_PUBLIC_API_BASE_URL || "http://13.214.145.133/api";
 
 // Alternative URLs for different environments:
-// Android Emulator: http://10.0.2.2:3000/api
-// Web Browser: http://localhost:3000/api
-// Physical Device: http://192.168.1.XXX:3000/api (replace XXX with your IP)
+// AWS EC2 Production: http://13.214.145.133/api (for mobile/expo/android emulator)
+// Android Emulator Local: http://10.0.2.2:3000/api
+// Web Browser Local: http://localhost:3000/api
+// Physical Device Local: http://192.168.1.XXX:3000/api (replace XXX with your IP)
 
 class ApiClient {
   constructor() {

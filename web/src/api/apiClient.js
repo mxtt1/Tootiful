@@ -1,6 +1,8 @@
 class ApiClient {
   constructor() {
-    this.baseURL = import.meta.env.VITE_API_BASE_URL || "/api";
+    this.baseURL =
+      import.meta.env.VITE_API_BASE_URL ||
+      "http://ec2-13-214-145-133.ap-southeast-1.compute.amazonaws.com/api";
 
     if (import.meta.env.VITE_DEBUG === "true") {
       console.log("API Client initialized with baseURL:", this.baseURL);
@@ -36,7 +38,7 @@ class ApiClient {
         try {
           const userObj = JSON.parse(userStr);
           isAgencyUser = userObj?.userType === "agency";
-        } catch { }
+        } catch {}
       }
       if (
         response.status === 401 &&

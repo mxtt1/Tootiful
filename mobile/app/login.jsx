@@ -69,7 +69,6 @@ export default function LoginScreen() {
       const decoded = jwtDecode(response.accessToken);
       console.log("Login successful:", response);
 
-
       // Navigate based on userType from token
       if (decoded.userType === "student") {
         router.replace("/tabs"); // Student dashboard
@@ -79,11 +78,13 @@ export default function LoginScreen() {
     } catch (error) {
       console.error("Login error:", error);
 
-      if (error?.response?.code === "ACCOUNT_INACTIVE" || error?.code === "ACCOUNT_INACTIVE") {
+      if (
+        error?.response?.code === "ACCOUNT_INACTIVE" ||
+        error?.code === "ACCOUNT_INACTIVE"
+      ) {
         router.replace({ pathname: "/verify_email", params: { email } });
         return;
       }
-
 
       Alert.alert(
         "Login Failed",
@@ -96,6 +97,13 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Education asset above logo - centered */}
+      <Image
+        source={require("../assets/images/Education Asset 4.png")}
+        style={styles.topCenterAsset}
+        resizeMode="contain"
+      />
+
       <Image
         source={require("../assets/images/tooty.png")} // put your logo at mobile/assets/logo.png
         style={styles.logo}
@@ -110,7 +118,6 @@ export default function LoginScreen() {
         value={email}
         onChangeText={setEmail}
       />
-
 
       <View style={{ position: "relative" }}>
         <TextInput
@@ -149,7 +156,7 @@ export default function LoginScreen() {
       </TouchableOpacity>
 
       <Text style={styles.signupText}>
-        Don’t have an account?{" "}
+        Don't have an account?{" "}
         <Link href="/register" style={styles.signupLink}>
           Sign Up
         </Link>
@@ -171,13 +178,27 @@ const styles = StyleSheet.create({
     padding: 24,
     justifyContent: "center",
     backgroundColor: "#fff",
+    paddingTop: -20,
+    marginTop: -40,
   },
-  logo: { width: 120, height: 120, alignSelf: "center", marginBottom: 20 },
+  topCenterAsset: {
+    alignSelf: "center",
+    width: 270,
+    height: 230,
+    marginBottom: -90,
+    zIndex: 1,
+  },
+  logo: {
+    width: 270,
+    height: 270,
+    alignSelf: "center",
+    marginBottom: -70,
+  },
   title: {
     fontSize: 22,
     fontWeight: "bold",
     color: "#6a5acd",
-    marginBottom: 20,
+    marginBottom: 15,
   },
   input: {
     borderWidth: 1,
