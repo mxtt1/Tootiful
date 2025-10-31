@@ -294,9 +294,9 @@ export default class AuthService {
   // Cookie management methods
   setRefreshTokenCookie(res, refreshToken) {
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: true, // Can't access via JavaScript
-      secure: process.env.NODE_ENV === "production", // HTTPS only in production
-      sameSite: "strict", // CSRF protection
+      httpOnly: true,
+      secure: false, // TODO: Enable when using HTTPS
+      sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
       path: "/api/auth", // Only send to auth endpoints
     });
@@ -305,7 +305,7 @@ export default class AuthService {
   clearRefreshTokenCookie(res) {
     res.clearCookie("refreshToken", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // TODO: Enable when using HTTPS
       sameSite: "strict",
       path: "/api/auth",
     });
