@@ -295,8 +295,8 @@ export default class AuthService {
   setRefreshTokenCookie(res, refreshToken) {
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false, // TODO: Enable when using HTTPS
-      sameSite: "strict",
+      secure: false, // TODO: Enable when using HTTPS (then use sameSite: "none")
+      sameSite: "lax", // Allow cross-origin cookies for HTTP
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
       path: "/api/auth", // Only send to auth endpoints
     });
@@ -306,7 +306,7 @@ export default class AuthService {
     res.clearCookie("refreshToken", {
       httpOnly: true,
       secure: false, // TODO: Enable when using HTTPS
-      sameSite: "strict",
+      sameSite: "lax", // Allow cross-origin cookies for HTTP
       path: "/api/auth",
     });
   }
