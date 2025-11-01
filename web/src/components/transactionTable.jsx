@@ -1,64 +1,14 @@
 import React, { useState } from 'react';
 
-const TransactionTable = () => {
+const TransactionTable = ({ data = [] }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   
-  // Sample transaction data
-  const transactions = [
-    {
-      id: 1,
-      username: 'john_doe',
-      date: '2024-01-15T14:30:25', 
-      amount: '$45.00',
-      cardType: 'Visa',
-      status: 'completed'
-    },
-    {
-      id: 2,
-      username: 'jane_smith',
-      date: '2024-01-15T10:15:42', 
-      amount: '$60.00',
-      cardType: 'MasterCard',
-      status: 'pending'
-    },
-    {
-      id: 3,
-      username: 'mike_wilson',
-      date: '2024-01-14T16:20:18',
-      amount: '$35.00',
-      cardType: 'Amex',
-      status: 'failed'
-    },
-    {
-      id: 4,
-      username: 'sarah_jones',
-      date: '2024-01-10T09:45:33', 
-      amount: '$50.00',
-      cardType: 'Visa',
-      status: 'completed'
-    },
-    {
-      id: 5,
-      username: 'david_brown',
-      date: '2023-12-20T11:20:15', 
-      amount: '$75.00',
-      cardType: 'MasterCard',
-      status: 'completed'
-    },
-    {
-      id: 6,
-      username: 'emma_wilson',
-      date: '2024-01-01T08:00:00', 
-      amount: '$90.00',
-      cardType: 'Amex',
-      status: 'pending'
-    }
-  ];
+  // Use the data prop instead of sample data
+  const transactions = data;
 
   // Filter transactions
   const filterTransactions = () => {
-
     return transactions.filter(transaction => {
       return statusFilter === 'all' || transaction.status === statusFilter;
     });
@@ -70,10 +20,12 @@ const TransactionTable = () => {
     const baseStyle = styles.statusBadge;
     switch (status) {
       case 'completed':
+      case 'paid':
         return { ...baseStyle, ...styles.statusCompleted };
       case 'pending':
         return { ...baseStyle, ...styles.statusPending };
       case 'failed':
+      case 'refunded':
         return { ...baseStyle, ...styles.statusFailed };
       default:
         return baseStyle;
@@ -82,7 +34,11 @@ const TransactionTable = () => {
 
   // Format date as "August 4, 2022, 7:30AM"
   const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    
     const options = { 
       year: 'numeric', 
       month: 'long', 
@@ -99,17 +55,49 @@ const TransactionTable = () => {
     setShowStatusDropdown(false);
   };
 
+  // Get display name based on transaction type
+  const getDisplayName = (transaction) => {
+    if (transaction.type === 'student_payment') {
+      return transaction.studentName || `Student ${transaction.studentId?.slice(0, 8)}`;
+    } else if (transaction.type === 'tutor_payment') {
+      return transaction.tutorName || `Tutor ${transaction.tutorId?.slice(0, 8)}`;
+    }
+    return transaction.username || 'Unknown';
+  };
+
+  // Get display amount with proper formatting
+  const getDisplayAmount = (transaction) => {
+    const amount = transaction.amount || transaction.paymentAmount || 0;
+    return `$${parseFloat(amount).toFixed(2)}`;
+  };
+
+  // Get card type or payment method
+  const getPaymentMethod = (transaction) => {
+    if (transaction.type === 'student_payment') {
+      return transaction.cardType || 'Stripe';
+    } else if (transaction.type === 'tutor_payment') {
+      return 'Bank Transfer';
+    }
+    return transaction.cardType || 'Unknown';
+  };
+
+  // Get status display text
+  const getStatusText = (transaction) => {
+    if (transaction.type === 'tutor_payment') {
+      return 'paid'; // Tutor payments are always completed/paid
+    }
+    return transaction.status || 'completed';
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.filterDropdownContainer}>
-
         {/* Status Filter */}
         <div style={styles.dropdown}>
           <button
             style={styles.dropdownToggle}
             onClick={() => {
               setShowStatusDropdown(!showStatusDropdown);
-              setShowTimeDropdown(false);
             }}
           >
             <span style={styles.dropdownToggleText}>
@@ -120,7 +108,7 @@ const TransactionTable = () => {
           
           {showStatusDropdown && (
             <div style={styles.dropdownMenu}>
-              {['all', 'completed', 'pending', 'failed'].map((filter) => (
+              {['all', 'completed', 'paid', 'pending', 'failed', 'refunded'].map((filter) => (
                 <div
                   key={filter}
                   style={{
@@ -142,29 +130,42 @@ const TransactionTable = () => {
         <div style={styles.table}>
           {/* Table Header */}
           <div style={styles.headerRow}>
-            <span style={{...styles.headerCell, ...styles.cell}}>Username</span>
+            <span style={{...styles.headerCell, ...styles.cell}}>User</span>
+            <span style={{...styles.headerCell, ...styles.cell}}>Type</span>
             <span style={{...styles.headerCell, ...styles.cell}}>Date & Time</span>
             <span style={{...styles.headerCell, ...styles.cell, ...styles.amountCell}}>Amount</span>
-            <span style={{...styles.headerCell, ...styles.cell}}>Card Type</span>
+            <span style={{...styles.headerCell, ...styles.cell}}>Payment Method</span>
             <span style={{...styles.headerCell, ...styles.cell}}>Status</span>
           </div>
 
           {/* Table Rows */}
-          {filteredTransactions.map((transaction) => {
-            const formattedDateTime = formatDateTime(transaction.date);
+          {filteredTransactions.map((transaction, index) => {
+            const formattedDateTime = formatDateTime(transaction.date || transaction.paymentDate || transaction.createdAt);
             
             return (
-              <div key={transaction.id} style={styles.dataRow}>
-                <span style={{...styles.cell, ...styles.username}}>{transaction.username}</span>
+              <div key={transaction.id || `transaction-${index}`} style={styles.dataRow}>
+                <span style={{...styles.cell, ...styles.username}}>
+                  {getDisplayName(transaction)}
+                </span>
+                <span style={{...styles.cell, ...styles.type}}>
+                  <div style={{
+                    ...styles.typeBadge,
+                    ...(transaction.type === 'student_payment' ? styles.typeStudent : styles.typeTutor)
+                  }}>
+                    {transaction.type === 'student_payment' ? 'Student' : 'Tutor'}
+                  </div>
+                </span>
                 <span style={{...styles.cell, ...styles.dateTime}}>{formattedDateTime}</span>
                 <span style={{...styles.cell, ...styles.amount, ...styles.amountCell}}>
-                  {transaction.amount}
+                  {getDisplayAmount(transaction)}
                 </span>
-                <span style={{...styles.cell, ...styles.cardType}}>{transaction.cardType}</span>
+                <span style={{...styles.cell, ...styles.cardType}}>
+                  {getPaymentMethod(transaction)}
+                </span>
                 <div style={{...styles.cell, ...styles.statusCell}}>
-                  <div style={getStatusStyle(transaction.status)}>
+                  <div style={getStatusStyle(getStatusText(transaction))}>
                     <span style={styles.statusText}>
-                      {transaction.status.toUpperCase()}
+                      {getStatusText(transaction).toUpperCase()}
                     </span>
                   </div>
                 </div>
@@ -303,6 +304,26 @@ const styles = {
     fontSize: '12px',
     fontWeight: '500',
     color: '#374151',
+  },
+  type: {
+    fontSize: '12px',
+    minWidth: '70px',
+    flex: '0.7',
+  },
+  typeBadge: {
+    padding: '4px 8px',
+    borderRadius: '12px',
+    fontSize: '10px',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  typeStudent: {
+    backgroundColor: '#e0f2fe',
+    color: '#0369a1',
+  },
+  typeTutor: {
+    backgroundColor: '#f0fdf4',
+    color: '#166534',
   },
   dateTime: {
     fontSize: '12px',

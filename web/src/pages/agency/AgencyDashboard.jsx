@@ -32,6 +32,8 @@ const AgencyDashboard = () => {
   const [subjectRevenueByGrade, setSubjectRevenueByGrade] = useState({});
   const [selectedGradeLevel, setSelectedGradeLevel] = useState(null);
   const [showSubscriptionsDetail, setShowSubscriptionsDetail] = useState(false);
+  const [transactions, setTransactions] = useState([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [lessons, setLessons] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [error, setError] = useState(null);
@@ -137,6 +139,78 @@ const AgencyDashboard = () => {
     } 
   };
 
+  const fetchTransactions = async () => {
+    try {
+      setTransactionsLoading(true);
+      
+      // Fetch both student payments and tutor payments
+      const revenueRes = await ApiClient.get(
+        `/analytics/agency/${agencyId}/revenue-summary?timeRange=${selectedTimeRange}${
+          selectedLocation !== 'all' ? `&location=${selectedLocation}` : ''
+        }`
+      );
+
+      const revenueData = revenueRes?.data?.data || revenueRes?.data || {};
+      const studentPayments = revenueData.studentPayments || [];
+    
+      console.log(`Found ${studentPayments.length} student payments in revenue summary`);
+
+      // Format student payments for transaction table
+      const formattedStudentPayments = studentPayments.map(payment => ({
+        id: `student-${payment.id}`,
+        type: 'student_payment',
+        studentId: payment.studentId,
+        studentName: payment.studentName || `Student ${payment.studentId?.slice(0, 8)}`,
+        amount: payment.amount,
+        date: payment.paymentDate || payment.createdAt,
+        cardType: 'Stripe',
+        status: 'completed',
+        createdAt: payment.createdAt
+      }));
+
+      // ADD THIS: Fetch tutor payments separately
+      let formattedTutorPayments = [];
+      try {
+        const tutorPaymentsRes = await ApiClient.get(
+          `/tutorPayments/agency/${agencyId}/payments?timeRange=${selectedTimeRange}${
+            selectedLocation !== 'all' ? `&location=${selectedLocation}` : ''
+          }`
+        );
+        const tutorPayments = tutorPaymentsRes?.data?.data || tutorPaymentsRes?.data || [];
+        
+        formattedTutorPayments = tutorPayments.map(payment => ({
+          id: `tutor-${payment.id}`,
+          type: 'tutor_payment',
+          tutorId: payment.tutorId,
+          tutorName: payment.tutorName,
+          paymentAmount: payment.paymentAmount,
+          amount: payment.paymentAmount,
+          date: payment.paymentDate || payment.createdAt,
+          status: 'paid',
+          createdAt: payment.createdAt
+        }));
+      } catch (tutorError) {
+        console.warn('Tutor payments endpoint not available:', tutorError.message);
+      }
+
+      // Combine and sort by date (newest first)
+      const allTransactions = [...formattedStudentPayments, ...formattedTutorPayments]
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      setTransactions(allTransactions);
+    } catch (err) {
+      console.error("Error fetching transactions:", err);
+      notifications.show({
+        title: "Warning",
+        message: "Could not load transaction history",
+        color: "yellow",
+      });
+      setTransactions([]);
+    } finally {
+      setTransactionsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (agencyId) {
       fetchLocations();
@@ -162,6 +236,7 @@ const AgencyDashboard = () => {
       await fetchMissedSessionData();
       await fetchSubscriptionLessons();
       await fetchSubjects();
+      await fetchTransactions();
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
       setError("Failed to load dashboard data. Please try again.");
@@ -944,48 +1019,7 @@ const AgencyDashboard = () => {
                     </div>
                   </div>
                 </div>
-                <div
-                  style={{
-                    backgroundColor: "white",
-                    padding: "1.5rem",
-                    borderRadius: "10px",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                    minWidth: "240px",
-                    maxWidth: "320px",
-                    flex: "1 1 260px",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      marginBottom: "1rem",
-                    }}
-                  >
-                    <FaGraduationCap
-                      style={{
-                        fontSize: "2rem",
-                        color: "#28a745",
-                        marginRight: "1rem",
-                      }}
-                    />
-                    <div>
-                      <h3
-                        style={{
-                          fontSize: "1.5rem",
-                          fontWeight: "bold",
-                          color: "#333",
-                          margin: 0,
-                        }}
-                      >
-                        {totalStudents}
-                      </h3>
-                      <p style={{ color: "#6c757d", margin: 0 }}>
-                        Total Students
-                      </p>
-                    </div>
-                  </div>
-                </div>
+             
               </div>
 
               <div
@@ -1256,7 +1290,6 @@ const AgencyDashboard = () => {
                       </div>
                     </div>
 
-                    {/* REPLACED: Use the new clickable missed sessions card */}
                     {renderMissedSessionsCard()}
                   </div>
 
@@ -1384,7 +1417,13 @@ const AgencyDashboard = () => {
               >
                 Transaction History
               </h3>
-              <TransactionTable data={[]} />
+              {transactionsLoading ? (
+                <div style={{ textAlign: "center", padding: "2rem" }}>
+                  <div>Loading transactions...</div>
+                </div>
+              ) : (
+                <TransactionTable data={transactions} />
+              )}
             </div>
           )}
         </Stack>

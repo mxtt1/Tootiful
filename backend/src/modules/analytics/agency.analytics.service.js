@@ -11,11 +11,17 @@ class AgencyAnalyticsService {
             console.log(`Handler: Fetching revenue summary for agency: ${id} with filters:`, { timeRange, location });
             const revenueSummary = await this.getAgencyRevenueSummary(id, { timeRange, location });
 
+            // Get student payments for transactions
+            const studentPayments = await this.getStudentPaymentsForAgency(id, { timeRange, location });
+
             console.log(`Handler: Retrieved revenue summary for agency ${id}`);
 
             res.status(200).json({
                 success: true,
-                data: revenueSummary,
+                data: {
+                    ...revenueSummary,
+                    studentPayments
+                },
             });
 
         } catch (error) {
@@ -160,106 +166,108 @@ class AgencyAnalyticsService {
         }
     }
 
-    // TUTOR PAYMENT IMPLEMENTATION
-    async getTutorPayments(agencyId, filters = {}) {
+    async handleGetStudentPayments(req, res) {
+        try {
+            const { id } = req.params;
+            const { timeRange = 'all_time', location } = req.query;
+            
+            console.log(`Fetching student payments for agency: ${id} with filters:`, { timeRange, location });
+            
+            const payments = await this.getStudentPaymentsForAgency(id, { timeRange, location });
+            
+            res.status(200).json({
+                success: true,
+                data: payments,
+            });
+        } catch (error) {
+            console.error('Handler Error - Get student payments:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Internal server error',
+                message: error.message
+            });
+        }
+    }
+
+    async getStudentPaymentsForAgency(agencyId, filters = {}) {
         try {
             const { timeRange = 'all_time', location } = filters;
+            
+            // Get agency lesson IDs with location filter
+            const agencyLessonIds = await this.getAgencyLessonIds(agencyId, location);
+            
+            if (agencyLessonIds.length === 0) {
+                return [];
+            }
 
-            // Build base query - only paid sessions
-            const attendanceWhereClause = {
-                isPaid: true
+            // Build payment where clause
+            const paymentWhereClause = {
+                lessonId: {
+                    [Op.in]: agencyLessonIds
+                }
             };
 
             // Apply time range
             if (timeRange !== 'all_time') {
                 const dateRange = this.getDateRangeForTimePeriod(timeRange);
-                attendanceWhereClause.date = {
+                paymentWhereClause.paymentDate = {
                     [Op.between]: [dateRange.start, dateRange.end]
                 };
             }
 
-            // Build location include properly
-            const locationInclude = location && location !== 'all' 
-                ? [{
-                    model: Location,
-                    as: 'location',
-                    where: { address: location },
-                    required: true
-                }]
-                : [{
-                    model: Location,
-                    as: 'location',
-                    required: false
-                }];
-
-            // Get all paid attendance records
-            const paidAttendances = await Attendance.findAll({
-                where: attendanceWhereClause,
+            // Get student payments with related data
+            const payments = await StudentPayment.findAll({
+                where: paymentWhereClause,
                 include: [
                     {
                         model: Lesson,
                         as: 'lesson',
-                        where: { 
-                            agencyId, 
-                            isActive: true 
-                        },
-                        required: true,
+                        attributes: ['id', 'title'],
                         include: [
-                            ...locationInclude,
                             {
-                                model: User,
-                                as: 'tutor',
-                                where: { agencyId }, // Ensure tutor belongs to agency
-                                required: true,
-                                attributes: ['id', 'firstName', 'lastName', 'email']
+                                model: Location,
+                                as: 'location',
+                                attributes: ['id', 'address']
+                            },
+                            {
+                                model: Subject,
+                                as: 'subject',
+                                attributes: ['id', 'name']
                             }
-                        ]
+                        ],
+                    },
+                    {
+                        model: User,
+                        as: 'student',
+                        attributes: ['id', 'firstName', 'lastName', 'email']
                     }
                 ],
-                order: [['date', 'DESC']]
+                order: [['paymentDate', 'DESC']]
             });
 
-            // Group by tutor and calculate totals
-            const tutorPaymentsMap = {};
-            
-            paidAttendances.forEach(attendance => {
-                const tutorId = attendance.tutorId;
-                const tutor = attendance.lesson.tutor;
-                
-                if (!tutorPaymentsMap[tutorId]) {
-                    tutorPaymentsMap[tutorId] = {
-                        tutorId,
-                        tutorName: tutor ? 
-                            `${tutor.firstName} ${tutor.lastName}` : 'Unknown Tutor',
-                        totalPayments: 0,
-                        paidSessions: 0,
-                        payments: []
-                    };
-                }
+            // Format the response for transaction table
+            return payments.map(payment => ({
+                id: payment.id,
+                studentId: payment.studentId,
+                studentName: payment.student ? 
+                    `${payment.student.firstName} ${payment.student.lastName}` : 
+                    'Unknown Student',
+                studentEmail: payment.student?.email,
+                lessonId: payment.lessonId,
+                lessonTitle: payment.lesson?.title,
+                subjectName: payment.lesson?.subject?.name,
+                amount: parseFloat(payment.amount || 0),
+                platformFee: parseFloat(payment.platformFee || 0),
+                paymentDate: payment.paymentDate,
+                createdAt: payment.createdAt,
+                location: payment.lesson?.location?.address
+            }));
 
-                const sessionAmount = parseFloat(attendance.lesson.tutorRate || 0);
-                
-                tutorPaymentsMap[tutorId].totalPayments += sessionAmount;
-                tutorPaymentsMap[tutorId].paidSessions++;
-                tutorPaymentsMap[tutorId].payments.push({
-                    attendanceId: attendance.id,
-                    lessonId: attendance.lessonId,
-                    lessonTitle: attendance.lesson.title,
-                    date: attendance.date,
-                    amount: sessionAmount,
-                    location: attendance.lesson.location?.address,
-                    isAttended: attendance.isAttended
-                });
-            });
-
-            return Object.values(tutorPaymentsMap);
-            
         } catch (error) {
-            console.error('Get tutor payments from attendance:', error);
+            console.error('Get student payments for agency:', error);
             throw error;
         }
     }
-    
     async getTutorPaymentDetails(agencyId, tutorId, filters = {}) {
         try {
             const { timeRange = 'all_time', location } = filters;
