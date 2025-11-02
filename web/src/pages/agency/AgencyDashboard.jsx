@@ -34,6 +34,14 @@ const AgencyDashboard = () => {
   const [showSubscriptionsDetail, setShowSubscriptionsDetail] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [transactionsPerPage, setTransactionsPerPage] = useState(10);
+  const paginatedTransactions = transactions.slice(
+    (currentPage - 1) * transactionsPerPage,
+    currentPage * transactionsPerPage
+  );
+  const totalPages = Math.ceil(transactions.length / transactionsPerPage);
+
   const [lessons, setLessons] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [error, setError] = useState(null);
@@ -143,11 +151,9 @@ const AgencyDashboard = () => {
     try {
       setTransactionsLoading(true);
       
-      // Fetch both student payments and tutor payments
+      // Remove timeRange and location filters for transactions
       const revenueRes = await ApiClient.get(
-        `/analytics/agency/${agencyId}/revenue-summary?timeRange=${selectedTimeRange}${
-          selectedLocation !== 'all' ? `&location=${selectedLocation}` : ''
-        }`
+        `/analytics/agency/${agencyId}/revenue-summary`
       );
 
       const revenueData = revenueRes?.data?.data || revenueRes?.data || {};
@@ -168,13 +174,11 @@ const AgencyDashboard = () => {
         createdAt: payment.createdAt
       }));
 
-      // ADD THIS: Fetch tutor payments separately
+      // Fetch tutor payments without filters
       let formattedTutorPayments = [];
       try {
         const tutorPaymentsRes = await ApiClient.get(
-          `/tutorPayments/agency/${agencyId}/payments?timeRange=${selectedTimeRange}${
-            selectedLocation !== 'all' ? `&location=${selectedLocation}` : ''
-          }`
+          `/tutorPayments/agency/${agencyId}/payments`
         );
         const tutorPayments = tutorPaymentsRes?.data?.data || tutorPaymentsRes?.data || [];
         
@@ -244,24 +248,30 @@ const AgencyDashboard = () => {
       setLoading(false);
     }
   };
-    
-    fetchDashboardData();
-  }, [agencyId, selectedLocation, selectedTimeRange]);
+  
+  fetchDashboardData();
+}, [agencyId, selectedLocation, selectedTimeRange]); 
+  
+  useEffect(() => {
+    if (activeTab === "transactions") {
+      fetchTransactions();
+    }
+  }, [activeTab]);
 
   const fetchSubjects = async () => {
-    try {
-      const response = await ApiClient.get('/lessons/subjects');
-      const subjectsData = response?.data || response || [];
-      setSubjects(subjectsData);
-    } catch (err) {
-      console.error("Failed to fetch subjects:", err);
-      notifications.show({
-        title: "Warning",
-        message: "Could not load subjects",
-        color: "yellow",
-      });
-    }
-  };
+      try {
+        const response = await ApiClient.get('/lessons/subjects');
+        const subjectsData = response?.data || response || [];
+        setSubjects(subjectsData);
+      } catch (err) {
+        console.error("Failed to fetch subjects:", err);
+        notifications.show({
+          title: "Warning",
+          message: "Could not load subjects",
+          color: "yellow",
+        });
+      }
+    };
 
   const fetchAllTutors = async () => {
     try {
@@ -390,6 +400,104 @@ const AgencyDashboard = () => {
     setShowTutorBreakdown(true);
   };
 
+  // pagination component
+  const PaginationControls = () => {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginTop: '1rem',
+        padding: '1rem',
+        borderTop: '1px solid #e0e0e0'
+      }}>
+        <div>
+          <Text size="sm" color="dimmed">
+            Showing {(currentPage - 1) * transactionsPerPage + 1} to{' '}
+            {Math.min(currentPage * transactionsPerPage, transactions.length)} of{' '}
+            {transactions.length} transactions
+          </Text>
+        </div>
+        
+        <Group spacing="xs">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            style={{
+              padding: '0.5rem 1rem',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              backgroundColor: currentPage === 1 ? '#f5f5f5' : 'white',
+              color: currentPage === 1 ? '#999' : '#333',
+              cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Previous
+          </button>
+          
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNum;
+            if (totalPages <= 5) {
+              pageNum = i + 1;
+            } else if (currentPage <= 3) {
+              pageNum = i + 1;
+            } else if (currentPage >= totalPages - 2) {
+              pageNum = totalPages - 4 + i;
+            } else {
+              pageNum = currentPage - 2 + i;
+            }
+            
+            return (
+              <button
+                key={pageNum}
+                onClick={() => setCurrentPage(pageNum)}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  backgroundColor: currentPage === pageNum ? '#6155F5' : 'white',
+                  color: currentPage === pageNum ? 'white' : '#333',
+                  cursor: 'pointer'
+                }}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+          
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            style={{
+              padding: '0.5rem 1rem',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              backgroundColor: currentPage === totalPages ? '#f5f5f5' : 'white',
+              color: currentPage === totalPages ? '#999' : '#333',
+              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Next
+          </button>
+        </Group>
+
+        <Select
+          value={transactionsPerPage.toString()}
+          onChange={(value) => {
+            setTransactionsPerPage(Number(value));
+            setCurrentPage(1);
+          }}
+          data={[
+            { value: '5', label: '5 per page' },
+            { value: '10', label: '10 per page' },
+            { value: '25', label: '25 per page' },
+            { value: '50', label: '50 per page' },
+          ]}
+          style={{ width: '130px' }}
+        />
+      </div>
+    );
+  };
   // Tutor missed session breakdown view - FIXED VERSION
   const TutorMissedSessionsBreakdown = () => {
     const totalTutors = tutorMissedRates.length;
@@ -504,7 +612,13 @@ const AgencyDashboard = () => {
   };
 
   // Filter Component
-  const FilterSection = () => (
+const FilterSection = () => {
+  // Only show filters when on revenue tab
+  if (activeTab !== "revenue") {
+    return null;
+  }
+
+  return (
     <Group spacing="md" style={{ justifyContent: "flex-end", marginBottom: "1.5rem" }}>
       <Select
         value={selectedLocation}
@@ -521,9 +635,9 @@ const AgencyDashboard = () => {
         placeholder="Select time range"
         style={{ width: "200px" }}
       />
-
-  </Group>
-);
+    </Group>
+  );
+};
 
   const handleShowSubscriptionsDetail = () => {
     setShowSubscriptionsDetail(true);
@@ -1422,10 +1536,14 @@ const AgencyDashboard = () => {
                   <div>Loading transactions...</div>
                 </div>
               ) : (
-                <TransactionTable data={transactions} />
+                <>
+                  <TransactionTable data={paginatedTransactions} />
+                  {transactions.length > 0 && <PaginationControls />}
+                </>
               )}
             </div>
           )}
+
         </Stack>
       </div>
     </Container>

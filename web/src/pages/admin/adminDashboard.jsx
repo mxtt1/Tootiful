@@ -25,6 +25,15 @@ const AdminDashboard = () => {
     const [missedSessionsRate, setMissedSessionsRate] = useState(0);
     const [tutorMissedRates, setTutorMissedRates] = useState([]);
     const [lessons, setLessons] = useState([]);
+    const [transactions, setTransactions] = useState([]);
+    const [transactionsLoading, setTransactionsLoading] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [transactionsPerPage, setTransactionsPerPage] = useState(10);
+    const paginatedTransactions = transactions.slice(
+    (currentPage - 1) * transactionsPerPage,
+    currentPage * transactionsPerPage
+    );
+    const totalPages = Math.ceil(transactions.length / transactionsPerPage);
     const [agencyStats, setAgencyStats] = useState([]);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -63,6 +72,7 @@ const AdminDashboard = () => {
             await fetchMissedSessionData();
             await fetchSubscriptionLessons();
             await fetchAgencyStats();
+            await fetchTransactions();
         } catch (error) {
             console.error("Failed to load dashboard data:", error);
             setError("Failed to load dashboard data. Please try again.");
@@ -70,6 +80,36 @@ const AdminDashboard = () => {
             setLoading(false);
         }
     };
+
+    const fetchTransactions = async () => {
+        try {
+            setTransactionsLoading(true);
+            
+            // Fetch student payments which contain platform fees
+            const transactionsRes = await ApiClient.get(
+                `/analytics/admin/platform-fee-transactions?timeRange=${selectedTimeRange}`
+            );
+            const platformFeeTransactions = transactionsRes?.data?.data || transactionsRes?.data || [];
+            
+            console.log(`Found ${platformFeeTransactions.length} platform fee transactions`);
+
+            // The data is already formatted correctly from the backend
+            setTransactions(platformFeeTransactions);
+            
+        } catch (err) {
+            console.error("Error fetching platform fee transactions:", err);
+            
+            notifications.show({
+                title: "Warning",
+                message: "Could not load transaction history, showing sample data",
+                color: "yellow",
+            });
+        } finally {
+            setTransactionsLoading(false);
+        }
+    };
+
+
 
     const fetchMissedSessionData = async () => {
         try {
@@ -208,6 +248,112 @@ const AdminDashboard = () => {
         }
     };
 
+    // Pagination component for transactions
+    const PaginationControls = () => {
+    return (
+        <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginTop: '1rem',
+        padding: '1rem',
+        borderTop: '1px solid #e0e0e0'
+        }}>
+        <div>
+            <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+            Showing {(currentPage - 1) * transactionsPerPage + 1} to{' '}
+            {Math.min(currentPage * transactionsPerPage, transactions.length)} of{' '}
+            {transactions.length} transactions
+            </span>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            style={{
+                padding: '0.5rem 1rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                backgroundColor: currentPage === 1 ? '#f5f5f5' : 'white',
+                color: currentPage === 1 ? '#999' : '#333',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                fontSize: '0.875rem'
+            }}
+            >
+            Previous
+            </button>
+            
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNum;
+            if (totalPages <= 5) {
+                pageNum = i + 1;
+            } else if (currentPage <= 3) {
+                pageNum = i + 1;
+            } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+            } else {
+                pageNum = currentPage - 2 + i;
+            }
+            
+            return (
+                <button
+                key={pageNum}
+                onClick={() => setCurrentPage(pageNum)}
+                style={{
+                    padding: '0.5rem 0.75rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    backgroundColor: currentPage === pageNum ? '#6155F5' : 'white',
+                    color: currentPage === pageNum ? 'white' : '#333',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                }}
+                >
+                {pageNum}
+                </button>
+            );
+            })}
+            
+            <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            style={{
+                padding: '0.5rem 1rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                backgroundColor: currentPage === totalPages ? '#f5f5f5' : 'white',
+                color: currentPage === totalPages ? '#999' : '#333',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                fontSize: '0.875rem'
+            }}
+            >
+            Next
+            </button>
+        </div>
+
+        <select
+            value={transactionsPerPage.toString()}
+            onChange={(e) => {
+            setTransactionsPerPage(Number(e.target.value));
+            setCurrentPage(1);
+            }}
+            style={{
+            padding: '0.5rem',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            fontSize: '0.875rem',
+            width: '130px'
+            }}
+        >
+            <option value="5">5 per page</option>
+            <option value="10">10 per page</option>
+            <option value="25">25 per page</option>
+            <option value="50">50 per page</option>
+        </select>
+        </div>
+    );
+    };
     // BREAKDOWN HANDLERS
     const handleShowTutorBreakdown = () => {
         setShowTutorBreakdown(true);
@@ -1215,33 +1361,154 @@ const AdminDashboard = () => {
                         </div>
                     )}
                 
-                    {/* Transactions Tab Content */}
-                    {activeTab === 'transactions' && (
-                        <div>
-                            <div style={{ 
-                                padding: '1.5rem', 
-                                border: '1px solid #dee2e6', 
-                                borderRadius: '8px', 
-                                backgroundColor: 'white', 
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                marginBottom: '1.5rem' 
-                            }}>
-                                <h3 style={{ 
-                                    margin: '0 0 1rem 0', 
-                                    color: '#0A0A0A', 
-                                    fontWeight: 'normal', 
-                                    textAlign: 'center' 
-                                }}>
-                                    Transaction Table
-                                </h3>
-                                <TransactionTable />
-                            </div>
-                        </div>
-                    )}
+{/* Transactions Tab Content */}
+{activeTab === 'transactions' && (
+  <div>
+    <div style={{ 
+      padding: '1.5rem', 
+      border: '1px solid #dee2e6', 
+      borderRadius: '8px', 
+      backgroundColor: 'white', 
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      marginBottom: '1.5rem' 
+    }}>
+      <h3 style={{ 
+        margin: '0 0 1rem 0', 
+        color: '#0A0A0A', 
+        fontWeight: 'normal', 
+        textAlign: 'center' 
+      }}>
+        Platform Fee Transactions
+      </h3>
+      {transactionsLoading ? (
+        <div style={{ textAlign: "center", padding: "2rem" }}>
+          <div>Loading transactions...</div>
+        </div>
+      ) : (
+        <>
+          {/* Simple transaction display for admin - platform fees only */}
+          <div style={{ overflowX: 'auto' }}>
+            <div style={{ 
+              backgroundColor: '#fff',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              minWidth: '100%',
+            }}>
+              {/* Table Header */}
+              <div style={{ 
+                display: 'flex', 
+                backgroundColor: '#f8f9fa', 
+                padding: '12px 0',
+                borderBottom: '1px solid #e5e7eb',
+                fontWeight: '600',
+                color: '#374151',
+                fontSize: '12px'
+              }}>
+                <span style={{ padding: '0 8px', minWidth: '120px', flex: '1' }}>Student</span>
+                <span style={{ padding: '0 8px', minWidth: '120px', flex: '1' }}>Agency</span>
+                <span style={{ padding: '0 8px', minWidth: '100px', flex: '1' }}>Date</span>
+                <span style={{ padding: '0 8px', minWidth: '100px', flex: '0.8', textAlign: 'center' }}>Platform Fee</span>
+                <span style={{ padding: '0 8px', minWidth: '100px', flex: '1' }}>Payment Method</span>
+                <span style={{ padding: '0 8px', minWidth: '100px', flex: '1' }}>Status</span>
+              </div>
+
+              {/* Table Rows */}
+              {paginatedTransactions.length === 0 ? (
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  padding: '40px 20px', 
+                  color: '#6b7280', 
+                  fontStyle: 'italic' 
+                }}>
+                  <span style={{ fontSize: '14px' }}>
+                    No platform fee transactions found
+                  </span>
                 </div>
+              ) : (
+                paginatedTransactions.map((transaction, index) => {
+                  const formatDate = (dateString) => {
+                    if (!dateString) return 'N/A';
+                    const date = new Date(dateString);
+                    if (isNaN(date.getTime())) return 'Invalid Date';
+                    return date.toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric'
+                    });
+                  };
+
+                  return (
+                    <div 
+                      key={transaction.id || `transaction-${index}`} 
+                      style={{ 
+                        display: 'flex', 
+                        padding: '12px 0', 
+                        borderBottom: '1px solid #e5e7eb',
+                        alignItems: 'center',
+                        fontSize: '12px'
+                      }}
+                    >
+                      <span style={{ padding: '0 8px', minWidth: '120px', flex: '1', fontWeight: '500' }}>
+                        {transaction.studentName}
+                      </span>
+                      <span style={{ padding: '0 8px', minWidth: '120px', flex: '1', color: '#6b7280' }}>
+                        {transaction.agencyName}
+                      </span>
+                      <span style={{ padding: '0 8px', minWidth: '100px', flex: '1', color: '#6b7280' }}>
+                        {formatDate(transaction.date)}
+                      </span>
+                      <span style={{ 
+                        padding: '0 8px', 
+                        minWidth: '100px', 
+                        flex: '0.8', 
+                        textAlign: 'center',
+                        fontWeight: '600',
+                        color: '#059669' // Green for platform revenue
+                      }}>
+                        ${parseFloat(transaction.amount || 0).toFixed(2)}
+                      </span>
+                      <span style={{ padding: '0 8px', minWidth: '100px', flex: '1', color: '#6b7280' }}>
+                        {transaction.paymentMethod}
+                      </span>
+                      <div style={{ padding: '0 8px', minWidth: '100px', flex: '1' }}>
+                        <div style={{
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          backgroundColor: '#d1fae5',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minWidth: '70px'
+                        }}>
+                          <span style={{ 
+                            fontSize: '10px', 
+                            fontWeight: '700', 
+                            color: '#374151' 
+                          }}>
+                            COMPLETED
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
+          </div>
+          
+          {/* Pagination Controls */}
+          {transactions.length > 0 && <PaginationControls />}
         </>
-    );
+      )}
+    </div>
+  </div>
+)}
+        </div>
+      </div>
+    </>
+  );
 };
 
 export default AdminDashboard;

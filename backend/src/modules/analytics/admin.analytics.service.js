@@ -149,6 +149,100 @@ class AdminAnalyticsService {
         }
     }
 
+    async handleGetAdminPlatformFeeTransactions(req, res) {
+    try {
+        const { timeRange = 'all_time' } = req.query;
+        console.log(`Fetching admin platform fee transactions with filters:`, { timeRange });
+        
+        const platformFeeTransactions = await this.getAdminPlatformFeeTransactions({ timeRange });
+        
+        res.status(200).json({
+            success: true,
+            data: platformFeeTransactions,
+        });
+    } catch (error) {
+        console.error('Handler Error - Get admin platform fee transactions:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            message: error.message
+        });
+    }
+}
+
+async getAdminPlatformFeeTransactions(filters = {}) {
+    try {
+        const { timeRange = 'all_time' } = filters;
+        console.log("Calculating admin platform fee transactions with filters:", filters);
+
+        // Apply time range filter to payments
+        const paymentWhereClause = {};
+        
+        if (timeRange !== 'all_time') {
+            const dateRange = this.getDateRangeForTimePeriod(timeRange);
+            paymentWhereClause.paymentDate = {
+                [Op.between]: [dateRange.start, dateRange.end]
+            };
+        }
+
+        // Get ALL student payments across all agencies with platform fees
+        const studentPayments = await StudentPayment.findAll({
+            where: paymentWhereClause,
+            include: [{
+                model: Lesson,
+                as: 'lesson',
+                include: [{
+                    model: Subject,
+                    as: 'subject',
+                    attributes: ['id', 'name']
+                }, {
+                    model: Agency,
+                    as: 'agency',
+                    attributes: ['id', 'name']
+                }, {
+                    model: User,
+                    as: 'tutor',
+                    attributes: ['id', 'firstName', 'lastName']
+                }],
+                required: true
+            }],
+            order: [['paymentDate', 'DESC']]
+        });
+
+        console.log(`Found ${studentPayments.length} student payments with platform fees`);
+
+        // Format the response to focus on platform fees
+        const platformFeeTransactions = studentPayments.map(payment => {
+            const lesson = payment.lesson;
+            return {
+                id: payment.id,
+                type: 'platform_fee',
+                studentId: payment.studentId,
+                studentName: `Student ${payment.studentId?.slice(0, 8)}`, // You might want to join with Student model for actual names
+                platformFee: parseFloat(payment.platformFee || 0),
+                totalAmount: parseFloat(payment.amount || 0),
+                agencyName: lesson.agency?.name || 'Unknown Agency',
+                agencyId: lesson.agencyId,
+                tutorName: lesson.tutor ? 
+                    `${lesson.tutor.firstName} ${lesson.tutor.lastName}` : 
+                    'Unknown Tutor',
+                lessonTitle: lesson.title || 'Unknown Lesson',
+                subjectName: lesson.subject?.name || 'Unknown Subject',
+                paymentDate: payment.paymentDate,
+                createdAt: payment.createdAt,
+                paymentMethod: 'Stripe', // You might want to store this in StudentPayment model
+                status: 'completed'
+            };
+        });
+
+        return platformFeeTransactions;
+
+    } catch (error) {
+        console.error('Get admin platform fee transactions:', error);
+        throw new Error(`Failed to get platform fee transactions: ${error.message}`);
+    }
+}
+
     async getAdminRevenueSummary(filters = {}) {
         try {
             const { timeRange = 'all_time' } = filters;

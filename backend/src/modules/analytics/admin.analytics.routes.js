@@ -27,4 +27,6 @@ router.get('/admin/tutor-payments', authenticateToken, asyncHandler(analyticsSer
 // GET /api/analytics/admin/agency-stats - Get agency statistics
 router.get('/admin/agency-stats', authenticateToken, asyncHandler(analyticsService.handleGetAdminAgencyStats.bind(analyticsService)));
 
+// GET /api/analytics/admin/platform-fee-transactions - Get platform fee transactions for all agencies
+router.get('/admin/platform-fee-transactions', authenticateToken, asyncHandler(analyticsService.handleGetAdminPlatformFeeTransactions.bind(analyticsService)));
 export default router;

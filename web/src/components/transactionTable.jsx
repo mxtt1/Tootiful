@@ -32,8 +32,8 @@ const TransactionTable = ({ data = [] }) => {
     }
   };
 
-  // Format date as "August 4, 2022, 7:30AM"
-  const formatDateTime = (dateString) => {
+  // Format date as "August 4, 2022" (without time)
+  const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     
     const date = new Date(dateString);
@@ -42,12 +42,9 @@ const TransactionTable = ({ data = [] }) => {
     const options = { 
       year: 'numeric', 
       month: 'long', 
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true 
+      day: 'numeric'
     };
-    return date.toLocaleString('en-US', options);
+    return date.toLocaleDateString('en-US', options);
   };
 
   const handleStatusFilterSelect = (filter) => {
@@ -65,10 +62,24 @@ const TransactionTable = ({ data = [] }) => {
     return transaction.username || 'Unknown';
   };
 
-  // Get display amount with proper formatting
+  // Get display amount with proper formatting and colors
   const getDisplayAmount = (transaction) => {
     const amount = transaction.amount || transaction.paymentAmount || 0;
-    return `$${parseFloat(amount).toFixed(2)}`;
+    const formattedAmount = `$${parseFloat(amount).toFixed(2)}`;
+    
+    if (transaction.type === 'tutor_payment') {
+      return `-${formattedAmount}`; // Add minus sign for tutor payments
+    }
+    return formattedAmount; // Student payments remain positive
+  };
+
+  // Get amount style based on transaction type
+  const getAmountStyle = (transaction) => {
+    const baseStyle = { ...styles.amount, ...styles.amountCell };
+    if (transaction.type === 'tutor_payment') {
+      return { ...baseStyle, ...styles.amountTutor };
+    }
+    return { ...baseStyle, ...styles.amountStudent };
   };
 
   // Get card type or payment method
@@ -132,7 +143,7 @@ const TransactionTable = ({ data = [] }) => {
           <div style={styles.headerRow}>
             <span style={{...styles.headerCell, ...styles.cell}}>User</span>
             <span style={{...styles.headerCell, ...styles.cell}}>Type</span>
-            <span style={{...styles.headerCell, ...styles.cell}}>Date & Time</span>
+            <span style={{...styles.headerCell, ...styles.cell}}>Date</span>
             <span style={{...styles.headerCell, ...styles.cell, ...styles.amountCell}}>Amount</span>
             <span style={{...styles.headerCell, ...styles.cell}}>Payment Method</span>
             <span style={{...styles.headerCell, ...styles.cell}}>Status</span>
@@ -140,7 +151,7 @@ const TransactionTable = ({ data = [] }) => {
 
           {/* Table Rows */}
           {filteredTransactions.map((transaction, index) => {
-            const formattedDateTime = formatDateTime(transaction.date || transaction.paymentDate || transaction.createdAt);
+            const formattedDate = formatDate(transaction.date || transaction.paymentDate || transaction.createdAt);
             
             return (
               <div key={transaction.id || `transaction-${index}`} style={styles.dataRow}>
@@ -155,8 +166,8 @@ const TransactionTable = ({ data = [] }) => {
                     {transaction.type === 'student_payment' ? 'Student' : 'Tutor'}
                   </div>
                 </span>
-                <span style={{...styles.cell, ...styles.dateTime}}>{formattedDateTime}</span>
-                <span style={{...styles.cell, ...styles.amount, ...styles.amountCell}}>
+                <span style={{...styles.cell, ...styles.date}}>{formattedDate}</span>
+                <span style={getAmountStyle(transaction)}>
                   {getDisplayAmount(transaction)}
                 </span>
                 <span style={{...styles.cell, ...styles.cardType}}>
@@ -325,15 +336,20 @@ const styles = {
     backgroundColor: '#f0fdf4',
     color: '#166534',
   },
-  dateTime: {
+  date: {
     fontSize: '12px',
     color: '#6b7280',
   },
   amount: {
     fontSize: '12px',
     fontWeight: '600',
-    color: '#059669',
     textAlign: 'center',
+  },
+  amountStudent: {
+    color: '#059669', // Green for student payments (revenue)
+  },
+  amountTutor: {
+    color: '#dc2626', // Red for tutor payments (expenses)
   },
   cardType: {
     fontSize: '12px',
