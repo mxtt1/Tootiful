@@ -101,7 +101,7 @@ const AdminDashboard = () => {
             
             notifications.show({
                 title: "Warning",
-                message: "Could not load transaction history, showing sample data",
+                message: "Could not load transaction history.",
                 color: "yellow",
             });
         } finally {
@@ -1457,7 +1457,7 @@ const AdminDashboard = () => {
                         {transaction.agencyName}
                       </span>
                       <span style={{ padding: '0 8px', minWidth: '100px', flex: '1', color: '#6b7280' }}>
-                        {formatDate(transaction.date)}
+                        {formatDate(transaction.paymentDate)}
                       </span>
                       <span style={{ 
                         padding: '0 8px', 
@@ -1467,7 +1467,7 @@ const AdminDashboard = () => {
                         fontWeight: '600',
                         color: '#059669' // Green for platform revenue
                       }}>
-                        ${parseFloat(transaction.amount || 0).toFixed(2)}
+                        ${parseFloat(transaction.platformFee || 0).toFixed(2)}
                       </span>
                       <span style={{ padding: '0 8px', minWidth: '100px', flex: '1', color: '#6b7280' }}>
                         {transaction.paymentMethod}

@@ -188,24 +188,31 @@ async getAdminPlatformFeeTransactions(filters = {}) {
         // Get ALL student payments across all agencies with platform fees
         const studentPayments = await StudentPayment.findAll({
             where: paymentWhereClause,
-            include: [{
-                model: Lesson,
-                as: 'lesson',
-                include: [{
-                    model: Subject,
-                    as: 'subject',
-                    attributes: ['id', 'name']
-                }, {
-                    model: Agency,
-                    as: 'agency',
-                    attributes: ['id', 'name']
-                }, {
-                    model: User,
-                    as: 'tutor',
-                    attributes: ['id', 'firstName', 'lastName']
-                }],
-                required: true
-            }],
+            include: [
+                {
+                    model: User, // ✅ ADD THIS: Join with User to get student names
+                    as: 'student', // Make sure this association exists
+                    attributes: ['id', 'firstName', 'lastName', 'email']
+                },
+                {
+                    model: Lesson,
+                    as: 'lesson',
+                    include: [{
+                        model: Subject,
+                        as: 'subject',
+                        attributes: ['id', 'name']
+                    }, {
+                        model: Agency,
+                        as: 'agency',
+                        attributes: ['id', 'name']
+                    }, {
+                        model: User,
+                        as: 'tutor',
+                        attributes: ['id', 'firstName', 'lastName']
+                    }],
+                    required: true
+                }
+            ],
             order: [['paymentDate', 'DESC']]
         });
 
@@ -214,13 +221,20 @@ async getAdminPlatformFeeTransactions(filters = {}) {
         // Format the response to focus on platform fees
         const platformFeeTransactions = studentPayments.map(payment => {
             const lesson = payment.lesson;
+            
+            const studentName = payment.student ? 
+                `${payment.student.firstName} ${payment.student.lastName}` : 
+                `Student ${payment.studentId?.slice(0, 8)}`;
+
             return {
                 id: payment.id,
                 type: 'platform_fee',
                 studentId: payment.studentId,
-                studentName: `Student ${payment.studentId?.slice(0, 8)}`, // You might want to join with Student model for actual names
-                platformFee: parseFloat(payment.platformFee || 0),
-                totalAmount: parseFloat(payment.amount || 0),
+                studentName: studentName, 
+                studentEmail: payment.student?.email, 
+                platformFee: parseFloat(payment.platformFee || 0),  
+                paymentDate: payment.paymentDate,
+                totalAmount: parseFloat(payment.amount || 0),  
                 agencyName: lesson.agency?.name || 'Unknown Agency',
                 agencyId: lesson.agencyId,
                 tutorName: lesson.tutor ? 
@@ -228,9 +242,8 @@ async getAdminPlatformFeeTransactions(filters = {}) {
                     'Unknown Tutor',
                 lessonTitle: lesson.title || 'Unknown Lesson',
                 subjectName: lesson.subject?.name || 'Unknown Subject',
-                paymentDate: payment.paymentDate,
                 createdAt: payment.createdAt,
-                paymentMethod: 'Stripe', // You might want to store this in StudentPayment model
+                paymentMethod: 'Stripe',
                 status: 'completed'
             };
         });
