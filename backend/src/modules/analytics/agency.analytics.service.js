@@ -98,51 +98,6 @@ class AgencyAnalyticsService {
         }
     }
 
-    // TUTOR PAYMENT METHODS
-    async handleGetTutorPayments(req, res) {
-        try {
-            const { id } = req.params;
-            const { timeRange = 'all_time', location } = req.query;
-            console.log(`Fetching tutor payments for agency: ${id} with filters:`, { timeRange, location });
-            
-            const tutorPayments = await this.getTutorPayments(id, { timeRange, location });
-            
-            res.status(200).json({
-                success: true,
-                data: tutorPayments,
-            });
-        } catch (error) {
-            console.error('Handler Error - Get tutor payments:', error);
-            res.status(500).json({
-                success: false,
-                error: 'Internal server error',
-                message: error.message
-            });
-        }
-    }
-
-    async handleGetTutorPaymentDetails(req, res) {
-        try {
-            const { id, tutorId } = req.params;
-            const { timeRange = 'all_time', location } = req.query;
-            
-            console.log(`Fetching detailed payment for tutor: ${tutorId} in agency: ${id}`);
-            
-            const paymentDetails = await this.getTutorPaymentDetails(id, tutorId, { timeRange, location });
-            
-            res.status(200).json({
-                success: true,
-                data: paymentDetails,
-            });
-        } catch (error) {
-            console.error('Handler Error - Get tutor payment details:', error);
-            res.status(500).json({
-                success: false,
-                error: 'Internal server error',
-                message: error.message
-            });
-        }
-    }
 
     async handleGetAgencyAttendance(req, res) {
         try {
@@ -161,29 +116,6 @@ class AgencyAnalyticsService {
             console.error('Error fetching agency attendance:', error);
             res.status(500).json({
                 success: false,
-                message: error.message
-            });
-        }
-    }
-
-    async handleGetStudentPayments(req, res) {
-        try {
-            const { id } = req.params;
-            const { timeRange = 'all_time', location } = req.query;
-            
-            console.log(`Fetching student payments for agency: ${id} with filters:`, { timeRange, location });
-            
-            const payments = await this.getStudentPaymentsForAgency(id, { timeRange, location });
-            
-            res.status(200).json({
-                success: true,
-                data: payments,
-            });
-        } catch (error) {
-            console.error('Handler Error - Get student payments:', error);
-            res.status(500).json({
-                success: false,
-                error: 'Internal server error',
                 message: error.message
             });
         }
@@ -265,117 +197,6 @@ class AgencyAnalyticsService {
 
         } catch (error) {
             console.error('Get student payments for agency:', error);
-            throw error;
-        }
-    }
-    async getTutorPaymentDetails(agencyId, tutorId, filters = {}) {
-        try {
-            const { timeRange = 'all_time', location } = filters;
-
-            const attendanceWhereClause = {
-                tutorId: tutorId,
-                isPaid: true
-            };
-
-            // Apply time range
-            if (timeRange !== 'all_time') {
-                const dateRange = this.getDateRangeForTimePeriod(timeRange);
-                attendanceWhereClause.date = {
-                    [Op.between]: [dateRange.start, dateRange.end]
-                };
-            }
-
-            // Build location include properly
-            const locationInclude = location && location !== 'all' 
-                ? [{
-                    model: Location,
-                    as: 'location',
-                    where: { address: location },
-                    required: true
-                }]
-                : [{
-                    model: Location,
-                    as: 'location',
-                    required: false
-                }];
-
-            const paidSessions = await Attendance.findAll({
-                where: attendanceWhereClause,
-                include: [
-                    {
-                        model: Lesson,
-                        as: 'lesson',
-                        where: { 
-                            agencyId, 
-                            isActive: true 
-                        },
-                        required: true,
-                        include: [
-                            ...locationInclude,
-                            {
-                                model: Subject,
-                                as: 'subject',
-                                attributes: ['id', 'name']
-                            }
-                        ]
-                    }
-                ],
-                order: [['date', 'DESC']]
-            });
-
-            // Format sessions
-            const sessions = paidSessions.map(attendance => ({
-                attendanceId: attendance.id,
-                lessonId: attendance.lessonId,
-                lessonTitle: attendance.lesson.title,
-                subject: attendance.lesson.subject?.name,
-                date: attendance.date,
-                rate: parseFloat(attendance.lesson.tutorRate || 0),
-                location: attendance.lesson.location?.address,
-                isAttended: attendance.isAttended,
-                paymentStatus: 'Paid'
-            }));
-
-            // Calculate totals
-            const totalAmount = sessions.reduce((sum, session) => sum + session.rate, 0);
-            const totalSessions = sessions.length;
-
-            // Get tutor info and verify they belong to agency
-            const tutor = await User.findOne({
-                where: { 
-                    id: tutorId,
-                    agencyId: agencyId 
-                },
-                attributes: ['id', 'firstName', 'lastName', 'email', 'phone']
-            });
-
-            if (!tutor) {
-                throw new Error('Tutor not found in this agency');
-            }
-
-            return {
-                tutor: {
-                    id: tutor.id,
-                    name: `${tutor.firstName} ${tutor.lastName}`,
-                    email: tutor.email,
-                    phone: tutor.phone
-                },
-                summary: {
-                    totalSessions,
-                    totalAmount: Math.round(totalAmount * 100) / 100,
-                    averageRate: totalSessions > 0 ? Math.round((totalAmount / totalSessions) * 100) / 100 : 0,
-                    timeRange,
-                    location: location || 'all'
-                },
-                sessions,
-                filters: {
-                    timeRange,
-                    location
-                }
-            };
-
-        } catch (error) {
-            console.error('Get tutor payment details from attendance:', error);
             throw error;
         }
     }
