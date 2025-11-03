@@ -33,9 +33,11 @@ yarn-error.*
 # env files
 .env
 
+# Firebase
+google-services.json
+tutiful-firebase-adminsdk-fbsvc-721ae8ff2f.json
+
 # typescript
 *.tsbuildinfo
 
 app-example
-
-android/

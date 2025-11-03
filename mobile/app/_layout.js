@@ -1,10 +1,33 @@
 import { Stack } from "expo-router";
 import { StripeProvider } from "@stripe/stripe-react-native";
+import * as Notifications from 'expo-notifications';
+import { useEffect } from 'react';
 
 const STRIPE_PUBLISHABLE_KEY =
   "pk_test_51SIovPAAoAUEOUubDMOoYGXzcqo92LrSwm5OJ1u3k8nm3zZKSHeVYbjVyIGzydYs6hnOnQoHFhsfiO58aio3ZpkB001LdxeTKG";
 
+// Configure how notifications should be handled when app is in foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
 export default function RootLayout() {
+  useEffect(() => {
+    // Request notification permissions on app start
+    const requestPermissions = async () => {
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') {
+        await Notifications.requestPermissionsAsync();
+      }
+    };
+    
+    requestPermissions();
+  }, []);
+
   return (
     <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
       <Stack screenOptions={{ headerShown: false }} initialRouteName="index">

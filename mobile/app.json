@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "Tutiful",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,7 +11,8 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.anonymous.mobile"
+      "package": "com.anonymous.mobile",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -33,6 +34,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c50777d3-8d49-40f4-8057-77b24036a44e"
+      }
     }
   }
 }
