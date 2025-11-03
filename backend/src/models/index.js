@@ -4,6 +4,7 @@ import Attendance from './attendance.model.js';
 import StudentLesson from './studentLesson.model.js';
 import StudentPayment from './studentPayment.model.js';
 import TutorPayment from './tutorPayment.model.js';
+import TenantConfig from './tenantConfig.model.js';
 
 // StudentLesson direct associations
 StudentLesson.belongsTo(User, { foreignKey: 'studentId', as: 'student' });
@@ -50,6 +51,10 @@ TutorPayment.belongsTo(Attendance, { foreignKey: tutorPaymentForeignKey, as: 'at
 User.hasMany(TutorPayment, { foreignKey: 'tutorId', as: 'tutorPayments' });
 TutorPayment.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
 
+// Agency-TenantConfig association
+Agency.hasOne(TenantConfig, { foreignKey: 'agencyId', as: 'tenantConfig', onDelete: 'CASCADE' });
+TenantConfig.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
+
 import Sequelize, { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
 
@@ -60,6 +65,7 @@ import PasswordResetToken from './passwordReset.model.js';
 import RefreshToken from './refreshToken.model.js';
 import Agency from './agency.model.js';
 import Location from './location.model.js';
+import TenantConfig from './tenantConfig.model.js';
 
 // Util imports
 import experienceLevelEnum from "../util/enum/experienceLevelEnum.js";
