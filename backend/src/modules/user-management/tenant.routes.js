@@ -10,13 +10,13 @@ const tenantService = new TenantService();
 // POST /api/tenant/extract-metadata - Extract metadata from agency website
 router.post('/extract-metadata', authenticateToken, asyncHandler(tenantService.handleExtractMetadata.bind(tenantService)));
 
-// POST /api/tenant/customization - Create customization (matches frontend)
+// POST /api/tenant/customization - Create customization
 router.post('/customization', authenticateToken, asyncHandler(tenantService.handleSaveCustomization.bind(tenantService)));
 
-// GET /api/tenant/customization - Get customization config (matches frontend)
+// GET /api/tenant/customization - Get customization config 
 router.get('/customization', authenticateToken, asyncHandler(tenantService.handleGetConfig.bind(tenantService)));
 
-// PATCH /api/tenant/customization - Update customization (matches frontend)
+// PATCH /api/tenant/customization - Update customization 
 router.patch('/customization', authenticateToken, asyncHandler(tenantService.handleUpdateCustomization.bind(tenantService)));
 
 

@@ -34,7 +34,7 @@ const AdminLayout = ({ children }) => {
   useEffect(() => {
     const loadTenantConfig = async () => {
       try {
-        const response = await ApiClient.get("/tenant/config");
+        const response = await ApiClient.get("/tenant/customization");
         if (response.success && response.config) {
           setTenantConfig(response.config);
           applyCustomizations(response.config);

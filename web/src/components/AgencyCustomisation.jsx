@@ -28,7 +28,7 @@ const CustomizationComponent = () => {
 
   const loadExistingCustomization = async () => {
     try {
-      const response = await ApiClient.get("/tenant/config");
+      const response = await ApiClient.get("/tenant/customization");
       if (response.success && response.config && response.config.customTheme) {
         setExistingCustomization(response.config);
         // Pre-populate fields with existing data
