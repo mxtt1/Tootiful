@@ -4,7 +4,8 @@ import GenericPieChart from "../../components/userChart";
 import GrowthChart from "../../components/growthChart";
 import TransactionTable from "../../components/transactionTable";
 import { notifications } from "@mantine/notifications";
-import { Container, Title, Text, Stack, Select, Group } from "@mantine/core";
+import { Container, Title, Text, Stack, Select, Group, Button, Modal, TextInput } from "@mantine/core";
+import CustomizationComponent from '../../components/AgencyCustomisation';
 import { FaFilter } from "react-icons/fa";
 import {
   FaMoneyBillAlt,
@@ -17,6 +18,7 @@ import {
   FaUserGraduate,
   FaArrowLeft 
 } from "react-icons/fa";
+import { IconPlus, IconCheck, IconX } from "@tabler/icons-react"; 
 import { useAuth } from "../../auth/AuthProvider";
 
 const AgencyDashboard = () => {
@@ -117,6 +119,7 @@ const AgencyDashboard = () => {
       endDateTime
     };
   };
+
 
   // Prepare user distribution data for GenericPieChart
   const userDistributionData = [
@@ -647,6 +650,7 @@ const FilterSection = () => {
     setShowSubscriptionsDetail(false);
   };
 
+
   // In your revenue section, add the clickable missed sessions card:
   const renderMissedSessionsCard = () => (
     <div
@@ -967,12 +971,12 @@ const FilterSection = () => {
     );
   }
 
-  const TabNavigation = () => (
+const TabNavigation = () => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
     <div
       style={{
         display: "flex",
         borderBottom: "1px solid #e0e0e0",
-        marginBottom: "1.5rem",
         paddingLeft: "0.5rem",
         backgroundColor: "transparent",
       }}
@@ -1035,7 +1039,10 @@ const FilterSection = () => {
         Transaction History
       </button>
     </div>
-  );
+    
+    <CustomizationComponent />
+  </div>
+);
 
   // Then in your revenue tab render:
   if (showTutorBreakdown) {
