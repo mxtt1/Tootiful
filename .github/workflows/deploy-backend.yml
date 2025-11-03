@@ -5,7 +5,10 @@ on:
     branches:
       - main
     paths:
-      - 'backend/**'
+      - 'backend/src'
+      - 'backend/package.json'
+      - 'backend/package-lock.json'
+      - backend/ecosystem.config.cjs
   workflow_dispatch: # Allows manual trigger
 
 jobs:
