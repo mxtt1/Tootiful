@@ -4,7 +4,6 @@ import Attendance from './attendance.model.js';
 import StudentLesson from './studentLesson.model.js';
 import StudentPayment from './studentPayment.model.js';
 import TutorPayment from './tutorPayment.model.js';
-import TenantConfig from './tenantConfig.model.js';
 
 // StudentLesson direct associations
 StudentLesson.belongsTo(User, { foreignKey: 'studentId', as: 'student' });
@@ -50,10 +49,6 @@ TutorPayment.belongsTo(Attendance, { foreignKey: tutorPaymentForeignKey, as: 'at
 // Tutor-TutorPayment association
 User.hasMany(TutorPayment, { foreignKey: 'tutorId', as: 'tutorPayments' });
 TutorPayment.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
-
-// Agency-TenantConfig association
-Agency.hasOne(TenantConfig, { foreignKey: 'agencyId', as: 'tenantConfig', onDelete: 'CASCADE' });
-TenantConfig.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 
 import Sequelize, { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
@@ -143,6 +138,10 @@ Subject.belongsToMany(User, {
   as: "tutors",
 });
 
+// Agency-TenantConfig association
+Agency.hasOne(TenantConfig, { foreignKey: 'agencyId', as: 'tenantConfig', onDelete: 'CASCADE' });
+TenantConfig.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
+
 PasswordResetToken.belongsTo(User, { foreignKey: "userId", as: "user", allowNull: false });
 User.hasMany(PasswordResetToken, { foreignKey: "userId", as: "passwordResetTokens" });
 
@@ -158,6 +157,6 @@ User.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 Agency.hasMany(Location, { foreignKey: 'agencyId', as: 'locations' });
 Location.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 
-export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Location, Sequelize, sequelize, EmailVerificationToken, Lesson, Attendance, StudentLesson, StudentPayment, TutorPayment };
+export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Location, Sequelize, sequelize, EmailVerificationToken, Lesson, Attendance, StudentLesson, StudentPayment, TutorPayment, TenantConfig };
 
 
