@@ -13,6 +13,7 @@ import tutorPaymentRoutes from "./modules/payment/tutorPayment.route.js";
 import paymentRoutes from "./modules/payment/payment.routes.js";
 import adminAnalyticsRoutes from "./modules/analytics/admin.analytics.routes.js";
 import agencyAnalyticsRoutes from "./modules/analytics/agency.analytics.routes.js";
+import paperRoutes from "./modules/papers/paper.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import "./models/index.js";
 
@@ -71,6 +72,7 @@ app.use("/api/tutorPayments", tutorPaymentRoutes); //tutor payment routes
 app.use("/api/payments", paymentRoutes); //student payment routes
 app.use("/api/analytics", agencyAnalyticsRoutes); // Agency analytics
 app.use("/api/analytics", adminAnalyticsRoutes);  // Admin analytics 
+app.use("/api/papers", paperRoutes); // Generated papers
 
 // Global Error Handler Middleware
 app.use(errorHandler);
