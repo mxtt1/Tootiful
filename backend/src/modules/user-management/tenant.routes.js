@@ -19,22 +19,5 @@ router.get('/customization', authenticateToken, asyncHandler(tenantService.handl
 // PATCH /api/tenant/customization - Update customization (matches frontend)
 router.patch('/customization', authenticateToken, asyncHandler(tenantService.handleUpdateCustomization.bind(tenantService)));
 
-// Add this to your tenant.routes.js temporarily
-router.get('/test', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    message: 'Tenant routes are working!',
-    availableEndpoints: [
-      'POST /api/tenant/extract-metadata',
-      'POST /api/tenant/customization',
-      'GET /api/tenant/customization',
-      'PATCH /api/tenant/customization'
-    ],
-    user: {
-      id: req.user.id,
-      userType: req.user.userType,
-      agencyId: req.user.agencyId
-    }
-  });
-});
+
 export default router;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal, TextInput, Button, Text, Alert, Card, Group, Stack, Grid, ColorSwatch, Select, ColorPicker } from "@mantine/core";
 import { IconPlus, IconCheck, IconX, IconEye, IconDownload, IconRefresh, IconEdit, IconColorPicker } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
@@ -19,6 +19,7 @@ const CustomizationComponent = () => {
   const [customColor, setCustomColor] = useState("");
   
   const MAX_DISPLAY_NAME_LENGTH = 25;
+  const displayNameInputRef = useRef(null);
 
   // Load existing customization when component mounts
   useEffect(() => {
@@ -51,17 +52,7 @@ const CustomizationComponent = () => {
     }
   };
 
-  // Handle website URL change and auto-fetch when URL is valid
-  useEffect(() => {
-    if (websiteUrl && websiteUrl.length > 10 && websiteUrl.includes('.') && websiteUrl !== existingCustomization?.customTheme?.websiteUrl) {
-      const timer = setTimeout(() => {
-        handleExtractMetadata();
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [websiteUrl]);
-
+  // Manual extraction only - no auto-extract
   const handleExtractMetadata = async () => {
     if (!websiteUrl || websiteUrl.length < 10) return;
     
@@ -73,6 +64,14 @@ const CustomizationComponent = () => {
         "/tenant/extract-metadata",
         { websiteUrl }
       );
+      console.log("Full extract response:", extractRes);
+
+    if (extractRes.metadata) {
+      console.log("Metadata fields available:", Object.keys(extractRes.metadata));
+      console.log("Has displayImage:", !!extractRes.metadata.displayImage);
+      console.log("Has logo:", !!extractRes.metadata.logo);
+      console.log("Has ogImage:", !!extractRes.metadata.ogImage);
+    }
 
       console.log("Extract metadata response:", extractRes);
 
@@ -88,13 +87,37 @@ const CustomizationComponent = () => {
         throw new Error("Unexpected response format from server");
       }
 
-      console.log("Extracted metadata:", metadata);
+    console.log("Final metadata being set:", metadata); // Add this line
       setExtractedData(metadata);
       
+      // Show which image was selected in the console
+      if (metadata.displayImage) {
+        console.log("Selected display image:", metadata.displayImage);
+        console.log("Available images:", {
+          logo: metadata.logo,
+          ogImage: metadata.ogImage,
+          twitterImage: metadata.twitterImage,
+          largeIcon: metadata.largeIcon,
+          favicon: metadata.favicon
+        });
+      }
+      
       // Auto-populate display name with extracted title (can be edited)
+      // BUT trim it to 25 characters if it's too long
       if (metadata.title && !displayName) {
-        setDisplayName(metadata.title);
-        setCharacterCount(metadata.title.length);
+        const title = metadata.title;
+        if (title.length > MAX_DISPLAY_NAME_LENGTH) {
+          // Show warning notification
+          notifications.show({
+            title: "Title Too Long",
+            message: `Website title "${title}" exceeds ${MAX_DISPLAY_NAME_LENGTH} characters. Please edit it before saving.`,
+            color: "orange",
+            icon: <IconX size={16} />,
+          });
+        }
+        // Set the display name (user can edit it if too long)
+        setDisplayName(title);
+        setCharacterCount(title.length);
       } else if (!metadata.title && !displayName) {
         // If no title extracted, suggest using the domain name
         const domainName = websiteUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
@@ -131,13 +154,36 @@ const CustomizationComponent = () => {
     }
   };
 
-  // Simple input handler
+  // Fixed input handler with focus preservation and character limit
   const handleDisplayNameChange = (e) => {
     const value = e.target.value;
+    
+    // Store cursor position before update
+    const cursorPosition = e.target.selectionStart;
+    
+    // Always allow typing, but enforce limit
     if (value.length <= MAX_DISPLAY_NAME_LENGTH) {
       setDisplayName(value);
       setCharacterCount(value.length);
+    } else {
+      // If user tries to type beyond limit, don't update but preserve cursor
+      setDisplayName(value.substring(0, MAX_DISPLAY_NAME_LENGTH));
+      setCharacterCount(MAX_DISPLAY_NAME_LENGTH);
     }
+    
+    // Restore cursor position after state update
+    setTimeout(() => {
+      if (displayNameInputRef.current) {
+        displayNameInputRef.current.focus();
+        const newCursorPosition = Math.min(cursorPosition, MAX_DISPLAY_NAME_LENGTH);
+        displayNameInputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+      }
+    }, 0);
+  };
+
+  // Check if display name is valid for saving
+  const isDisplayNameValid = () => {
+    return displayName.trim().length > 0 && displayName.length <= MAX_DISPLAY_NAME_LENGTH;
   };
 
   // Simple website URL handler
@@ -145,7 +191,7 @@ const CustomizationComponent = () => {
     setWebsiteUrl(e.target.value);
   };
 
-  // FIXED: Color selection handler
+  // Color selection handler
   const handleColorSelect = (color) => {
     setSelectedColor(color);
     setShowColorPicker(false);
@@ -177,58 +223,93 @@ const CustomizationComponent = () => {
     }
   };
 
-const handleUrlSubmit = async () => {
-  if (!displayName.trim()) return;
-  setSubmitting(true);
-  try {
-    console.log("Saving customization...");
-
-    // Use selected color as the primary color
-    const colors = selectedColor ? [selectedColor] : [];
-
-    // Use extracted data or create basic structure
-    const customTheme = extractedData ? {
-      ...extractedData,
-      displayName: displayName || extractedData.title,
-      websiteUrl: websiteUrl,
-      colors: colors
-    } : {
-      title: displayName,
-      displayName: displayName,
-      websiteUrl: websiteUrl,
-      colors: colors
-    };
-
-    // FIXED: Use consistent endpoint with PATCH/POST
-    let saveRes;
-    if (existingCustomization) {
-      saveRes = await ApiClient.patch("/tenant/customization", {
-        websiteUrl,
-        customTheme,
-        useCustomTheme: true,
-      });
-    } else {
-      saveRes = await ApiClient.post("/tenant/customization", {
-        websiteUrl,
-        customTheme,
-        useCustomTheme: true,
-      });
+  const handleUrlSubmit = async () => {
+    // Validate display name before submitting
+    if (!isDisplayNameValid()) {
+      if (displayName.length > MAX_DISPLAY_NAME_LENGTH) {
+        notifications.show({
+          title: "Display Name Too Long",
+          message: `Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or less. Current: ${displayName.length} characters.`,
+          color: "red",
+          icon: <IconX size={16} />,
+        });
+      }
+      return;
     }
+    
+    if (!displayName.trim()) return;
+    
+    setSubmitting(true);
+    try {
+      console.log("Saving customization...");
 
-    console.log("Save customization response:", saveRes);
+      // Use selected color as the primary color
+      const colors = selectedColor ? [selectedColor] : [];
 
-    // Rest of your code...
-  } catch (error) {
-    // Error handling...
-  } finally {
-    setSubmitting(false);
-  }
-};
+      // Use extracted data or create basic structure 
+      const customTheme = extractedData ? {
+        ...extractedData, // This now includes displayImage, logo, ogImage, etc.
+        displayName: displayName || extractedData.title,
+        websiteUrl: websiteUrl,
+        colors: colors
+      } : {
+        title: displayName,
+        displayName: displayName,
+        websiteUrl: websiteUrl,
+        colors: colors
+      };
+
+      // Use consistent endpoint with PATCH/POST
+      let saveRes;
+      if (existingCustomization) {
+        saveRes = await ApiClient.patch("/tenant/customization", {
+          websiteUrl,
+          customTheme,
+          useCustomTheme: true,
+        });
+      } else {
+        saveRes = await ApiClient.post("/tenant/customization", {
+          websiteUrl,
+          customTheme,
+          useCustomTheme: true,
+        });
+      }
+
+      console.log("Save customization response:", saveRes);
+
+      if (saveRes.success) {
+        notifications.show({
+          title: "Success",
+          message: existingCustomization ? "Branding updated successfully!" : "Customization saved successfully!",
+          color: "green",
+        });
+        setModalOpen(false);
+        // Reload to get updated data
+        loadExistingCustomization();
+      } else {
+        throw new Error(saveRes.message || "Failed to save customization");
+      }
+
+    } catch (error) {
+      console.error("Error saving customization:", error);
+      notifications.show({
+        title: "Error",
+        message: error.message || "Failed to save customization",
+        color: "red",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const PreviewComponent = () => {
     const primaryColor = selectedColor || existingCustomization?.customTheme?.colors?.[0] || '#6155F5';
     const agencyName = displayName || existingCustomization?.customTheme?.displayName || 'Your Agency';
 
+    const logoUrl = extractedData?.displayImage || 
+                  existingCustomization?.customTheme?.displayImage ||
+                  extractedData?.logo ||
+                  existingCustomization?.customTheme?.logo;
     return (
       <Card shadow="sm" padding="lg" style={{ border: '2px solid #e0e0e0', marginBottom: '1rem' }}>
         <Text size="lg" fw={500} mb="md">Live Preview</Text>
@@ -249,56 +330,70 @@ const handleUrlSubmit = async () => {
             padding: '16px 12px'
           }}>
             {/* Agency Logo */}
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '8px',
-              marginBottom: '8px'
-            }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '12px',
+            marginBottom: '8px'
+          }}>
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={agencyName}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '6px',
+                  objectFit: 'contain'
+                }}
+              />
+            ) : (
               <div style={{
-                width: '24px',
-                height: '24px',
+                width: '32px',
+                height: '32px',
                 backgroundColor: primaryColor,
-                borderRadius: '4px',
+                borderRadius: '6px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'white',
-                fontSize: '10px',
+                fontSize: '14px',
                 fontWeight: 'bold'
               }}>
                 {agencyName.charAt(0)}
               </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{
-                  fontSize: '18px',
-                  fontWeight: 700,
-                  color: primaryColor,
-                  lineHeight: 1.1,
-                }}>
-                  {agencyName}
-                </div>
+            )}
+            
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                fontSize: '18px',
+                fontWeight: 700,
+                color: primaryColor,
+                lineHeight: 1.1,
+              }}>
+                {agencyName}
               </div>
             </div>
+          </div>
 
-            {/* Tutiful branding */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 8px',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              borderRadius: '4px',
-            }}>
-              <Text size="xs" c="dimmed" style={{ fontSize: '9px' }}>
-                Powered by
-              </Text>
-              <Text size="xs" c="dimmed" style={{ fontSize: '9px', fontWeight: 500 }}>
-                Tutiful
-              </Text>
-            </div>
+          {/* Tutiful branding */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 8px',
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '4px',
+          }}>
+            <Text size="xs" c="dimmed" style={{ fontSize: '9px' }}>
+              Powered by
+            </Text>
+            <Text size="xs" c="dimmed" style={{ fontSize: '9px', fontWeight: 500 }}>
+              Tutiful
+            </Text>
           </div>
         </div>
+      </div>
 
         {/* Top Navbar Preview */}
         <div style={{ 
@@ -350,16 +445,20 @@ const handleUrlSubmit = async () => {
         </Text>
         
         <Stack spacing="md">
-          {/* Agency Name */}
+          {/* Agency Name - FIXED WITH REF */}
           <div>
             <Text size="sm" fw={500} mb="xs">Agency Name:</Text>
             <TextInput
+              ref={displayNameInputRef}
+              key={`agency-name-${displayName}`}
               value={displayName}
               onChange={handleDisplayNameChange}
               placeholder="Edit agency name..."
               maxLength={MAX_DISPLAY_NAME_LENGTH}
+              error={displayName.length > MAX_DISPLAY_NAME_LENGTH ? 
+                `Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or less` : null}
               rightSection={
-                <Text size="sm" c="dimmed">
+                <Text size="sm" c={displayName.length > MAX_DISPLAY_NAME_LENGTH ? "red" : "dimmed"}>
                   {characterCount}/{MAX_DISPLAY_NAME_LENGTH}
                 </Text>
               }
@@ -371,32 +470,51 @@ const handleUrlSubmit = async () => {
           </div>
 
           {/* Show extracted data summary */}
-          {hasExtractedData && (
+            {hasExtractedData && (
             <Card shadow="sm" padding="md" style={{ backgroundColor: '#f8f9fa' }}>
-              <Text size="sm" fw={500} mb="xs">Extracted Data:</Text>
-              <Stack spacing="xs">
+                <Text size="sm" fw={500} mb="xs">Extracted Data:</Text>
+                <Stack spacing="xs">
                 {extractedData.title && (
-                  <Text size="xs">Title: {extractedData.title}</Text>
+                    <Text size="xs">Title: {extractedData.title}</Text>
                 )}
-                {extractedData.favicon && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Text size="xs">Favicon:</Text>
+                
+                {/* Show the actual image that will be used */}
+                {extractedData.displayImage && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Text size="xs">Logo/Image:</Text>
                     <img 
-                      src={extractedData.favicon} 
-                      alt="Favicon" 
-                      style={{ width: '16px', height: '16px' }}
+                        src={extractedData.displayImage} 
+                        alt="Website Logo" 
+                        style={{ 
+                        width: '32px', 
+                        height: '32px',
+                        borderRadius: '4px',
+                        objectFit: 'contain'
+                        }}
                     />
-                  </div>
+                    <Text size="xs" c="dimmed">
+                        (Will be used in sidebar)
+                    </Text>
+                    </div>
                 )}
+                
+                {/* Show all available images for debugging */}
+                {extractedData.logo && extractedData.logo !== extractedData.displayImage && (
+                    <Text size="xs" c="dimmed">Also found logo: {extractedData.logo}</Text>
+                )}
+                {extractedData.ogImage && extractedData.ogImage !== extractedData.displayImage && (
+                    <Text size="xs" c="dimmed">Also found Open Graph image</Text>
+                )}
+                
                 {extractedData.description && (
-                  <Text size="xs" lineClamp={2}>Description: {extractedData.description}</Text>
+                    <Text size="xs" lineClamp={2}>Description: {extractedData.description}</Text>
                 )}
                 {availableColors.length === 0 && (
-                  <Text size="xs" c="orange">No brand colors detected</Text>
+                    <Text size="xs" c="orange">No brand colors detected</Text>
                 )}
-              </Stack>
+                </Stack>
             </Card>
-          )}
+            )}
 
           {/* Color Selection Section */}
           <div>
@@ -586,25 +704,32 @@ const handleUrlSubmit = async () => {
         size="lg"
       >
         <Stack spacing="md">
-          {/* Website URL Input - Always show for both new and edit */}
+          {/* Website URL Input - Manual extraction only */}
           <Card shadow="sm" padding="md">
             <Text size="sm" fw={500} mb="xs">
               {existingCustomization ? 'Update Your Website URL' : 'Start with your website URL:'}
             </Text>
-            <TextInput
-              placeholder="https://youragency.com"
-              value={websiteUrl}
-              onChange={handleWebsiteUrlChange}
-              rightSection={
-                loadingExtraction ? (
-                  <IconRefresh size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                ) : null
-              }
-            />
+            <Group>
+              <TextInput
+                placeholder="https://youragency.com"
+                value={websiteUrl}
+                onChange={handleWebsiteUrlChange}
+                style={{ flex: 1 }}
+              />
+              <Button
+                variant="outline"
+                onClick={handleExtractMetadata}
+                loading={loadingExtraction}
+                disabled={!websiteUrl || websiteUrl.length < 10}
+                leftSection={<IconDownload size={16} />}
+              >
+                Extract
+              </Button>
+            </Group>
             <Text size="xs" c="dimmed" mt={4}>
               {existingCustomization 
-                ? 'Update your website URL to extract new branding data'
-                : 'We\'ll automatically extract your branding and colors'
+                ? 'Update your website URL and click Extract to get new branding data'
+                : 'Enter your website URL and click Extract to get your branding automatically'
               }
             </Text>
           </Card>
@@ -617,14 +742,17 @@ const handleUrlSubmit = async () => {
             <Card shadow="sm" padding="md">
               <Text size="sm" fw={500} mb="xs">Or customize manually:</Text>
               <TextInput
+                ref={displayNameInputRef}
                 label="Agency Display Name"
                 description={`Maximum ${MAX_DISPLAY_NAME_LENGTH} characters`}
                 placeholder="Enter your agency display name..."
                 value={displayName}
                 onChange={handleDisplayNameChange}
                 maxLength={MAX_DISPLAY_NAME_LENGTH}
+                error={displayName.length > MAX_DISPLAY_NAME_LENGTH ? 
+                  `Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or less` : null}
                 rightSection={
-                  <Text size="sm" c="dimmed">
+                  <Text size="sm" c={displayName.length > MAX_DISPLAY_NAME_LENGTH ? "red" : "dimmed"}>
                     {characterCount}/{MAX_DISPLAY_NAME_LENGTH}
                   </Text>
                 }
@@ -635,10 +763,18 @@ const handleUrlSubmit = async () => {
           {/* Preview */}
           {previewMode && <PreviewComponent />}
 
-          {displayName.length > 20 && (
+          {displayName.length > 20 && displayName.length <= MAX_DISPLAY_NAME_LENGTH && (
             <Alert color="yellow">
               <Text size="sm">
                 Your display name is getting long. Consider a shorter version for better display.
+              </Text>
+            </Alert>
+          )}
+
+          {displayName.length > MAX_DISPLAY_NAME_LENGTH && (
+            <Alert color="red">
+              <Text size="sm">
+                Display name exceeds {MAX_DISPLAY_NAME_LENGTH} characters. Please shorten it before saving.
               </Text>
             </Alert>
           )}
@@ -675,7 +811,7 @@ const handleUrlSubmit = async () => {
                 leftSection={<IconCheck size={16} />}
                 onClick={handleUrlSubmit}
                 loading={submitting}
-                disabled={!displayName.trim()}
+                disabled={!isDisplayNameValid()}
               >
                 {submitting ? "Processing..." : existingCustomization ? "Update Branding" : "Save Customization"}
               </Button>
@@ -686,6 +822,7 @@ const handleUrlSubmit = async () => {
             <Text size="sm" c="dimmed">
               <strong>Tips:</strong>
               <br />• Keep display name under 20 characters for best appearance
+              <br />• Display name must be {MAX_DISPLAY_NAME_LENGTH} characters or less
               <br />• Choose from extracted brand colors or pick a custom color
               <br />• Use the color picker for precise color selection
               <br />• All fields are editable. Customize as needed

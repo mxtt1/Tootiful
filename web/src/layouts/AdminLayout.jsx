@@ -65,15 +65,6 @@ const AdminLayout = ({ children }) => {
       const title = config.customTheme.title || config.customTheme.displayName;
       document.title = `${title} - Tutiful Portal`;
     }
-    
-    // Apply favicon if available
-    if (config.customTheme.favicon) {
-      let link = document.querySelector("link[rel*='icon']") || document.createElement('link');
-      link.type = 'image/x-icon';
-      link.rel = 'shortcut icon';
-      link.href = config.customTheme.favicon;
-      document.getElementsByTagName('head')[0].appendChild(link);
-    }
   };
 
   const toggleSidebar = () => {
@@ -193,7 +184,7 @@ const AdminLayout = ({ children }) => {
     }
   };
 
-  // Get agency display name for sidebar
+  // Get agency display name for fallback
   const getAgencyDisplayName = () => {
     if (tenantConfig?.customTheme?.displayName) {
       return tenantConfig.customTheme.displayName;
@@ -204,10 +195,18 @@ const AdminLayout = ({ children }) => {
     return "MindFlex";
   };
 
-  // Get agency initials for collapsed sidebar
-  const getAgencyInitials = () => {
-    const name = getAgencyDisplayName();
-    return name.charAt(0).toUpperCase();
+  // Get the best available logo image (prioritizes high-quality images)
+  const getLogoUrl = () => {
+    const customTheme = tenantConfig?.customTheme;
+    if (!customTheme) return null;
+      
+    // Priority order: displayImage > logo > ogImage > twitterImage > largeIcon > favicon
+    return customTheme.displayImage || 
+          customTheme.logo || 
+          customTheme.ogImage || 
+          customTheme.twitterImage ||
+          customTheme.largeIcon || 
+          customTheme.favicon;
   };
 
   const getUserRoleDisplay = () => {
@@ -245,85 +244,135 @@ const AdminLayout = ({ children }) => {
       <div 
         className={`admin-sidebar ${sidebarCollapsed ? "collapsed" : ""}`}
         style={{
-          // Apply agency color to sidebar accent
           '--sidebar-accent': tenantConfig?.customTheme?.colors?.[0] || '#6155F5'
         }}
       >
-        {/* Logo Section - Updated to show agency name */}
+        {/* Logo Section - Only logo image, no agency name */}
         <div className="sidebar-logo">
+          {/* Expanded sidebar - Large centered logo */}
           {!sidebarCollapsed && (
             <div style={{ 
               display: 'flex', 
               flexDirection: 'column', 
               alignItems: 'center',
-              gap: '8px',
-              padding: '16px 12px'
+              justifyContent: 'center',
+              padding: '20px 16px',
+              gap: '12px',
+              minHeight: '120px'
             }}>
-              {/* Agency Logo - Uses customization data */}
-              <div style={{ textAlign: 'center' }}>
-                <div style={{
-                  fontSize: '22px',
-                  fontWeight: 700,
-                  color: 'var(--sidebar-accent)',
-                  lineHeight: 1.1,
-                  marginBottom: '2px'
-                }}>
-                  {getAgencyDisplayName()}
-                </div>
-                <Text 
-                  size="xs" 
-                  style={{ 
-                    color: 'var(--sidebar-accent)',
-                    fontWeight: 500,
-                    opacity: 0.8,
-                    fontSize: '10px'
+              {/* Large centered logo */}
+              {getLogoUrl() ? (
+                <img
+                  src={getLogoUrl()}
+                  alt={getAgencyDisplayName()}
+                  style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '12px',
+                    objectFit: 'contain'
                   }}
-                  lineClamp={2}
+                  onError={(e) => {
+                    // Fallback to colored initial if image fails to load
+                    e.target.style.display = 'none';
+                  }}
+                />
+              ) : null}
+              
+              {/* Fallback to large colored initial if no logo or logo fails */}
+              {(!getLogoUrl() || !tenantConfig?.customTheme) && (
+                <div 
+                  style={{
+                    width: '64px',
+                    height: '64px',
+                    backgroundColor: 'var(--sidebar-accent)',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: '24px',
+                    fontWeight: 'bold'
+                  }}
                 >
-                  {tenantConfig?.customTheme?.description || 'Home Tuition Agency'}
-                </Text>
-              </div>
+                  {getAgencyDisplayName().charAt(0).toUpperCase()}
+                </div>
+              )}
 
-              {/* Tutiful Logo - Smaller and positioned as parent company */}
+              {/* Tutiful branding - smaller and subtle */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '6px 8px',
+                padding: '6px 10px',
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                borderRadius: '4px',
-                marginTop: '4px'
+                borderRadius: '6px',
               }}>
-                <Text size="xs" c="dimmed" style={{ fontSize: '9px' }}>
+                <Text size="xs" c="dimmed" style={{ fontSize: '10px' }}>
                   Powered by
                 </Text>
                 <img
                   src="/src/assets/tooty.png"
                   alt="Tutiful"
                   style={{ 
-                    width: '14px', 
-                    height: '14px',
+                    width: '16px', 
+                    height: '16px',
                     objectFit: 'contain'
                   }}
                 />
-                <Text size="xs" c="dimmed" style={{ fontSize: '9px', fontWeight: 500 }}>
+                <Text size="xs" c="dimmed" style={{ fontSize: '10px', fontWeight: 500 }}>
                   Tutiful
                 </Text>
               </div>
             </div>
           )}
           
-          {/* Collapsed state - Show agency initial */}
+          {/* Collapsed state - Medium centered logo */}
           {sidebarCollapsed && (
-            <div style={{ textAlign: 'center', padding: '16px 8px' }}>
-              <div style={{
-                fontSize: '16px',
-                fontWeight: 700,
-                color: 'var(--sidebar-accent)',
-                lineHeight: 1
-              }}>
-                {getAgencyInitials()}
-              </div>
+            <div style={{ 
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px 8px',
+              gap: '8px',
+              minHeight: '80px'
+            }}>
+              {getLogoUrl() ? (
+                <img
+                  src={getLogoUrl()}
+                  alt={getAgencyDisplayName()}
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '8px',
+                    objectFit: 'contain'
+                  }}
+                  onError={(e) => {
+                    // Fallback to colored initial if image fails to load
+                    e.target.style.display = 'none';
+                  }}
+                />
+              ) : null}
+              
+              {/* Fallback to colored initial if no logo */}
+              {(!getLogoUrl() || !tenantConfig?.customTheme) && (
+                <div 
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    backgroundColor: 'var(--sidebar-accent)',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: '16px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {getAgencyDisplayName().charAt(0).toUpperCase()}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -392,7 +441,6 @@ const AdminLayout = ({ children }) => {
                 <Text size="lg" fw={600}>
                   {getPanelTitle()}
                 </Text>
-                {/* Removed the "Powered by Tutiful" text from top navbar */}
               </div>
             </Group>
 
