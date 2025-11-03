@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Text,
   Group,
@@ -17,17 +17,64 @@ import {
   IconMenu2,
   IconBuilding,
   IconSettings,
-  IconCalendar, // Add this line
-  IconCurrencyDollar, // Add this line
+  IconCalendar,
+  IconCurrencyDollar,
 } from "@tabler/icons-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
+import ApiClient from "../api/apiClient";
 
 const AdminLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, loading } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [tenantConfig, setTenantConfig] = useState(null);
+  
+  useEffect(() => {
+    const loadTenantConfig = async () => {
+      try {
+        const response = await ApiClient.get("/tenant/config");
+        if (response.success && response.config) {
+          setTenantConfig(response.config);
+          applyCustomizations(response.config);
+        }
+      } catch (error) {
+        console.error("Failed to load tenant config:", error);
+      }
+    };
+    
+    loadTenantConfig();
+  }, []);
+
+  const applyCustomizations = (config) => {
+    if (!config.customTheme) return;
+    
+    console.log("Applying customizations:", config.customTheme);
+    
+    // Apply colors to CSS variables
+    const colors = config.customTheme.colors || [];
+    if (colors[0]) {
+      document.documentElement.style.setProperty('--mantine-primary-color', colors[0]);
+      document.documentElement.style.setProperty('--agency-primary', colors[0]);
+      document.documentElement.style.setProperty('--sidebar-accent', colors[0]);
+    }
+    
+    // Apply title with both names
+    if (config.customTheme.title || config.customTheme.displayName) {
+      const title = config.customTheme.title || config.customTheme.displayName;
+      document.title = `${title} - Tutiful Portal`;
+    }
+    
+    // Apply favicon if available
+    if (config.customTheme.favicon) {
+      let link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+      link.type = 'image/x-icon';
+      link.rel = 'shortcut icon';
+      link.href = config.customTheme.favicon;
+      document.getElementsByTagName('head')[0].appendChild(link);
+    }
+  };
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
@@ -74,12 +121,12 @@ const AdminLayout = ({ children }) => {
         },
         {
           label: "Lesson Management",
-          icon: IconCalendar, // or any appropriate icon
+          icon: IconCalendar,
           path: "/agency/lessons",
         },
         {
           label: "Tutor Payments",
-          icon: IconCurrencyDollar, // or any appropriate icon
+          icon: IconCurrencyDollar,
           path: "/agency/tutor-payments",
         }
       ];
@@ -124,7 +171,17 @@ const AdminLayout = ({ children }) => {
     return "A";
   };
 
+  // Show agency name from customization
   const getPanelTitle = () => {
+    // Show agency name if customization exists
+    if (tenantConfig?.customTheme?.displayName) {
+      return tenantConfig.customTheme.displayName;
+    }
+    if (tenantConfig?.customTheme?.title) {
+      return tenantConfig.customTheme.title;
+    }
+    
+    // Fallback to original titles
     if (user?.role === "admin") {
       return "Admin Panel";
     } else if (user?.userType === "agencyAdmin") {
@@ -134,6 +191,23 @@ const AdminLayout = ({ children }) => {
     } else {
       return "Agency Panel";
     }
+  };
+
+  // Get agency display name for sidebar
+  const getAgencyDisplayName = () => {
+    if (tenantConfig?.customTheme?.displayName) {
+      return tenantConfig.customTheme.displayName;
+    }
+    if (tenantConfig?.customTheme?.title) {
+      return tenantConfig.customTheme.title;
+    }
+    return "MindFlex";
+  };
+
+  // Get agency initials for collapsed sidebar
+  const getAgencyInitials = () => {
+    const name = getAgencyDisplayName();
+    return name.charAt(0).toUpperCase();
   };
 
   const getUserRoleDisplay = () => {
@@ -168,15 +242,89 @@ const AdminLayout = ({ children }) => {
   return (
     <div className="admin-layout">
       {/* Sidebar */}
-      <div className={`admin-sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
-        {/* Logo */}
+      <div 
+        className={`admin-sidebar ${sidebarCollapsed ? "collapsed" : ""}`}
+        style={{
+          // Apply agency color to sidebar accent
+          '--sidebar-accent': tenantConfig?.customTheme?.colors?.[0] || '#6155F5'
+        }}
+      >
+        {/* Logo Section - Updated to show agency name */}
         <div className="sidebar-logo">
           {!sidebarCollapsed && (
-            <img
-              src="/src/assets/tooty.png"
-              alt="Tutiful"
-              className="sidebar-logo-img"
-            />
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center',
+              gap: '8px',
+              padding: '16px 12px'
+            }}>
+              {/* Agency Logo - Uses customization data */}
+              <div style={{ textAlign: 'center' }}>
+                <div style={{
+                  fontSize: '22px',
+                  fontWeight: 700,
+                  color: 'var(--sidebar-accent)',
+                  lineHeight: 1.1,
+                  marginBottom: '2px'
+                }}>
+                  {getAgencyDisplayName()}
+                </div>
+                <Text 
+                  size="xs" 
+                  style={{ 
+                    color: 'var(--sidebar-accent)',
+                    fontWeight: 500,
+                    opacity: 0.8,
+                    fontSize: '10px'
+                  }}
+                  lineClamp={2}
+                >
+                  {tenantConfig?.customTheme?.description || 'Home Tuition Agency'}
+                </Text>
+              </div>
+
+              {/* Tutiful Logo - Smaller and positioned as parent company */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 8px',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '4px',
+                marginTop: '4px'
+              }}>
+                <Text size="xs" c="dimmed" style={{ fontSize: '9px' }}>
+                  Powered by
+                </Text>
+                <img
+                  src="/src/assets/tooty.png"
+                  alt="Tutiful"
+                  style={{ 
+                    width: '14px', 
+                    height: '14px',
+                    objectFit: 'contain'
+                  }}
+                />
+                <Text size="xs" c="dimmed" style={{ fontSize: '9px', fontWeight: 500 }}>
+                  Tutiful
+                </Text>
+              </div>
+            </div>
+          )}
+          
+          {/* Collapsed state - Show agency initial */}
+          {sidebarCollapsed && (
+            <div style={{ textAlign: 'center', padding: '16px 8px' }}>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'var(--sidebar-accent)',
+                lineHeight: 1
+              }}>
+                {getAgencyInitials()}
+              </div>
+            </div>
           )}
         </div>
 
@@ -192,6 +340,10 @@ const AdminLayout = ({ children }) => {
                 className={`nav-item ${isActive ? "active" : ""}`}
                 onClick={() => navigate(item.path)}
                 title={sidebarCollapsed ? item.label : ""}
+                style={{
+                  // Active state uses agency color
+                  backgroundColor: isActive ? 'var(--sidebar-accent)' : 'transparent',
+                }}
               >
                 <Icon className="nav-icon" />
                 {!sidebarCollapsed && <span>{item.label}</span>}
@@ -218,7 +370,13 @@ const AdminLayout = ({ children }) => {
         className={`admin-main ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
       >
         {/* Header */}
-        <header className="admin-header">
+        <header className="admin-header"
+          style={{
+            borderBottomColor: tenantConfig?.customTheme?.colors?.[0] ? 
+              `color-mix(in srgb, ${tenantConfig.customTheme.colors[0]} 20%, transparent)` : 
+              undefined
+          }}
+        >
           <Group justify="space-between" style={{ width: "100%" }}>
             <Group>
               <ActionIcon
@@ -230,9 +388,12 @@ const AdminLayout = ({ children }) => {
               >
                 <IconMenu2 size={18} />
               </ActionIcon>
-              <Text size="lg" fw={600}>
-                {getPanelTitle()}
-              </Text>
+              <div>
+                <Text size="lg" fw={600}>
+                  {getPanelTitle()}
+                </Text>
+                {/* Removed the "Powered by Tutiful" text from top navbar */}
+              </div>
             </Group>
 
             {/* User Menu */}
@@ -240,7 +401,14 @@ const AdminLayout = ({ children }) => {
               <Menu.Target>
                 <UnstyledButton className="user-menu">
                   <Group gap="sm">
-                    <Avatar color="violet" radius="xl" size="sm">
+                    <Avatar 
+                      color={tenantConfig?.customTheme?.colors?.[0] ? undefined : "violet"}
+                      style={{
+                        backgroundColor: tenantConfig?.customTheme?.colors?.[0] || undefined
+                      }}
+                      radius="xl" 
+                      size="sm"
+                    >
                       {getUserInitials()}
                     </Avatar>
                     <Box style={{ flex: 1 }}>
