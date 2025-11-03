@@ -34,19 +34,21 @@ export default function AgencyProfile() {
   const [personalEditMode, setPersonalEditMode] = useState(false);
   const [agencyEditMode, setAgencyEditMode] = useState(false);
   const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [locationToDelete, setLocationToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   // State for personal details with initial data tracking
-  // so if the user tries to edit before data loads, change detection wont fail
   const [personalDetails, setPersonalDetails] = useState({
     firstName: "",
     lastName: "",
     email: "",
     phone: "",
     role: "",
-    isActive: true, // email verified?
+    isActive: true,
   });
   const COOLDOWN = 60;
   const [resendLeft, setResendLeft] = useState(0);
@@ -83,7 +85,7 @@ export default function AgencyProfile() {
       };
 
       setPersonalDetails(personalData);
-      setInitialPersonalData(personalData); // Store initial data for comparison
+      setInitialPersonalData(personalData);
     } catch (err) {
       setError("Failed to load personal details");
       console.error("Personal details fetch error:", err);
@@ -94,12 +96,10 @@ export default function AgencyProfile() {
   const fetchAgencyInfo = async () => {
     try {
       if (user.agencyId) {
-        // Fetch agency details
         const agencyResponse = await apiClient.get(
           `/agencies/${user.agencyId}`
         );
 
-        // Fetch locations of that agency
         const locationsResponse = await apiClient.get(
           `/agencies/${user.agencyId}/locations`
         );
@@ -122,7 +122,7 @@ export default function AgencyProfile() {
         };
 
         setAgencyInfo(agencyData);
-        setInitialAgencyData(agencyData); // Store initial data for comparison
+        setInitialAgencyData(agencyData);
       }
     } catch (err) {
       setError("Failed to load agency information");
@@ -158,13 +158,12 @@ export default function AgencyProfile() {
     return () => clearInterval(t);
   }, [resendLeft]);
 
-  // OPTIMIZED: Personal Details Handler - Only send changed fields
+  // Personal Details Handler
   const handlePersonalSave = async () => {
     setSaving(true);
     setError("");
 
     try {
-      // Create update object with only changed fields
       const editable = ["firstName", "lastName", "email", "phone"];
       const updateData = {};
       for (const key of editable) {
@@ -181,7 +180,6 @@ export default function AgencyProfile() {
         }
       }
 
-      // Check if there are any changes
       if (Object.keys(updateData).length === 0) {
         notifications.show({
           title: "No Changes",
@@ -208,7 +206,6 @@ export default function AgencyProfile() {
         icon: <IconCheck size={16} />,
       });
 
-      // Update both current and initial data
       await fetchPersonalDetails();
       setPersonalEditMode(false);
     } catch (err) {
@@ -228,32 +225,28 @@ export default function AgencyProfile() {
   };
 
   const handlePersonalCancel = () => {
-    // Reset to initial data
     setPersonalDetails(initialPersonalData);
     setPersonalEditMode(false);
     setError("");
   };
 
-  // OPTIMIZED: Agency Info Handler - Only send changed fields
+  // Agency Info Handler
   const handleAgencySave = async () => {
     setSaving(true);
     setError("");
 
     try {
-      // Create update object with only changed fields
       const updateData = {};
       Object.keys(agencyInfo).forEach((key) => {
-        // Only include editable fields (exclude locations and isActive)
         if (
           ["name", "email", "phone", "aboutUs"].includes(key) &&
           agencyInfo[key] !== initialAgencyData[key]
         ) {
-          // Only include phone if it has a value
           if (key === "phone") {
             if (agencyInfo[key].trim()) {
               updateData[key] = agencyInfo[key].trim();
             } else {
-              updateData[key] = null; // Send null for empty phone
+              updateData[key] = null;
             }
           } else {
             updateData[key] = agencyInfo[key].trim();
@@ -261,7 +254,6 @@ export default function AgencyProfile() {
         }
       });
 
-      // Check if there are any changes
       if (Object.keys(updateData).length === 0) {
         notifications.show({
           title: "No Changes",
@@ -288,7 +280,6 @@ export default function AgencyProfile() {
         icon: <IconCheck size={16} />,
       });
 
-      // Update both current and initial data
       const updatedAgencyData = {
         ...agencyInfo,
         name: response.name || agencyInfo.name,
@@ -298,7 +289,7 @@ export default function AgencyProfile() {
       };
 
       setAgencyInfo(updatedAgencyData);
-      setInitialAgencyData(updatedAgencyData); // Update initial data
+      setInitialAgencyData(updatedAgencyData);
       setAgencyEditMode(false);
     } catch (err) {
       console.error("❌ Agency update error:", err);
@@ -317,7 +308,6 @@ export default function AgencyProfile() {
   };
 
   const handleAgencyCancel = () => {
-    // Reset to initial data
     setAgencyInfo(initialAgencyData);
     setAgencyEditMode(false);
     setError("");
@@ -373,15 +363,32 @@ export default function AgencyProfile() {
     }
   };
 
-  const handleDeleteLocation = async (locationId) => {
+  // Open delete confirmation modal
+  const handleDeleteClick = (location) => {
+    setLocationToDelete(location);
+    setDeleteModalOpen(true);
+  };
+
+  // Close delete confirmation modal
+  const handleCancelDelete = () => {
+    setDeleteModalOpen(false);
+    setLocationToDelete(null);
+    setDeleting(false);
+  };
+
+  // Confirm and execute location deletion
+  const handleConfirmDelete = async () => {
+    if (!locationToDelete) return;
+
+    setDeleting(true);
     try {
       await apiClient.delete(
-        `/agencies/${user.agencyId}/locations/${locationId}`
+        `/agencies/${user.agencyId}/locations/${locationToDelete.id}`
       );
 
       setAgencyInfo((prev) => ({
         ...prev,
-        locations: prev.locations.filter((loc) => loc.id !== locationId),
+        locations: prev.locations.filter((loc) => loc.id !== locationToDelete.id),
       }));
 
       notifications.show({
@@ -410,6 +417,10 @@ export default function AgencyProfile() {
           icon: <IconX size={16} />,
         });
       }
+    } finally {
+      setDeleting(false);
+      setDeleteModalOpen(false);
+      setLocationToDelete(null);
     }
   };
 
@@ -419,7 +430,7 @@ export default function AgencyProfile() {
     } else {
       setAgencyInfo((prev) => ({ ...prev, [field]: value }));
     }
-    if (error) setError(""); // Clears errors when user starts typing
+    if (error) setError("");
   };
 
   const handleResendVerification = async () => {
@@ -430,7 +441,6 @@ export default function AgencyProfile() {
         email: to,
       });
 
-      // If API returns an ok flag, honor it; otherwise fall back to default cooldown
       if (res?.ok === false && typeof res?.message === "string") {
         const m = res.message.match(/(\d+)s/i);
         if (m) setResendLeft(parseInt(m[1], 10));
@@ -443,7 +453,6 @@ export default function AgencyProfile() {
         return;
       }
 
-      // success (or silent success): start default cooldown
       const retryMs = res?.retryInMs ?? 0;
       const seconds = Math.max(
         1,
@@ -849,9 +858,7 @@ export default function AgencyProfile() {
                               <ActionIcon
                                 color="red"
                                 variant="subtle"
-                                onClick={() =>
-                                  handleDeleteLocation(location.id)
-                                }
+                                onClick={() => handleDeleteClick(location)}
                               >
                                 <IconTrash size={16} />
                               </ActionIcon>
@@ -883,7 +890,7 @@ export default function AgencyProfile() {
         </Stack>
       </Card>
 
-      {/* Location Modal */}
+      {/* Add Location Modal */}
       <Modal
         opened={locationModalOpen}
         onClose={() => setLocationModalOpen(false)}
@@ -912,6 +919,42 @@ export default function AgencyProfile() {
               leftSection={<IconPlus size={16} />}
             >
               Add Location
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        opened={deleteModalOpen}
+        onClose={handleCancelDelete}
+        title="Delete Location"
+        size="md"
+      >
+        <Stack spacing="md">
+          <Text>
+            Are you sure you want to delete the location{" "}
+            <Text component="span" fw={600}>
+              "{locationToDelete?.address}"
+            </Text>
+            ? This action cannot be undone.
+          </Text>
+
+          <Group justify="flex-end" mt="md">
+            <Button
+              variant="subtle"
+              onClick={handleCancelDelete}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              onClick={handleConfirmDelete}
+              loading={deleting}
+              leftSection={<IconTrash size={16} />}
+            >
+              Delete Location
             </Button>
           </Group>
         </Stack>
