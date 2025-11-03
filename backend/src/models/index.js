@@ -4,6 +4,7 @@ import Attendance from './attendance.model.js';
 import StudentLesson from './studentLesson.model.js';
 import StudentPayment from './studentPayment.model.js';
 import TutorPayment from './tutorPayment.model.js';
+import GeneratedPaper from './generatedPaper.model.js';
 
 // StudentLesson direct associations
 StudentLesson.belongsTo(User, { foreignKey: 'studentId', as: 'student' });
@@ -49,6 +50,14 @@ TutorPayment.belongsTo(Attendance, { foreignKey: tutorPaymentForeignKey, as: 'at
 // Tutor-TutorPayment association
 User.hasMany(TutorPayment, { foreignKey: 'tutorId', as: 'tutorPayments' });
 TutorPayment.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
+
+// Tutor-GeneratedPaper association
+User.hasMany(GeneratedPaper, { foreignKey: 'tutorId', as: 'generatedPapers' });
+GeneratedPaper.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
+
+// Subject-GeneratedPaper association
+Subject.hasMany(GeneratedPaper, { foreignKey: 'subjectId', as: 'generatedPapers' });
+GeneratedPaper.belongsTo(Subject, { foreignKey: 'subjectId', as: 'subject' });
 
 import Sequelize, { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
@@ -157,6 +166,7 @@ User.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 Agency.hasMany(Location, { foreignKey: 'agencyId', as: 'locations' });
 Location.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
 
-export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Location, Sequelize, sequelize, EmailVerificationToken, Lesson, Attendance, StudentLesson, StudentPayment, TutorPayment, TenantConfig };
+export { User, Subject, TutorSubject, Agency, PasswordResetToken, RefreshToken, Location, Sequelize, sequelize, EmailVerificationToken, Lesson, Attendance, StudentLesson, StudentPayment, TutorPayment, TenantConfig, GeneratedPaper };
+
 
 
