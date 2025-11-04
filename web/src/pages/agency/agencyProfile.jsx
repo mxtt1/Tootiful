@@ -160,6 +160,16 @@ export default function AgencyProfile() {
     return () => clearInterval(t);
   }, [resendLeft]);
 
+  useEffect(() => {
+    const handleCustomizationUpdate = () => {
+      console.log("Customization update received in AgencyProfile - refreshing data");
+      fetchAllData();
+    };
+
+    window.addEventListener('customizationUpdated', handleCustomizationUpdate);
+    return () => window.removeEventListener('customizationUpdated', handleCustomizationUpdate);
+  }, []);
+
   // Personal Details Handler
   const handlePersonalSave = async () => {
     setSaving(true);

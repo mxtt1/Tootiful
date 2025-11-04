@@ -33,23 +33,28 @@ const AdminLayout = ({ children }) => {
 
   // Apply custom theme colors and title - ONLY these, no favicon changes
   const applyCustomizations = (config) => {
-    if (!config.customTheme) return;
-    
-    const colors = config.customTheme.colors || [];
-    if (colors[0]) {
-      document.documentElement.style.setProperty('--mantine-primary-color', colors[0]);
-      document.documentElement.style.setProperty('--agency-primary', colors[0]);
-      document.documentElement.style.setProperty('--sidebar-accent', colors[0]);
-    }
-    
-    // Only update the page title, DO NOT touch favicon
-    if (config.customTheme.title || config.customTheme.displayName) {
-      const title = config.customTheme.title || config.customTheme.displayName;
-      document.title = `${title} - Tutiful Portal`;
-    }
-    
-    // EXPLICITLY PREVENT favicon from being applied to browser tab
-    // We'll use the images for sidebar display only
+      if (!config.customTheme) return;
+      
+      const colors = config.customTheme.colors || [];
+      if (colors[0]) {
+        document.documentElement.style.setProperty('--mantine-primary-color', colors[0]);
+        document.documentElement.style.setProperty('--agency-primary', colors[0]);
+        document.documentElement.style.setProperty('--sidebar-accent', colors[0]);
+      }
+      
+      // Only update the page title, dont touch favicon
+      if (config.customTheme.title || config.customTheme.displayName) {
+        const title = config.customTheme.title || config.customTheme.displayName;
+        document.title = `${title} - Tutiful Portal`;
+      }
+      
+      // Debug log to see what images are available
+      console.log("Available customization images:", {
+          selectedImage: config.customTheme.selectedImage,
+          displayImage: config.customTheme.displayImage,
+          logo: config.customTheme.logo,
+          agencyImage: config.image // From agency model
+      });
   };
 
   // Load tenant customization configuration
@@ -76,7 +81,8 @@ const AdminLayout = ({ children }) => {
             customTheme: agencyData.customTheme,
             useCustomTheme: agencyData.useCustomTheme,
             metadata: agencyData.metadata,
-            websiteUrl: agencyData.websiteUrl
+            websiteUrl: agencyData.websiteUrl,
+            image: agencyData.image
           };
           
           setTenantConfig(config);
@@ -109,7 +115,8 @@ const AdminLayout = ({ children }) => {
             customTheme: agencyData.customTheme,
             useCustomTheme: agencyData.useCustomTheme,
             metadata: agencyData.metadata,
-            websiteUrl: agencyData.websiteUrl
+            websiteUrl: agencyData.websiteUrl,
+            image: agencyData.image
           };
           
           setTenantConfig(config);
@@ -205,7 +212,8 @@ const AdminLayout = ({ children }) => {
     if (!customTheme) return null;
       
     // Priority order for sidebar logo display (includes favicon for display purposes)
-    return customTheme.displayImage || 
+    return customTheme.selectedImage || // ADD THIS: Use selected image first
+           customTheme.displayImage || 
            customTheme.logo || 
            customTheme.ogImage || 
            customTheme.twitterImage ||
