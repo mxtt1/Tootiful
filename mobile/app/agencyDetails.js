@@ -24,17 +24,19 @@ export default function AgencyDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedSubjects, setExpandedSubjects] = useState({});
+  const [brandColors, setBrandColors] = useState(null);
 
   useEffect(() => {
     if (id) {
       fetchAgencyDetails();
+      fetchBrandCustomization();
     }
   }, [id]);
 
   const fetchAgencyDetails = async () => {
     try {
       setLoading(true);
-      setError(null);
+      setError(null);agencyDetails
 
       console.log("🔄 Fetching agency details for ID:", id);
 
@@ -58,6 +60,17 @@ export default function AgencyDetailsScreen() {
       setError("Failed to load agency details. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBrandCustomization = async () => {
+    try {
+      const response = await agencyService.getAgencyCustomization(id);
+      if (response.success && response.config) {
+        setBrandColors(response.config.customTheme?.colors || []);
+      }
+    } catch (error) {
+      console.log("No brand customization found or error:", error);
     }
   };
 
@@ -121,6 +134,10 @@ export default function AgencyDetailsScreen() {
     return name.substring(0, 2).toUpperCase();
   };
 
+  const getPrimaryColor = () => {
+    return brandColors && brandColors.length > 0 ? brandColors[0] : '#8B5CF6';
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -158,7 +175,7 @@ export default function AgencyDetailsScreen() {
             onPress={() => router.back()}
             style={styles.backButton}
           >
-            <Ionicons name="arrow-back" size={24} color="#8B5CF6" />
+            <Ionicons name="arrow-back" size={24} color={getPrimaryColor()} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Agency Details</Text>
         </View>
@@ -184,7 +201,7 @@ export default function AgencyDetailsScreen() {
                 </Text>
               </View>
             )}
-            <Text style={styles.agencyName}>{agency.name}</Text>
+            <Text style={[styles.agencyName, { color: getPrimaryColor() }]}>{agency.name}</Text>
             <Text style={styles.agencyEmail}>{agency.email}</Text>
             {agency.phone && (
               <Text style={styles.agencyPhone}>{agency.phone}</Text>
@@ -209,7 +226,7 @@ export default function AgencyDetailsScreen() {
                     <Ionicons
                       name="location-outline"
                       size={20}
-                      color="#8B5CF6"
+                      color={getPrimaryColor()}
                     />
                   </View>
                   <Text style={styles.locationText}>{location.address}</Text>
@@ -247,7 +264,7 @@ export default function AgencyDetailsScreen() {
                             : "chevron-down"
                         }
                         size={20}
-                        color="#8B5CF6"
+                        color={getPrimaryColor()}
                       />
                     </TouchableOpacity>
 
@@ -331,10 +348,7 @@ export default function AgencyDetailsScreen() {
                             </View>
 
                             {lesson.isActive && (
-                              <TouchableOpacity
-                                style={styles.enrollButton}
-                                onPress={() => handleEnrollInLesson(lesson)}
-                              >
+                              <TouchableOpacity style={[styles.enrollButton, { backgroundColor: getPrimaryColor() }]} onPress={() => handleEnrollInLesson(lesson)}>
                                 <Text style={styles.enrollButtonText}>
                                   Enroll Now
                                 </Text>

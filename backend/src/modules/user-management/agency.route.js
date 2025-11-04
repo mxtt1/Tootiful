@@ -139,4 +139,42 @@ router.delete(
   })
 );
 
+// BRAND CUSTOMISATION ROUTES
+
+// POST /api/agencies/customization/extract-metadata - Extract metadata from agency website
+router.post(
+  '/customization/extract-metadata', 
+  authenticateToken, 
+  asyncHandler(async (req, res) => {
+    await agencyService.handleExtractMetadata(req, res);
+  })
+);
+
+// POST /api/agencies/customization - Save or update customization
+router.post(
+  '/customization', 
+  authenticateToken, 
+  asyncHandler(async (req, res) => {
+    await agencyService.handleSaveCustomization(req, res);
+  })
+);
+
+// GET /api/agencies/customization - Get customization config 
+router.get(
+  '/customization', 
+  authenticateToken, 
+  asyncHandler(async (req, res) => {
+    await agencyService.handleGetCustomization(req, res);
+  })
+);
+
+// DELETE /api/agencies/customization - Reset customization to default
+router.delete(
+  '/customization', 
+  authenticateToken, 
+  asyncHandler(async (req, res) => {
+    await agencyService.handleResetCustomization(req, res);
+  })
+);
+
 export default router;

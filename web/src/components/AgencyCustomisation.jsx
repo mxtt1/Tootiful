@@ -1,54 +1,147 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, TextInput, Button, Text, Alert, Card, Group, Stack, Grid, ColorSwatch, Select, ColorPicker } from "@mantine/core";
-import { IconPlus, IconCheck, IconX, IconEye, IconDownload, IconRefresh, IconEdit, IconColorPicker } from "@tabler/icons-react";
+import { Modal, TextInput, Button, Text, Alert, Card, Group, Stack, Grid, ColorSwatch, Select, ColorPicker, Textarea, SimpleGrid, Image } from "@mantine/core";
+import { IconPlus, IconCheck, IconX, IconEye, IconDownload, IconRefresh, IconEdit, IconColorPicker, IconInfoCircle, IconTrash } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import ApiClient from "../api/apiClient";
 
 const CustomizationComponent = () => {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [websiteUrl, setWebsiteUrl] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
-  const [displayName, setDisplayName] = useState("");
-  const [characterCount, setCharacterCount] = useState(0);
-  const [extractedData, setExtractedData] = useState(null);
-  const [loadingExtraction, setLoadingExtraction] = useState(false);
-  const [existingCustomization, setExistingCustomization] = useState(null);
-  const [selectedColor, setSelectedColor] = useState("");
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [customColor, setCustomColor] = useState("");
-  
+    const [modalOpen, setModalOpen] = useState(false);
+    const [websiteUrl, setWebsiteUrl] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+    const [previewMode, setPreviewMode] = useState(false);
+    const [displayName, setDisplayName] = useState("");
+    const [characterCount, setCharacterCount] = useState(0);
+    const [extractedData, setExtractedData] = useState(null);
+    const [loadingExtraction, setLoadingExtraction] = useState(false);
+    const [existingCustomization, setExistingCustomization] = useState(null);
+    const [selectedColor, setSelectedColor] = useState("");
+    const [showColorPicker, setShowColorPicker] = useState(false);
+    const [customColor, setCustomColor] = useState("");
+    const [agencyName, setAgencyName] = useState("");
+    const [agencyDescription, setAgencyDescription] = useState("");
+    const [originalAgencyData, setOriginalAgencyData] = useState(null);
+    const [selectedImage, setSelectedImage] = useState("");
+    const [availableImages, setAvailableImages] = useState([]);
+
   const MAX_DISPLAY_NAME_LENGTH = 25;
   const displayNameInputRef = useRef(null);
 
   // Load existing customization when component mounts
   useEffect(() => {
     loadExistingCustomization();
+    
+    // Listen for customization updates from other components
+    const handleCustomizationUpdate = () => {
+      console.log("Customization update event received - reloading data");
+      loadExistingCustomization();
+    };
+
+    window.addEventListener('customizationUpdated', handleCustomizationUpdate);
+    return () => window.removeEventListener('customizationUpdated', handleCustomizationUpdate);
   }, []);
+
+  // Load data when modal opens
+  useEffect(() => {
+    if (modalOpen && existingCustomization) {
+      populateExistingData();
+    }
+  }, [modalOpen, existingCustomization]);
 
   const loadExistingCustomization = async () => {
     try {
-      const response = await ApiClient.get("/tenant/customization");
-      if (response.success && response.config && response.config.customTheme) {
+      console.log("Loading existing customization...");
+      const response = await ApiClient.get("/agencies/customization");
+      console.log("Customization API response:", response);
+      
+      if (response.success && response.config) {
         setExistingCustomization(response.config);
-        // Pre-populate fields with existing data
-        if (response.config.customTheme.displayName) {
-          setDisplayName(response.config.customTheme.displayName);
-          setCharacterCount(response.config.customTheme.displayName.length);
-        }
-        if (response.config.customTheme.websiteUrl) {
-          setWebsiteUrl(response.config.customTheme.websiteUrl);
-        }
-        if (response.config.customTheme) {
-          setExtractedData(response.config.customTheme);
-          // Set selected color from existing customization
-          if (response.config.customTheme.colors && response.config.customTheme.colors.length > 0) {
-            setSelectedColor(response.config.customTheme.colors[0]);
-          }
-        }
+        console.log("Existing customization loaded:", response.config);
+        
+        // Also load agency data to show original values
+        await loadAgencyData();
+      } else {
+        console.log("No existing customization found");
+        setExistingCustomization(null);
       }
     } catch (error) {
       console.error("Failed to load existing customization:", error);
+      console.error("Error details:", error.response?.data || error.message);
+      setExistingCustomization(null);
+    }
+  };
+
+  const loadAgencyData = async () => {
+    try {
+      // Assuming you have an endpoint to get agency data
+      const agencyResponse = await ApiClient.get("/agency/profile");
+      if (agencyResponse.success && agencyResponse.agency) {
+        setOriginalAgencyData(agencyResponse.agency);
+        console.log("Original agency data loaded:", agencyResponse.agency);
+      }
+    } catch (error) {
+      console.error("Failed to load agency data:", error);
+    }
+  };
+
+  const populateExistingData = () => {
+    if (existingCustomization) {
+      // Set website URL from existing customization
+      setWebsiteUrl(existingCustomization.websiteUrl || "");
+      
+      // Set display name from customTheme or fallback to agency name
+      const existingDisplayName = existingCustomization.customTheme?.displayName || 
+                                originalAgencyData?.name || 
+                                "";
+      setDisplayName(existingDisplayName);
+      setCharacterCount(existingDisplayName.length);
+      
+      // Set agency description from original data
+      setAgencyDescription(originalAgencyData?.aboutUs || "");
+      
+      // Set colors from existing customization
+      const existingColors = existingCustomization.customTheme?.colors;
+      if (existingColors && existingColors.length > 0) {
+        setSelectedColor(existingColors[0]);
+      }
+      
+      // Set selected image from existing customization
+      const existingImage = existingCustomization.customTheme?.selectedImage;
+      if (existingImage) {
+        setSelectedImage(existingImage);
+      }
+      
+      // Set extracted data from metadata or customTheme - STORE ALL DATA
+      if (existingCustomization.metadata || existingCustomization.customTheme) {
+        // Combine both metadata and customTheme to show all available data
+        const combinedData = {
+          ...existingCustomization.metadata,
+          ...existingCustomization.customTheme
+        };
+        setExtractedData(combinedData);
+        
+        // Extract available images from the data
+        extractAvailableImages(combinedData);
+        console.log("Combined extracted data:", combinedData);
+      }
+    }
+  };
+
+  const extractAvailableImages = (data) => {
+    const images = [
+      { key: 'displayImage', label: 'Display Image', url: data.displayImage },
+      { key: 'logo', label: 'Logo', url: data.logo },
+      { key: 'ogImage', label: 'Open Graph Image', url: data.ogImage },
+      { key: 'twitterImage', label: 'Twitter Image', url: data.twitterImage },
+      { key: 'largeIcon', label: 'Large Icon', url: data.largeIcon },
+      { key: 'favicon', label: 'Favicon', url: data.favicon },
+      { key: 'selectedImage', label: 'Selected Image', url: data.selectedImage },
+    ].filter(img => img.url && img.url.trim() !== '');
+    
+    setAvailableImages(images);
+    
+    // If no image is selected but we have images, select the first one
+    if (!selectedImage && images.length > 0) {
+      setSelectedImage(images[0].url);
     }
   };
 
@@ -61,17 +154,17 @@ const CustomizationComponent = () => {
       console.log("Extracting metadata from:", websiteUrl);
       
       const extractRes = await ApiClient.post(
-        "/tenant/extract-metadata",
+        "/agencies/customization/extract-metadata",
         { websiteUrl }
       );
       console.log("Full extract response:", extractRes);
 
-    if (extractRes.metadata) {
-      console.log("Metadata fields available:", Object.keys(extractRes.metadata));
-      console.log("Has displayImage:", !!extractRes.metadata.displayImage);
-      console.log("Has logo:", !!extractRes.metadata.logo);
-      console.log("Has ogImage:", !!extractRes.metadata.ogImage);
-    }
+      if (extractRes.metadata) {
+        console.log("Metadata fields available:", Object.keys(extractRes.metadata));
+        console.log("Has displayImage:", !!extractRes.metadata.displayImage);
+        console.log("Has logo:", !!extractRes.metadata.logo);
+        console.log("Has ogImage:", !!extractRes.metadata.ogImage);
+      }
 
       console.log("Extract metadata response:", extractRes);
 
@@ -87,13 +180,16 @@ const CustomizationComponent = () => {
         throw new Error("Unexpected response format from server");
       }
 
-    console.log("Final metadata being set:", metadata); // Add this line
+      console.log("Final metadata being set:", metadata);
       setExtractedData(metadata);
       
-      // Show which image was selected in the console
-      if (metadata.displayImage) {
-        console.log("Selected display image:", metadata.displayImage);
-        console.log("Available images:", {
+      // Extract available images
+      extractAvailableImages(metadata);
+      
+      // Store ALL extracted images for later use
+      if (metadata.displayImage || metadata.logo || metadata.ogImage || metadata.twitterImage || metadata.largeIcon || metadata.favicon) {
+        console.log("All extracted images:", {
+          displayImage: metadata.displayImage,
           logo: metadata.logo,
           ogImage: metadata.ogImage,
           twitterImage: metadata.twitterImage,
@@ -103,11 +199,9 @@ const CustomizationComponent = () => {
       }
       
       // Auto-populate display name with extracted title (can be edited)
-      // BUT trim it to 25 characters if it's too long
       if (metadata.title && !displayName) {
         const title = metadata.title;
         if (title.length > MAX_DISPLAY_NAME_LENGTH) {
-          // Show warning notification
           notifications.show({
             title: "Title Too Long",
             message: `Website title "${title}" exceeds ${MAX_DISPLAY_NAME_LENGTH} characters. Please edit it before saving.`,
@@ -115,11 +209,9 @@ const CustomizationComponent = () => {
             icon: <IconX size={16} />,
           });
         }
-        // Set the display name (user can edit it if too long)
         setDisplayName(title);
         setCharacterCount(title.length);
       } else if (!metadata.title && !displayName) {
-        // If no title extracted, suggest using the domain name
         const domainName = websiteUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
         setDisplayName(domainName);
         setCharacterCount(domainName.length);
@@ -129,7 +221,6 @@ const CustomizationComponent = () => {
       if (metadata.colors && metadata.colors.length > 0) {
         setSelectedColor(metadata.colors[0]);
       } else {
-        // If no colors extracted, set a default color
         setSelectedColor('#6155F5');
       }
       
@@ -158,20 +249,16 @@ const CustomizationComponent = () => {
   const handleDisplayNameChange = (e) => {
     const value = e.target.value;
     
-    // Store cursor position before update
     const cursorPosition = e.target.selectionStart;
     
-    // Always allow typing, but enforce limit
     if (value.length <= MAX_DISPLAY_NAME_LENGTH) {
       setDisplayName(value);
       setCharacterCount(value.length);
     } else {
-      // If user tries to type beyond limit, don't update but preserve cursor
       setDisplayName(value.substring(0, MAX_DISPLAY_NAME_LENGTH));
       setCharacterCount(MAX_DISPLAY_NAME_LENGTH);
     }
     
-    // Restore cursor position after state update
     setTimeout(() => {
       if (displayNameInputRef.current) {
         displayNameInputRef.current.focus();
@@ -191,6 +278,11 @@ const CustomizationComponent = () => {
     setWebsiteUrl(e.target.value);
   };
 
+  // Agency description handler
+  const handleAgencyDescriptionChange = (e) => {
+    setAgencyDescription(e.target.value);
+  };
+
   // Color selection handler
   const handleColorSelect = (color) => {
     setSelectedColor(color);
@@ -201,6 +293,11 @@ const CustomizationComponent = () => {
   const handleCustomColorSelect = (color) => {
     setCustomColor(color);
     setSelectedColor(color);
+  };
+
+  // Image selection handler
+  const handleImageSelect = (imageUrl) => {
+    setSelectedImage(imageUrl);
   };
 
   // Add custom color to the available colors
@@ -223,8 +320,49 @@ const CustomizationComponent = () => {
     }
   };
 
+  // Reset all data to default
+  const handleResetData = async () => {
+    try {
+      // Clear the customization
+      const resetRes = await ApiClient.delete("/agencies/customization");
+      
+      if (resetRes.success) {
+        notifications.show({
+          title: "Success",
+          message: "Customization reset to default!",
+          color: "green",
+        });
+        
+        // Reset all local state
+        setWebsiteUrl("");
+        setDisplayName("");
+        setCharacterCount(0);
+        setExtractedData(null);
+        setSelectedColor("");
+        setSelectedImage("");
+        setAvailableImages([]);
+        setAgencyDescription("");
+        setExistingCustomization(null);
+        setPreviewMode(false);
+        
+        // Trigger update event for ALL components
+        window.dispatchEvent(new Event('customizationUpdated'));
+        console.log("Customization reset and update event dispatched");
+        
+      } else {
+        throw new Error(resetRes.message || "Failed to reset customization");
+      }
+    } catch (error) {
+      console.error("Error resetting customization:", error);
+      notifications.show({
+        title: "Error",
+        message: error.message || "Failed to reset customization",
+        color: "red",
+      });
+    }
+  };
+
   const handleUrlSubmit = async () => {
-    // Validate display name before submitting
     if (!isDisplayNameValid()) {
       if (displayName.length > MAX_DISPLAY_NAME_LENGTH) {
         notifications.show({
@@ -246,32 +384,53 @@ const CustomizationComponent = () => {
       // Use selected color as the primary color
       const colors = selectedColor ? [selectedColor] : [];
 
-      // Use extracted data or create basic structure 
+      // Store ALL extracted data including images and selected image
       const customTheme = extractedData ? {
-        ...extractedData, // This now includes displayImage, logo, ogImage, etc.
+        ...extractedData, // This includes ALL extracted data: displayImage, logo, ogImage, etc.
         displayName: displayName || extractedData.title,
         websiteUrl: websiteUrl,
-        colors: colors
+        colors: colors,
+        selectedImage: selectedImage, // Store the selected image
+        // Preserve all image URLs
+        displayImage: extractedData.displayImage,
+        logo: extractedData.logo,
+        ogImage: extractedData.ogImage,
+        twitterImage: extractedData.twitterImage,
+        largeIcon: extractedData.largeIcon,
+        favicon: extractedData.favicon,
+        title: extractedData.title,
+        description: extractedData.description
       } : {
         title: displayName,
         displayName: displayName,
         websiteUrl: websiteUrl,
-        colors: colors
+        colors: colors,
+        selectedImage: selectedImage
       };
 
-      // Use consistent endpoint with PATCH/POST
+      // Store metadata separately if we have extracted data
+      const metadata = extractedData ? {
+        ...extractedData // Store original extracted metadata
+      } : null;
+
       let saveRes;
       if (existingCustomization) {
-        saveRes = await ApiClient.patch("/tenant/customization", {
-          websiteUrl,
-          customTheme,
-          useCustomTheme: true,
+        saveRes = await ApiClient.patch("/agencies/customization", {
+            websiteUrl,
+            customTheme,
+            metadata, // Store metadata separately
+            useCustomTheme: true,
+            name: displayName,
+            aboutUs: agencyDescription
         });
       } else {
-        saveRes = await ApiClient.post("/tenant/customization", {
-          websiteUrl,
-          customTheme,
-          useCustomTheme: true,
+        saveRes = await ApiClient.post("/agencies/customization", {
+            websiteUrl,
+            customTheme,
+            metadata, // Store metadata separately
+            useCustomTheme: true,
+            name: displayName,
+            aboutUs: agencyDescription
         });
       }
 
@@ -284,8 +443,13 @@ const CustomizationComponent = () => {
           color: "green",
         });
         setModalOpen(false);
-        // Reload to get updated data
-        loadExistingCustomization();
+        
+        // Trigger update event for ALL components
+        window.dispatchEvent(new Event('customizationUpdated'));
+        console.log("Customization update event dispatched");
+        
+        // Force reload to get updated data
+        await loadExistingCustomization();
       } else {
         throw new Error(saveRes.message || "Failed to save customization");
       }
@@ -304,12 +468,19 @@ const CustomizationComponent = () => {
 
   const PreviewComponent = () => {
     const primaryColor = selectedColor || existingCustomization?.customTheme?.colors?.[0] || '#6155F5';
-    const agencyName = displayName || existingCustomization?.customTheme?.displayName || 'Your Agency';
+    const previewAgencyName = displayName || existingCustomization?.customTheme?.displayName || 'Your Agency';
 
-    const logoUrl = extractedData?.displayImage || 
+    // Use selected image or fallback to available images
+    const logoUrl = selectedImage || 
+                  extractedData?.displayImage || 
                   existingCustomization?.customTheme?.displayImage ||
                   extractedData?.logo ||
-                  existingCustomization?.customTheme?.logo;
+                  existingCustomization?.customTheme?.logo ||
+                  extractedData?.ogImage ||
+                  existingCustomization?.customTheme?.ogImage ||
+                  extractedData?.largeIcon ||
+                  existingCustomization?.customTheme?.largeIcon;
+
     return (
       <Card shadow="sm" padding="lg" style={{ border: '2px solid #e0e0e0', marginBottom: '1rem' }}>
         <Text size="lg" fw={500} mb="md">Live Preview</Text>
@@ -339,12 +510,16 @@ const CustomizationComponent = () => {
             {logoUrl ? (
               <img
                 src={logoUrl}
-                alt={agencyName}
+                alt={previewAgencyName}
                 style={{
                   width: '32px',
                   height: '32px',
                   borderRadius: '6px',
                   objectFit: 'contain'
+                }}
+                onError={(e) => {
+                  console.log("Image failed to load:", logoUrl);
+                  e.target.style.display = 'none';
                 }}
               />
             ) : (
@@ -360,7 +535,7 @@ const CustomizationComponent = () => {
                 fontSize: '14px',
                 fontWeight: 'bold'
               }}>
-                {agencyName.charAt(0)}
+                {previewAgencyName.charAt(0)}
               </div>
             )}
             
@@ -371,7 +546,7 @@ const CustomizationComponent = () => {
                 color: primaryColor,
                 lineHeight: 1.1,
               }}>
-                {agencyName}
+                {previewAgencyName}
               </div>
             </div>
           </div>
@@ -387,9 +562,6 @@ const CustomizationComponent = () => {
           }}>
             <Text size="xs" c="dimmed" style={{ fontSize: '9px' }}>
               Powered by
-            </Text>
-            <Text size="xs" c="dimmed" style={{ fontSize: '9px', fontWeight: 500 }}>
-              Tutiful
             </Text>
           </div>
         </div>
@@ -410,11 +582,108 @@ const CustomizationComponent = () => {
           }}>
             <div>
               <Text size="md" fw={600}>
-                {agencyName} Panel
+                {previewAgencyName} Panel
               </Text>
             </div>
           </div>
         </div>
+      </Card>
+    );
+  };
+
+  const OriginalDataDisplay = () => {
+    if (!originalAgencyData) return null;
+
+    return (
+      <Card shadow="sm" padding="md" style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd' }}>
+        <Group mb="xs">
+          <IconInfoCircle size={16} color="#0369a1" />
+          <Text size="sm" fw={500} style={{ color: '#0369a1' }}>
+            Original Agency Data
+          </Text>
+        </Group>
+        <Stack spacing="xs">
+          <Text size="xs">
+            <strong>Original Name:</strong> {originalAgencyData.name || 'Not set'}
+          </Text>
+          {originalAgencyData.aboutUs && (
+            <Text size="xs" lineClamp={2}>
+              <strong>Original Description:</strong> {originalAgencyData.aboutUs}
+            </Text>
+          )}
+          <Text size="xs" c="dimmed">
+            These are your original agency details from when you registered.
+          </Text>
+        </Stack>
+      </Card>
+    );
+  };
+
+  const ImageSelectionSection = () => {
+    if (availableImages.length === 0) return null;
+
+    return (
+      <Card shadow="sm" padding="md" style={{ border: '1px solid #e0e0e0', marginBottom: '1rem' }}>
+        <Text size="sm" fw={500} mb="xs">Select Brand Image:</Text>
+        <Text size="xs" c="dimmed" mb="md">
+          Choose one of the available images from the website to use as your brand logo
+        </Text>
+        
+        <SimpleGrid cols={3} spacing="md">
+          {availableImages.map((img, index) => (
+            <Card 
+              key={img.key}
+              padding="sm" 
+              style={{ 
+                border: selectedImage === img.url ? '2px solid #6155F5' : '1px solid #ddd',
+                cursor: 'pointer',
+                backgroundColor: selectedImage === img.url ? '#f8f9ff' : 'white',
+                transition: 'all 0.2s ease'
+              }}
+              onClick={() => handleImageSelect(img.url)}
+            >
+              <Stack align="center" spacing="xs">
+                <Image
+                  src={img.url}
+                  alt={img.label}
+                  height={60}
+                  width={60}
+                  fit="contain"
+                  style={{ borderRadius: '4px' }}
+                  onError={(e) => {
+                    console.log(`Image failed to load: ${img.label} - ${img.url}`);
+                    e.target.style.display = 'none';
+                  }}
+                />
+                <Text size="xs" ta="center" lineClamp={2}>
+                  {img.label}
+                </Text>
+                {selectedImage === img.url && (
+                  <IconCheck size={16} color="#6155F5" />
+                )}
+              </Stack>
+            </Card>
+          ))}
+        </SimpleGrid>
+        
+        {selectedImage && (
+          <Card shadow="sm" padding="sm" mt="md" style={{ backgroundColor: '#f8f9fa' }}>
+            <Group>
+              <Text size="sm" fw={500}>Selected Image:</Text>
+              <Image
+                src={selectedImage}
+                alt="Selected"
+                height={30}
+                width={30}
+                fit="contain"
+                style={{ borderRadius: '4px' }}
+              />
+              <Text size="xs" c="dimmed">
+                This image will be used as your brand logo
+              </Text>
+            </Group>
+          </Card>
+        )}
       </Card>
     );
   };
@@ -430,14 +699,6 @@ const CustomizationComponent = () => {
       label: `Color ${index + 1}: ${color}`,
     }));
 
-    // Show extracted data even if some fields are empty
-    const hasExtractedData = extractedData && (
-      extractedData.title || 
-      extractedData.favicon || 
-      (extractedData.colors && extractedData.colors.length > 0) ||
-      extractedData.description
-    );
-
     return (
       <Card shadow="sm" padding="lg" style={{ border: '2px solid #e0e0e0', marginBottom: '1rem' }}>
         <Text size="lg" fw={500} mb="md">
@@ -445,7 +706,10 @@ const CustomizationComponent = () => {
         </Text>
         
         <Stack spacing="md">
-          {/* Agency Name - FIXED WITH REF */}
+          {/* Show original data if editing */}
+          {existingCustomization && <OriginalDataDisplay />}
+
+          {/* Agency Name */}
           <div>
             <Text size="sm" fw={500} mb="xs">Agency Name:</Text>
             <TextInput
@@ -464,57 +728,75 @@ const CustomizationComponent = () => {
               }
             />
             <Text size="xs" c="dimmed" mt={4}>
-              {extractedData && extractedData.title ? `Original: ${extractedData.title}` : 
+              {extractedData && extractedData.title ? `Extracted from website: ${extractedData.title}` : 
                extractedData ? 'No title extracted from website' : 'Edit to update your agency name'}
             </Text>
           </div>
 
-          {/* Show extracted data summary */}
-            {hasExtractedData && (
+          {/* Agency Description */}
+          <div>
+            <Text size="sm" fw={500} mb="xs">Agency Description:</Text>
+            <Textarea
+              value={agencyDescription}
+              onChange={handleAgencyDescriptionChange}
+              placeholder="Enter agency description..."
+              rows={3}
+            />
+            <Text size="xs" c="dimmed" mt={4}>
+              This description will be saved to your agency profile.
+            </Text>
+          </div>
+
+          {/* Image Selection Section */}
+          <ImageSelectionSection />
+
+          {/* Show ALL extracted data */}
+          {(extractedData || existingCustomization) && (
             <Card shadow="sm" padding="md" style={{ backgroundColor: '#f8f9fa' }}>
-                <Text size="sm" fw={500} mb="xs">Extracted Data:</Text>
-                <Stack spacing="xs">
-                {extractedData.title && (
-                    <Text size="xs">Title: {extractedData.title}</Text>
+              <Text size="sm" fw={500} mb="xs">Available Data:</Text>
+              <Stack spacing="xs">
+                {dataToDisplay.title && (
+                  <Text size="xs"><strong>Title:</strong> {dataToDisplay.title}</Text>
                 )}
                 
-                {/* Show the actual image that will be used */}
-                {extractedData.displayImage && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Text size="xs">Logo/Image:</Text>
-                    <img 
-                        src={extractedData.displayImage} 
-                        alt="Website Logo" 
-                        style={{ 
-                        width: '32px', 
-                        height: '32px',
-                        borderRadius: '4px',
-                        objectFit: 'contain'
-                        }}
-                    />
-                    <Text size="xs" c="dimmed">
-                        (Will be used in sidebar)
-                    </Text>
-                    </div>
+                {dataToDisplay.description && (
+                  <Text size="xs" lineClamp={2}><strong>Description:</strong> {dataToDisplay.description}</Text>
                 )}
                 
-                {/* Show all available images for debugging */}
-                {extractedData.logo && extractedData.logo !== extractedData.displayImage && (
-                    <Text size="xs" c="dimmed">Also found logo: {extractedData.logo}</Text>
-                )}
-                {extractedData.ogImage && extractedData.ogImage !== extractedData.displayImage && (
-                    <Text size="xs" c="dimmed">Also found Open Graph image</Text>
+                {/* Show ALL available images */}
+                {availableImages.length > 0 && (
+                  <div>
+                    <Text size="xs" fw={500} mb="xs">Available Images:</Text>
+                    <Stack spacing="xs">
+                      {availableImages.map((img) => (
+                        <div key={img.key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <img 
+                            src={img.url} 
+                            alt={img.label}
+                            style={{ 
+                              width: '24px', 
+                              height: '24px',
+                              borderRadius: '4px',
+                              objectFit: 'contain'
+                            }}
+                            onError={(e) => {
+                              console.log(`Image failed to load: ${img.label} - ${img.url}`);
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                          <Text size="xs">{img.label}</Text>
+                        </div>
+                      ))}
+                    </Stack>
+                  </div>
                 )}
                 
-                {extractedData.description && (
-                    <Text size="xs" lineClamp={2}>Description: {extractedData.description}</Text>
-                )}
                 {availableColors.length === 0 && (
-                    <Text size="xs" c="orange">No brand colors detected</Text>
+                  <Text size="xs" c="orange">No brand colors detected</Text>
                 )}
-                </Stack>
+              </Stack>
             </Card>
-            )}
+          )}
 
           {/* Color Selection Section */}
           <div>
@@ -697,6 +979,9 @@ const CustomizationComponent = () => {
             setSelectedColor("");
             setCustomColor("");
             setShowColorPicker(false);
+            setAgencyDescription("");
+            setSelectedImage("");
+            setAvailableImages([]);
           }
         }}
         title={existingCustomization ? "Edit Your Branding" : "Customize Your Agency Branding"}
@@ -757,6 +1042,14 @@ const CustomizationComponent = () => {
                   </Text>
                 }
               />
+              <Textarea
+                label="Agency Description"
+                placeholder="Enter agency description..."
+                value={agencyDescription}
+                onChange={handleAgencyDescriptionChange}
+                rows={3}
+                mt="md"
+              />
             </Card>
           )}
 
@@ -790,6 +1083,18 @@ const CustomizationComponent = () => {
             </Button>
             
             <Group>
+              {/* Reset Data Button */}
+              {existingCustomization && (
+                <Button
+                  variant="outline"
+                  color="red"
+                  leftSection={<IconTrash size={16} />}
+                  onClick={handleResetData}
+                >
+                  Reset to Default
+                </Button>
+              )}
+              
               {!existingCustomization && (
                 <Button
                   variant="outline"
@@ -801,6 +1106,9 @@ const CustomizationComponent = () => {
                     setCustomColor("");
                     setShowColorPicker(false);
                     setPreviewMode(false);
+                    setAgencyDescription("");
+                    setSelectedImage("");
+                    setAvailableImages([]);
                   }}
                 >
                   Reset
@@ -824,8 +1132,10 @@ const CustomizationComponent = () => {
               <br />• Keep display name under 20 characters for best appearance
               <br />• Display name must be {MAX_DISPLAY_NAME_LENGTH} characters or less
               <br />• Choose from extracted brand colors or pick a custom color
+              <br />• Select one of the available images as your brand logo
               <br />• Use the color picker for precise color selection
               <br />• All fields are editable. Customize as needed
+              <br />• Use "Reset to Default" to remove customization and return to Tutiful branding
             </Text>
           </Card>
         </Stack>

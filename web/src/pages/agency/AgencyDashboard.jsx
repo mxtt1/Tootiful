@@ -5,7 +5,6 @@ import GrowthChart from "../../components/growthChart";
 import TransactionTable from "../../components/transactionTable";
 import { notifications } from "@mantine/notifications";
 import { Container, Title, Text, Stack, Select, Group, Button, Modal, TextInput } from "@mantine/core";
-import CustomizationComponent from '../../components/AgencyCustomisation';
 import { FaFilter } from "react-icons/fa";
 import {
   FaMoneyBillAlt,
@@ -972,7 +971,8 @@ const FilterSection = () => {
   }
 
 const TabNavigation = () => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+  <div style={{ marginBottom: '1.5rem' }}>
+    {/* Tabs Navigation */}
     <div
       style={{
         display: "flex",
@@ -1039,8 +1039,6 @@ const TabNavigation = () => (
         Transaction History
       </button>
     </div>
-    
-    <CustomizationComponent />
   </div>
 );
 
