@@ -32,26 +32,35 @@ export default function LoginScreen() {
     if (!token || token === "null" || token.trim() === "") return;
 
     try {
-      const decoded = jwtDecode(token);
-      if (decoded.exp * 1000 > Date.now()) {
-        // Token is valid, route user
-        if (decoded.userType === "student") {
+      // Verify token with backend instead of decoding locally
+      const user = await authService.getCurrentUser();
+      
+      if (user) {
+        // Token is valid, route user based on userType from backend
+        if (user.role === "student") {
           router.replace("/tabs");
-        } else if (decoded.userType === "tutor") {
+        } else if (user.role === "tutor") {
           router.replace("/tutor");
         } else {
-          console.warn("Decoded token missing userType:", decoded);
-        }
-      } else {
-        // Token expired, try to refresh
-        const refreshed = await authService.autoRefreshToken();
-        if (refreshed) {
-          // Optionally, re-run this function to route after refresh
-          await checkAndBypassLogin();
+          console.warn("User missing userType:", user);
         }
       }
     } catch (err) {
-      console.warn("Token decode or refresh failed:", err);
+      console.warn("Token verification failed:", err);
+      // Token is invalid, try to refresh
+      try {
+        const refreshed = await authService.autoRefreshToken();
+        if (refreshed) {
+          // Re-run check after successful refresh
+          await checkAndBypassLogin();
+        } else {
+          // Refresh failed, clear invalid token
+          await AsyncStorage.removeItem("accessToken");
+        }
+      } catch (refreshErr) {
+        console.warn("Token refresh failed:", refreshErr);
+        await AsyncStorage.removeItem("accessToken");
+      }
     }
   }
 
