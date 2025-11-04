@@ -1,7 +1,7 @@
 import { Agency, Location, User, Lesson } from "../../models/index.js";
 import { Op } from "sequelize";
 import bcrypt from "bcrypt";
-import metadataExtractor from '../utils/metadataExtractor.js'; 
+import metadataExtractor from '../../util/metadataExtractor.js'; 
 import {
   createAndEmailVerificationLinkForAgency,
   createAndEmailVerificationLink,
