@@ -27,6 +27,8 @@ import {
 import { useAuth } from "../../auth/AuthProvider";
 import apiClient from "../../api/apiClient";
 import { notifications } from "@mantine/notifications";
+import CustomizationComponent from '../../components/AgencyCustomisation';
+import { IconPalette } from "@tabler/icons-react";
 
 export default function AgencyProfile() {
   const { user } = useAuth();
@@ -157,6 +159,16 @@ export default function AgencyProfile() {
     );
     return () => clearInterval(t);
   }, [resendLeft]);
+
+  useEffect(() => {
+    const handleCustomizationUpdate = () => {
+      console.log("Customization update received in AgencyProfile - refreshing data");
+      fetchAllData();
+    };
+
+    window.addEventListener('customizationUpdated', handleCustomizationUpdate);
+    return () => window.removeEventListener('customizationUpdated', handleCustomizationUpdate);
+  }, []);
 
   // Personal Details Handler
   const handlePersonalSave = async () => {
@@ -690,7 +702,18 @@ export default function AgencyProfile() {
 
             <Tabs.Panel value="agency" pt="md">
               <Stack spacing="md">
-                <Group justify="space-between" align="center">
+                    <Card withBorder padding="md">
+                      <Group justify="space-between" align="center">
+                        <div>
+                          <Text size="lg" fw={600}>Agency Branding</Text>
+                          <Text size="sm" color="dimmed">
+                            Customize your agency's colors and appearance
+                          </Text>
+                        </div>
+                        <CustomizationComponent agencyId={user.agencyId} />
+                      </Group>
+                    </Card>
+                    <Group justify="space-between" align="center">
                   <Text size="lg" fw={600}>
                     Agency Information
                   </Text>

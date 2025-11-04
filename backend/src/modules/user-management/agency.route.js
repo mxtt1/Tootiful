@@ -31,7 +31,7 @@ router.get(
   })
 );
 
-// GET /api/agencies/:id - Get agency by ID (protected)
+// GET /api/agencies/:id - Get agency by ID (protected) - NOW INCLUDES CUSTOMIZATION
 router.get(
   "/:id",
   authenticateToken,
@@ -56,7 +56,7 @@ router.post(
   })
 );
 
-// PATCH /api/agencies/:id - Update agency (protected)
+// PATCH /api/agencies/:id - Update agency (protected) - NOW HANDLES CUSTOMIZATION
 router.patch(
   "/:id",
   authenticateToken,
@@ -136,6 +136,17 @@ router.delete(
   authenticateToken,
   asyncHandler(async (req, res) => {
     await agencyService.handleDeleteLocation(req, res);
+  })
+);
+
+// BRAND CUSTOMISATION ROUTES
+
+// POST /api/agencies/:id/extract-metadata - Extract metadata from agency website
+router.post(
+  '/:id/extract-metadata', 
+  authenticateToken, 
+  asyncHandler(async (req, res) => {
+    await agencyService.handleExtractMetadata(req, res);
   })
 );
 

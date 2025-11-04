@@ -8,7 +8,7 @@ const Agency = sequelize.define(
     id: {
       type: DataTypes.UUID,
       primaryKey: true,
-      defaultValue: DataTypes.UUIDV4, // Auto-generate UUID
+      defaultValue: DataTypes.UUIDV4,
       allowNull: false,
     },
     name: {
@@ -34,21 +34,43 @@ const Agency = sequelize.define(
     phone: {
       type: DataTypes.STRING(15),
       allowNull: true,
-      validate: {
-        len: [8, 8],
-      },
     },
-
     image: {
       type: DataTypes.STRING(255),
       allowNull: true,
-      comment: "URL of profile image",
     },
     aboutUs: {
       type: DataTypes.TEXT,
       allowNull: true,
-      comment: "Agency description/bio",
     },
+    
+    // NEW: Branding and customization fields
+    websiteUrl: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+      validate: {
+        isUrl: true
+      }
+    },
+    useCustomTheme: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
+    },
+    // Store extracted metadata as JSON
+    metadata: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: {},
+    },
+    // Custom theme preferences
+    customTheme: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: {},
+    },
+
+
     isActive: {
       type: DataTypes.BOOLEAN,
       allowNull: false,

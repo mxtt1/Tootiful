@@ -1,6 +1,7 @@
 import { Agency, Location, User, Lesson } from "../../models/index.js";
 import { Op } from "sequelize";
 import bcrypt from "bcrypt";
+import metadataExtractor from '../../util/metadataExtractor.js'; 
 import {
   createAndEmailVerificationLinkForAgency,
   createAndEmailVerificationLink,
@@ -232,6 +233,59 @@ class AgencyService {
     }
     await location.destroy();
     res.status(200).json({ message: "Location deleted successfully" });
+  }
+
+  async handleExtractMetadata(req, res) {
+    const { id: agencyId } = req.params; // Get from URL params, not user
+    const { websiteUrl } = req.body;
+    
+    if (!websiteUrl) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Website URL is required' 
+      });
+    }
+
+    try {
+      const metadata = await metadataExtractor.extractMetadata(websiteUrl);
+      
+      // Save the extracted metadata to agency
+      await Agency.update(
+        { 
+          metadata: metadata,
+          websiteUrl: websiteUrl 
+        },
+        { where: { id: agencyId } }
+      );
+      
+      res.json({
+        success: true,
+        metadata,
+        previewUrl: websiteUrl
+      });
+    } catch (error) {
+      console.error('Error extracting metadata:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to extract website metadata'
+      });
+    }
+  }
+
+
+  // Helper function to get agencyId from authenticated user
+  getAgencyIdFromUser(user) {
+    // For agency users (tutors, agencyAdmins)
+    if (user.agencyId) {
+      return user.agencyId;
+    }
+    
+    // For direct agency login (userType === 'agency')
+    if (user.userType === 'agency') {
+      return user.id; // Use user.id for direct agency login
+    }
+    
+    return null;
   }
 
   // Business logic methods
