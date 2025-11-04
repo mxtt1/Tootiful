@@ -4,7 +4,7 @@ import { IconPlus, IconCheck, IconX, IconEye, IconDownload, IconRefresh, IconEdi
 import { notifications } from "@mantine/notifications";
 import ApiClient from "../api/apiClient";
 
-const CustomizationComponent = () => {
+const CustomizationComponent = ({ agencyId }) => {
     const [modalOpen, setModalOpen] = useState(false);
     const [websiteUrl, setWebsiteUrl] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -47,28 +47,34 @@ const CustomizationComponent = () => {
     }
   }, [modalOpen, existingCustomization]);
 
-  const loadExistingCustomization = async () => {
+    const loadExistingCustomization = async () => {
     try {
-      console.log("Loading existing customization...");
-      const response = await ApiClient.get("/agencies/customization");
-      console.log("Customization API response:", response);
-      
-      if (response.success && response.config) {
-        setExistingCustomization(response.config);
-        console.log("Existing customization loaded:", response.config);
+        console.log("Loading existing customization for agency:", agencyId);
         
-        // Also load agency data to show original values
-        await loadAgencyData();
-      } else {
+        // Use agency ID in the API call - GET agency data
+        const response = await ApiClient.get(`/agencies/${agencyId}`);
+        console.log("Agency API response:", response);
+        
+        // Extract customization from agency response
+        const agencyData = response.data || response;
+        
+        if (agencyData.customTheme || agencyData.useCustomTheme) {
+        setExistingCustomization({
+            customTheme: agencyData.customTheme,
+            useCustomTheme: agencyData.useCustomTheme,
+            websiteUrl: agencyData.websiteUrl,
+            metadata: agencyData.metadata
+        });
+        console.log("Existing customization loaded:", agencyData.customTheme);
+        } else {
         console.log("No existing customization found");
         setExistingCustomization(null);
-      }
+        }
     } catch (error) {
-      console.error("Failed to load existing customization:", error);
-      console.error("Error details:", error.response?.data || error.message);
-      setExistingCustomization(null);
+        console.error("Failed to load existing customization:", error);
+        setExistingCustomization(null);
     }
-  };
+    };
 
   const loadAgencyData = async () => {
     try {
@@ -145,18 +151,19 @@ const CustomizationComponent = () => {
     }
   };
 
-  // Manual extraction only - no auto-extract
-  const handleExtractMetadata = async () => {
+    // Manual extraction only - no auto-extract
+    const handleExtractMetadata = async () => {
     if (!websiteUrl || websiteUrl.length < 10) return;
     
     setLoadingExtraction(true);
     try {
-      console.log("Extracting metadata from:", websiteUrl);
-      
-      const extractRes = await ApiClient.post(
-        "/agencies/customization/extract-metadata",
+        console.log("Extracting metadata from:", websiteUrl);
+        
+        // Use agency ID in extraction endpoint
+        const extractRes = await ApiClient.post(
+        `/agencies/${agencyId}/extract-metadata`,
         { websiteUrl }
-      );
+        );
       console.log("Full extract response:", extractRes);
 
       if (extractRes.metadata) {
@@ -320,17 +327,22 @@ const CustomizationComponent = () => {
     }
   };
 
-  // Reset all data to default
-  const handleResetData = async () => {
+    // Reset all data to default
+    const handleResetData = async () => {
     try {
-      // Clear the customization
-      const resetRes = await ApiClient.delete("/agencies/customization");
-      
-      if (resetRes.success) {
+        // Reset customization by updating agency with empty values
+        const resetRes = await ApiClient.patch(`/agencies/${agencyId}`, {
+        useCustomTheme: false,
+        customTheme: {},
+        metadata: {},
+        websiteUrl: null
+        });
+        
+        if (resetRes) {
         notifications.show({
-          title: "Success",
-          message: "Customization reset to default!",
-          color: "green",
+            title: "Success",
+            message: "Customization reset to default!",
+            color: "green",
         });
         
         // Reset all local state
@@ -348,49 +360,48 @@ const CustomizationComponent = () => {
         // Trigger update event for ALL components
         window.dispatchEvent(new Event('customizationUpdated'));
         console.log("Customization reset and update event dispatched");
-        
-      } else {
-        throw new Error(resetRes.message || "Failed to reset customization");
-      }
+        } else {
+        throw new Error("Failed to reset customization");
+        }
     } catch (error) {
-      console.error("Error resetting customization:", error);
-      notifications.show({
+        console.error("Error resetting customization:", error);
+        notifications.show({
         title: "Error",
         message: error.message || "Failed to reset customization",
         color: "red",
-      });
-    }
-  };
-
-  const handleUrlSubmit = async () => {
-    if (!isDisplayNameValid()) {
-      if (displayName.length > MAX_DISPLAY_NAME_LENGTH) {
-        notifications.show({
-          title: "Display Name Too Long",
-          message: `Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or less. Current: ${displayName.length} characters.`,
-          color: "red",
-          icon: <IconX size={16} />,
         });
-      }
-      return;
+    }
+    };
+
+    const handleUrlSubmit = async () => {
+    if (!isDisplayNameValid()) {
+        if (displayName.length > MAX_DISPLAY_NAME_LENGTH) {
+        notifications.show({
+            title: "Display Name Too Long",
+            message: `Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or less. Current: ${displayName.length} characters.`,
+            color: "red",
+            icon: <IconX size={16} />,
+        });
+        }
+        return;
     }
     
     if (!displayName.trim()) return;
     
     setSubmitting(true);
     try {
-      console.log("Saving customization...");
+        console.log("Saving customization...");
 
-      // Use selected color as the primary color
-      const colors = selectedColor ? [selectedColor] : [];
+        // Use selected color as the primary color
+        const colors = selectedColor ? [selectedColor] : [];
 
-      // Store ALL extracted data including images and selected image
-      const customTheme = extractedData ? {
-        ...extractedData, // This includes ALL extracted data: displayImage, logo, ogImage, etc.
+        // Store ALL extracted data including images and selected image
+        const customTheme = extractedData ? {
+        ...extractedData,
         displayName: displayName || extractedData.title,
         websiteUrl: websiteUrl,
         colors: colors,
-        selectedImage: selectedImage, // Store the selected image
+        selectedImage: selectedImage,
         // Preserve all image URLs
         displayImage: extractedData.displayImage,
         logo: extractedData.logo,
@@ -400,47 +411,36 @@ const CustomizationComponent = () => {
         favicon: extractedData.favicon,
         title: extractedData.title,
         description: extractedData.description
-      } : {
+        } : {
         title: displayName,
         displayName: displayName,
         websiteUrl: websiteUrl,
         colors: colors,
         selectedImage: selectedImage
-      };
+        };
 
-      // Store metadata separately if we have extracted data
-      const metadata = extractedData ? {
-        ...extractedData // Store original extracted metadata
-      } : null;
+        // Store metadata separately if we have extracted data
+        const metadata = extractedData ? {
+        ...extractedData
+        } : null;
 
-      let saveRes;
-      if (existingCustomization) {
-        saveRes = await ApiClient.patch("/agencies/customization", {
-            websiteUrl,
-            customTheme,
-            metadata, // Store metadata separately
-            useCustomTheme: true,
-            name: displayName,
-            aboutUs: agencyDescription
+        // ALWAYS use PATCH for updating agency (no POST needed)
+        const saveRes = await ApiClient.patch(`/agencies/${agencyId}`, {
+        websiteUrl,
+        customTheme,
+        metadata,
+        useCustomTheme: true,
+        name: displayName,
+        aboutUs: agencyDescription
         });
-      } else {
-        saveRes = await ApiClient.post("/agencies/customization", {
-            websiteUrl,
-            customTheme,
-            metadata, // Store metadata separately
-            useCustomTheme: true,
-            name: displayName,
-            aboutUs: agencyDescription
-        });
-      }
 
-      console.log("Save customization response:", saveRes);
+        console.log("Save customization response:", saveRes);
 
-      if (saveRes.success) {
+        if (saveRes) {
         notifications.show({
-          title: "Success",
-          message: existingCustomization ? "Branding updated successfully!" : "Customization saved successfully!",
-          color: "green",
+            title: "Success",
+            message: existingCustomization ? "Branding updated successfully!" : "Customization saved successfully!",
+            color: "green",
         });
         setModalOpen(false);
         
@@ -450,21 +450,21 @@ const CustomizationComponent = () => {
         
         // Force reload to get updated data
         await loadExistingCustomization();
-      } else {
-        throw new Error(saveRes.message || "Failed to save customization");
-      }
+        } else {
+        throw new Error("Failed to save customization");
+        }
 
     } catch (error) {
-      console.error("Error saving customization:", error);
-      notifications.show({
+        console.error("Error saving customization:", error);
+        notifications.show({
         title: "Error",
         message: error.message || "Failed to save customization",
         color: "red",
-      });
+        });
     } finally {
-      setSubmitting(false);
+        setSubmitting(false);
     }
-  };
+    };
 
   const PreviewComponent = () => {
     const primaryColor = selectedColor || existingCustomization?.customTheme?.colors?.[0] || '#6155F5';

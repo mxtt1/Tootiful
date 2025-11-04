@@ -700,7 +700,7 @@ export default function AgencyProfile() {
                             Customize your agency's colors and appearance
                           </Text>
                         </div>
-                        <CustomizationComponent />
+                        <CustomizationComponent agencyId={user.agencyId} />
                       </Group>
                     </Card>
                     <Group justify="space-between" align="center">

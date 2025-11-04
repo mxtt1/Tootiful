@@ -30,69 +30,6 @@ const AdminLayout = ({ children }) => {
   const { user, logout, loading } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [tenantConfig, setTenantConfig] = useState(null);
-  
-  // Load tenant customization configuration
-  useEffect(() => {
-    const loadTenantConfig = async () => {
-      try {
-        const response = await ApiClient.get("/agencies/customization");
-        
-        // Handle different API response structures
-        if (response.data && response.data.config) {
-          setTenantConfig(response.data.config);
-          applyCustomizations(response.data.config);
-        } else if (response.config) {
-          setTenantConfig(response.config);
-          applyCustomizations(response.config);
-        } else if (response.success && response.config) {
-          setTenantConfig(response.config);
-          applyCustomizations(response.config);
-        } else {
-          setTenantConfig(null);
-        }
-      } catch (error) {
-        console.error("Failed to load tenant config:", error);
-        setTenantConfig(null);
-      }
-    };
-
-    loadTenantConfig();
-  }, []);
-
-  // Listen for customization updates from other components
-  useEffect(() => {
-    const handleCustomizationUpdate = async () => {
-      console.log("Customization update event received in AdminLayout");
-      try {
-        const response = await ApiClient.get("/agencies/customization");
-        
-        // Handle different API response structures
-        if (response.data && response.data.config) {
-          setTenantConfig(response.data.config);
-          applyCustomizations(response.data.config);
-        } else if (response.config) {
-          setTenantConfig(response.config);
-          applyCustomizations(response.config);
-        } else if (response.success && response.config) {
-          setTenantConfig(response.config);
-          applyCustomizations(response.config);
-        } else {
-          setTenantConfig(null);
-          // Reset to default if no customization
-          document.documentElement.style.setProperty('--mantine-primary-color', '#6155F5');
-          document.documentElement.style.setProperty('--agency-primary', '#6155F5');
-          document.documentElement.style.setProperty('--sidebar-accent', '#6155F5');
-          document.title = "Tutiful Portal";
-        }
-      } catch (error) {
-        console.error("Failed to reload tenant config:", error);
-        setTenantConfig(null);
-      }
-    };
-
-    window.addEventListener('customizationUpdated', handleCustomizationUpdate);
-    return () => window.removeEventListener('customizationUpdated', handleCustomizationUpdate);
-  }, []);
 
   // Apply custom theme colors and title - ONLY these, no favicon changes
   const applyCustomizations = (config) => {
@@ -114,6 +51,86 @@ const AdminLayout = ({ children }) => {
     // EXPLICITLY PREVENT favicon from being applied to browser tab
     // We'll use the images for sidebar display only
   };
+
+  // Load tenant customization configuration
+  useEffect(() => {
+    const loadTenantConfig = async () => {
+      try {
+        // Get agency ID from user context
+        const agencyId = user?.agencyId || user?.id;
+        
+        if (!agencyId) {
+          console.warn("No agency ID available for user");
+          setTenantConfig(null);
+          return;
+        }
+
+        // Use the existing agency profile endpoint that includes customization
+        const response = await ApiClient.get(`/agencies/${agencyId}`);
+        
+        if (response.success && response.data) {
+          const agencyData = response.data;
+          
+          // Format as config object expected by the rest of the code
+          const config = {
+            customTheme: agencyData.customTheme,
+            useCustomTheme: agencyData.useCustomTheme,
+            metadata: agencyData.metadata,
+            websiteUrl: agencyData.websiteUrl
+          };
+          
+          setTenantConfig(config);
+          applyCustomizations(config);
+        } else {
+          setTenantConfig(null);
+        }
+      } catch (error) {
+        console.error("Failed to load tenant config:", error);
+        setTenantConfig(null);
+      }
+    };
+
+    loadTenantConfig();
+  }, [user]); // Add user as dependency
+
+  // Listen for customization updates from other components
+  useEffect(() => {
+    const handleCustomizationUpdate = async () => {
+      console.log("Customization update event received in AdminLayout");
+      try {
+        const agencyId = user?.agencyId || user?.id;
+        if (!agencyId) return;
+
+        const response = await ApiClient.get(`/agencies/${agencyId}`);
+        
+        if (response.success && response.data) {
+          const agencyData = response.data;
+          const config = {
+            customTheme: agencyData.customTheme,
+            useCustomTheme: agencyData.useCustomTheme,
+            metadata: agencyData.metadata,
+            websiteUrl: agencyData.websiteUrl
+          };
+          
+          setTenantConfig(config);
+          applyCustomizations(config);
+        } else {
+          setTenantConfig(null);
+          // Reset to default if no customization
+          document.documentElement.style.setProperty('--mantine-primary-color', '#6155F5');
+          document.documentElement.style.setProperty('--agency-primary', '#6155F5');
+          document.documentElement.style.setProperty('--sidebar-accent', '#6155F5');
+          document.title = "Tutiful Portal";
+        }
+      } catch (error) {
+        console.error("Failed to reload tenant config:", error);
+        setTenantConfig(null);
+      }
+    };
+
+    window.addEventListener('customizationUpdated', handleCustomizationUpdate);
+    return () => window.removeEventListener('customizationUpdated', handleCustomizationUpdate);
+  }, [user]); // Add user as dependency
 
   const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed);
   const handleLogout = async () => {

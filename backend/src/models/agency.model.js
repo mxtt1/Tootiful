@@ -69,6 +69,8 @@ const Agency = sequelize.define(
       allowNull: true,
       defaultValue: {},
     },
+
+
     isActive: {
       type: DataTypes.BOOLEAN,
       allowNull: false,

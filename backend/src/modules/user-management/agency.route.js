@@ -31,7 +31,7 @@ router.get(
   })
 );
 
-// GET /api/agencies/:id - Get agency by ID (protected)
+// GET /api/agencies/:id - Get agency by ID (protected) - NOW INCLUDES CUSTOMIZATION
 router.get(
   "/:id",
   authenticateToken,
@@ -56,7 +56,7 @@ router.post(
   })
 );
 
-// PATCH /api/agencies/:id - Update agency (protected)
+// PATCH /api/agencies/:id - Update agency (protected) - NOW HANDLES CUSTOMIZATION
 router.patch(
   "/:id",
   authenticateToken,
@@ -141,39 +141,12 @@ router.delete(
 
 // BRAND CUSTOMISATION ROUTES
 
-// POST /api/agencies/customization/extract-metadata - Extract metadata from agency website
+// POST /api/agencies/:id/extract-metadata - Extract metadata from agency website
 router.post(
-  '/customization/extract-metadata', 
+  '/:id/extract-metadata', 
   authenticateToken, 
   asyncHandler(async (req, res) => {
     await agencyService.handleExtractMetadata(req, res);
-  })
-);
-
-// POST /api/agencies/customization - Save or update customization
-router.post(
-  '/customization', 
-  authenticateToken, 
-  asyncHandler(async (req, res) => {
-    await agencyService.handleSaveCustomization(req, res);
-  })
-);
-
-// GET /api/agencies/customization - Get customization config 
-router.get(
-  '/customization', 
-  authenticateToken, 
-  asyncHandler(async (req, res) => {
-    await agencyService.handleGetCustomization(req, res);
-  })
-);
-
-// DELETE /api/agencies/customization - Reset customization to default
-router.delete(
-  '/customization', 
-  authenticateToken, 
-  asyncHandler(async (req, res) => {
-    await agencyService.handleResetCustomization(req, res);
   })
 );
 

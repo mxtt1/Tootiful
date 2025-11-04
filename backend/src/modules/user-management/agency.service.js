@@ -235,7 +235,8 @@ class AgencyService {
     res.status(200).json({ message: "Location deleted successfully" });
   }
 
-    async handleExtractMetadata(req, res) {
+  async handleExtractMetadata(req, res) {
+    const { id: agencyId } = req.params; // Get from URL params, not user
     const { websiteUrl } = req.body;
     
     if (!websiteUrl) {
@@ -245,17 +246,17 @@ class AgencyService {
       });
     }
 
-    const agencyId = this.getAgencyIdFromUser(req.user);
-    
-    if (!agencyId) {
-      return res.status(403).json({
-        success: false,
-        error: 'User must be associated with an agency'
-      });
-    }
-
     try {
       const metadata = await metadataExtractor.extractMetadata(websiteUrl);
+      
+      // Save the extracted metadata to agency
+      await Agency.update(
+        { 
+          metadata: metadata,
+          websiteUrl: websiteUrl 
+        },
+        { where: { id: agencyId } }
+      );
       
       res.json({
         success: true,
@@ -271,174 +272,6 @@ class AgencyService {
     }
   }
 
-  async handleSaveCustomization(req, res) {
-    const { websiteUrl, customTheme, metadata, useCustomTheme, name, aboutUs } = req.body;
-    
-    const agencyId = this.getAgencyIdFromUser(req.user);
-    
-    if (!agencyId) {
-      return res.status(403).json({
-        success: false,
-        error: 'User must be associated with an agency'
-      });
-    }
-
-    try {
-      // Extract potential image from metadata to update agency image
-      let imageToUpdate = null;
-      if (metadata) {
-        imageToUpdate = metadata.displayImage || 
-                      metadata.logo || 
-                      metadata.ogImage || 
-                      metadata.twitterImage ||
-                      metadata.largeIcon;
-      }
-
-      const updateData = {
-        ...(websiteUrl !== undefined && { websiteUrl }),
-        ...(customTheme !== undefined && { customTheme }),
-        ...(metadata !== undefined && { metadata }),
-        ...(useCustomTheme !== undefined && { useCustomTheme: Boolean(useCustomTheme) }),
-        ...(name !== undefined && { name }),
-        ...(aboutUs !== undefined && { aboutUs }),
-        ...(imageToUpdate && { image: imageToUpdate })
-      };
-
-      const [updatedCount, [updatedAgency]] = await Agency.update(updateData, {
-        where: { id: agencyId },
-        returning: true
-      });
-
-      if (updatedCount === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'Agency not found'
-        });
-      }
-
-      // SIMPLIFIED RESPONSE - No more nested agency object
-      const config = {
-        id: updatedAgency.id,
-        name: updatedAgency.name,
-        email: updatedAgency.email,
-        aboutUs: updatedAgency.aboutUs,
-        image: updatedAgency.image,
-        phone: updatedAgency.phone,
-        websiteUrl: updatedAgency.websiteUrl,
-        useCustomTheme: updatedAgency.useCustomTheme,
-        metadata: updatedAgency.metadata || {},
-        customTheme: updatedAgency.customTheme || {}
-      };
-
-      res.json({
-        success: true,
-        config,
-        message: 'Customization saved successfully'
-      });
-
-    } catch (error) {
-      console.error('Error saving customization:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to save customization'
-      });
-    }
-  }
-  async handleGetCustomization(req, res) {
-    const agencyId = this.getAgencyIdFromUser(req.user);
-    
-    if (!agencyId) {
-      return res.json({
-        success: true,
-        config: null
-      });
-    }
-
-    try {
-      const agency = await Agency.findByPk(agencyId, {
-        attributes: [
-          'id', 'name', 'email', 'phone', 'image', 'aboutUs', 
-          'websiteUrl', 'useCustomTheme', 'metadata', 'customTheme',
-          'isActive', 'createdAt', 'updatedAt'
-        ]
-      });
-
-      if (!agency) {
-        return res.json({
-          success: true,
-          config: null
-        });
-      }
-
-      // SIMPLIFIED RESPONSE
-      const config = {
-        id: agency.id,
-        name: agency.name,
-        email: agency.email,
-        aboutUs: agency.aboutUs,
-        image: agency.image,
-        phone: agency.phone,
-        websiteUrl: agency.websiteUrl,
-        useCustomTheme: agency.useCustomTheme,
-        metadata: agency.metadata || {},
-        customTheme: agency.customTheme || {}
-      };
-
-      res.json({
-        success: true,
-        config
-      });
-
-    } catch (error) {
-      console.error('Error getting customization:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to load customization'
-      });
-    }
-  }
-  async handleResetCustomization(req, res) {
-    const agencyId = this.getAgencyIdFromUser(req.user);
-    
-    if (!agencyId) {
-      return res.status(403).json({
-        success: false,
-        error: 'User must be associated with an agency'
-      });
-    }
-
-    try {
-      const [updatedCount, [updatedAgency]] = await Agency.update({
-        websiteUrl: null,
-        useCustomTheme: false,
-        metadata: {},
-        customTheme: {}
-      }, {
-        where: { id: agencyId },
-        returning: true
-      });
-
-      if (updatedCount === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'Agency not found'
-        });
-      }
-
-      res.json({
-        success: true,
-        message: 'Customization reset to default',
-        config: null
-      });
-
-    } catch (error) {
-      console.error('Error resetting customization:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to reset customization'
-      });
-    }
-  }
 
   // Helper function to get agencyId from authenticated user
   getAgencyIdFromUser(user) {
