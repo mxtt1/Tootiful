@@ -1,55 +1,302 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { URL } from 'url';
 
 class MetadataExtractor {
-  async extractMetadata(url) {
-    try {
-      // Ensure URL has protocol
-      if (!url.startsWith('http')) {
-        url = 'https://' + url;
-      }
+  constructor() {
+    // MINIMAL blocked domains - only truly malicious sites
+    this.blockedDomains = [
+      'malicious-site.com',
+      'phishing-site.net'
+      // Add ONLY specific malicious domains, not broad patterns
+    ];
+  }
 
-      const response = await axios.get(url, {
-        timeout: 10000,
+  async extractMetadata(url) {
+    console.log(`🔍 Starting metadata extraction for: ${url}`);
+    
+    try {
+      // Step 1: URL normalization
+      const normalizedUrl = this.normalizeUrl(url);
+      console.log(`✅ Normalized URL: ${normalizedUrl}`);
+
+      // Step 2: Quick safety check
+      await this.quickSafetyCheck(normalizedUrl);
+      console.log(`✅ Safety check passed`);
+
+      // Step 3: Attempt to fetch the website
+      console.log(`🌐 Fetching website content...`);
+      const response = await axios.get(normalizedUrl, {
+        timeout: 10000, // 10 second timeout
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; AgencyMetadataBot/1.0)'
+          'User-Agent': 'Mozilla/5.0 (compatible; AgencyMetadataBot/1.0; +https://yourdomain.com)'
+        },
+        validateStatus: function (status) {
+          // Accept any status code - we'll handle errors manually
+          return true;
         }
       });
+
+      console.log(`📡 Response status: ${response.status}`);
+
+      // Check for HTTP errors
+      if (response.status >= 400) {
+        throw new Error(`HTTP ${response.status}: ${this.getStatusText(response.status)}`);
+      }
+
+      // Check if we got HTML content
+      const contentType = response.headers['content-type'] || '';
+      if (!contentType.includes('text/html')) {
+        throw new Error(`Expected HTML but got: ${contentType}`);
+      }
+
+      console.log(`✅ Successfully fetched HTML content`);
       
       const $ = cheerio.load(response.data);
       
+      // Extract metadata
       const metadata = {
+        url: normalizedUrl,
         title: $('title').text()?.trim() || '',
-        // Enhanced image extraction - multiple sources
-        favicon: this.extractFavicon($, url),
-        logo: this.extractLogo($, url),
-        ogImage: this.extractOgImage($, url),
-        twitterImage: this.extractTwitterImage($, url),
-        largeIcon: this.extractLargeIcon($, url),
-        // Get the best available image for display
-        displayImage: null, // Will be set below
-        // Your existing data
+        favicon: this.extractFavicon($, normalizedUrl),
+        logo: this.extractLogo($, normalizedUrl),
+        ogImage: this.extractOgImage($, normalizedUrl),
+        twitterImage: this.extractTwitterImage($, normalizedUrl),
+        largeIcon: this.extractLargeIcon($, normalizedUrl),
+        displayImage: null,
         colors: this.extractColors($),
         fonts: this.extractFonts($),
         description: $('meta[name="description"]').attr('content')?.trim() || '',
         keywords: $('meta[name="keywords"]').attr('content')?.trim() || '',
         viewport: $('meta[name="viewport"]').attr('content') || '',
-        // Additional metadata
         ogTitle: $('meta[property="og:title"]').attr('content')?.trim() || '',
-        ogDescription: $('meta[property="og:description"]').attr('content')?.trim() || ''
+        ogDescription: $('meta[property="og:description"]').attr('content')?.trim() || '',
       };
 
-      // Determine the best image to use for display
       metadata.displayImage = this.getBestDisplayImage(metadata);
 
-      return metadata;
+      console.log(`✅ Successfully extracted metadata:`, {
+        title: metadata.title,
+        description: metadata.description ? metadata.description.substring(0, 50) + '...' : 'None',
+        hasLogo: !!metadata.logo,
+        hasColors: metadata.colors.length > 0
+      });
+
+      return {
+        success: true,
+        metadata
+      };
+
     } catch (error) {
-      console.error('Metadata extraction error:', error.message);
-      throw new Error(`Failed to extract metadata: ${error.message}`);
+      console.error(`❌ Metadata extraction failed:`, {
+        url: url,
+        error: error.message,
+        code: error.code,
+        responseStatus: error.response?.status,
+        responseHeaders: error.response?.headers
+      });
+
+      // Provide helpful error messages based on error type
+      let userFriendlyError = this.getUserFriendlyError(error);
+      
+      return {
+        success: false,
+        error: userFriendlyError
+      };
     }
   }
 
-  // NEW: Extract logo images from common logo elements
+    getBestDisplayImage(metadata) {
+    const imagePriority = [
+      metadata.logo,        // Actual website logo
+      metadata.ogImage,     // Open Graph image (usually high quality)
+      metadata.twitterImage, // Twitter image
+      metadata.largeIcon,   // Large icon
+      metadata.favicon      // Regular favicon (last resort)
+    ];
+
+    for (const imageUrl of imagePriority) {
+      if (imageUrl && this.isLikelyGoodImage(imageUrl)) {
+        console.log(`✅ Selected display image: ${imageUrl}`);
+        return imageUrl;
+      }
+    }
+
+    console.log(`❌ No suitable display image found`);
+    return null;
+  }
+
+  // ✅ ADD THIS MISSING METHOD:
+  isLikelyGoodImage(url) {
+    if (!url) return false;
+    
+    // Skip SVG for now (can be complex to handle)
+    if (url.toLowerCase().endsWith('.svg')) {
+      console.log(`🔄 Skipping SVG image: ${url}`);
+      return false;
+    }
+    
+    // Skip very small favicons
+    if (url.includes('favicon.ico')) {
+      console.log(`🔄 Skipping default favicon.ico`);
+      return false;
+    }
+    
+    // Prefer images that look like they could be logos or proper images
+    const goodIndicators = [
+      'logo', 'brand', 'og-image', 'twitter-image', 
+      'apple-touch', 'icon-192', 'icon-512'
+    ];
+    
+    const urlLower = url.toLowerCase();
+    const isGood = goodIndicators.some(indicator => urlLower.includes(indicator)) ||
+           // Or accept if it doesn't look like a tiny favicon
+           (!urlLower.includes('favicon') && !urlLower.endsWith('.ico'));
+    
+    console.log(`🔍 Image quality check for ${url}: ${isGood ? 'GOOD' : 'POOR'}`);
+    return isGood;
+  }
+
+  getIconSizeValue(sizes) {
+    if (!sizes) return 0;
+    const sizeMatch = sizes.match(/(\d+)x(\d+)/);
+    if (sizeMatch) {
+      return Math.max(parseInt(sizeMatch[1]), parseInt(sizeMatch[2]));
+    }
+    
+    // Handle single size values
+    const singleSizeMatch = sizes.match(/(\d+)/);
+    if (singleSizeMatch) {
+      return parseInt(singleSizeMatch[1]);
+    }
+    
+    return 0;
+  }
+
+  normalizeUrl(url) {
+    console.log(`🔄 Normalizing URL: ${url}`);
+    
+    try {
+      // Add protocol if missing
+      if (!url.startsWith('http')) {
+        url = 'https://' + url;
+        console.log(`🔧 Added HTTPS protocol: ${url}`);
+      }
+
+      const urlObj = new URL(url);
+      
+      // Validate hostname
+      if (!urlObj.hostname) {
+        throw new Error('Invalid URL: No hostname found');
+      }
+
+      // Basic domain validation
+      const domainParts = urlObj.hostname.split('.');
+      if (domainParts.length < 2) {
+        throw new Error('Invalid domain format');
+      }
+
+      console.log(`✅ URL normalized: ${urlObj.toString()}`);
+      return urlObj.toString();
+      
+    } catch (error) {
+      console.error(`❌ URL normalization failed: ${error.message}`);
+      throw new Error(`Invalid URL: ${error.message}`);
+    }
+  }
+
+  async quickSafetyCheck(url) {
+    console.log(`🛡️ Running safety check for: ${url}`);
+    
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
+
+    console.log(`🔍 Checking hostname: ${hostname}`);
+    console.log(`📋 Blocked domains: ${this.blockedDomains}`);
+
+    // 1. Check against explicitly blocked domains
+    if (this.blockedDomains.includes(hostname)) {
+      console.log(`❌ Domain explicitly blocked: ${hostname}`);
+      throw new Error('This domain is blocked for security reasons');
+    }
+    console.log(`✅ Domain not in blocked list`);
+
+    // 2. Check for dangerous file extensions in path (not domain)
+    const dangerousPatterns = [
+      /\.(exe|zip|rar|jar|dmg|pkg|scr|bat|cmd)$/i, // Removed .com from patterns
+    ];
+
+    const pathname = urlObj.pathname.toLowerCase();
+    console.log(`🔍 Checking pathname: ${pathname}`);
+
+    for (const pattern of dangerousPatterns) {
+      if (pattern.test(pathname)) {
+        console.log(`❌ Dangerous file pattern detected: ${pattern}`);
+        throw new Error('URL points to a potentially dangerous file type');
+      }
+    }
+    console.log(`✅ No dangerous file patterns found`);
+
+    // 3. Check for localhost/internal IPs (basic check)
+    if (hostname === 'localhost' || hostname.startsWith('127.') || hostname.startsWith('192.168.')) {
+      console.log(`❌ Local/internal IP blocked: ${hostname}`);
+      throw new Error('Local/internal URLs are not allowed');
+    }
+    console.log(`✅ Not a local/internal URL`);
+
+    console.log(`✅ All safety checks passed`);
+    return true;
+  }
+
+  getUserFriendlyError(error) {
+    const message = error.message.toLowerCase();
+    
+    if (error.code === 'ENOTFOUND') {
+      return 'Website not found. Please check the URL and try again.';
+    } else if (error.code === 'ECONNREFUSED') {
+      return 'Connection refused. The website might be down or blocking requests.';
+    } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
+      return 'Request timeout. The website might be slow or experiencing high traffic.';
+    } else if (error.response) {
+      // HTTP error responses
+      switch (error.response.status) {
+        case 403:
+          return 'Access forbidden. The website is blocking automated requests.';
+        case 404:
+          return 'Page not found. Please check the URL.';
+        case 429:
+          return 'Too many requests. Please wait a moment and try again.';
+        case 500:
+        case 502:
+        case 503:
+          return 'Website server error. Please try again later.';
+        default:
+          return `Website returned error: ${error.response.status}`;
+      }
+    } else if (message.includes('blocked')) {
+      return 'This website was blocked for security reasons.';
+    } else if (message.includes('invalid url')) {
+      return 'Invalid URL format. Please check the website address.';
+    } else {
+      return `Unable to extract data: ${error.message}`;
+    }
+  }
+
+  getStatusText(statusCode) {
+    const statusTexts = {
+      400: 'Bad Request',
+      401: 'Unauthorized', 
+      403: 'Forbidden',
+      404: 'Not Found',
+      429: 'Too Many Requests',
+      500: 'Internal Server Error',
+      502: 'Bad Gateway',
+      503: 'Service Unavailable'
+    };
+    return statusTexts[statusCode] || 'Unknown Error';
+  }
+
+
   extractLogo($, baseUrl) {
     const logoSelectors = [
       '.logo img',
@@ -71,13 +318,13 @@ class MetadataExtractor {
         const src = logoImg.attr('src');
         if (src) {
           const resolvedUrl = this.resolveUrl(src, baseUrl);
-          console.log(`Found logo via ${selector}:`, resolvedUrl);
+          console.log(`✅ Found logo via ${selector}: ${resolvedUrl}`);
           return resolvedUrl;
         }
       }
     }
 
-    // Also check for SVG logos
+        // Also check for SVG logos
     const svgSelectors = [
       '.logo svg',
       '[class*="logo"] svg',
@@ -183,11 +430,10 @@ class MetadataExtractor {
       console.log('Selected large icon:', bestIcon.url, `(${bestIcon.sizes})`);
       return bestIcon.url;
     }
-
+    console.log(`❌ No large icon found`);
     return null;
   }
 
-  // NEW: Enhanced favicon extraction with better fallbacks
   extractFavicon($, baseUrl) {
     const faviconSelectors = [
       'link[rel="icon"]',
@@ -199,70 +445,22 @@ class MetadataExtractor {
       const favicon = $(selector).attr('href');
       if (favicon) {
         const resolvedUrl = this.resolveUrl(favicon, baseUrl);
-        console.log(`Found favicon via ${selector}:`, resolvedUrl);
+        console.log(`✅ Found favicon via ${selector}: ${resolvedUrl}`);
         return resolvedUrl;
       }
     }
 
-    // Fallback to default favicon location
+    // Try default favicon location
     try {
       const defaultFavicon = this.resolveUrl('/favicon.ico', baseUrl);
-      console.log('Using default favicon location:', defaultFavicon);
+      console.log(`🔄 Trying default favicon: ${defaultFavicon}`);
       return defaultFavicon;
     } catch (error) {
+      console.log(`❌ No favicon found`);
       return null;
     }
   }
 
-  // NEW: Determine the best image to use for display
-  getBestDisplayImage(metadata) {
-    const imagePriority = [
-      metadata.logo,        // Actual website logo
-      metadata.ogImage,     // Open Graph image (usually high quality)
-      metadata.twitterImage, // Twitter image
-      metadata.largeIcon,   // Large icon
-      metadata.favicon      // Regular favicon (last resort)
-    ];
-
-    for (const imageUrl of imagePriority) {
-      if (imageUrl && this.isLikelyGoodImage(imageUrl)) {
-        console.log('Selected display image:', imageUrl);
-        return imageUrl;
-      }
-    }
-
-    return null;
-  }
-
-  // NEW: Basic heuristic to filter out likely poor quality images
-  isLikelyGoodImage(url) {
-    if (!url) return false;
-    
-    // Skip SVG for now (can be complex to handle)
-    if (url.toLowerCase().endsWith('.svg')) {
-      console.log('Skipping SVG image:', url);
-      return false;
-    }
-    
-    // Skip very small favicons
-    if (url.includes('favicon.ico')) {
-      console.log('Skipping default favicon.ico');
-      return false;
-    }
-    
-    // Prefer images that look like they could be logos or proper images
-    const goodIndicators = [
-      'logo', 'brand', 'og-image', 'twitter-image', 
-      'apple-touch', 'icon-192', 'icon-512'
-    ];
-    
-    const urlLower = url.toLowerCase();
-    return goodIndicators.some(indicator => urlLower.includes(indicator)) ||
-           // Or accept if it doesn't look like a tiny favicon
-           (!urlLower.includes('favicon') && !urlLower.endsWith('.ico'));
-  }
-
-  // NEW: Helper to resolve URLs properly
   resolveUrl(path, baseUrl) {
     if (!path) return null;
     
@@ -277,51 +475,30 @@ class MetadataExtractor {
       }
       return path;
     } catch (error) {
-      console.error('Error resolving URL:', error, 'for path:', path);
+      console.error(`❌ Error resolving URL: ${error.message} for path: ${path}`);
       return null;
     }
   }
 
-  // NEW: Helper: Get numeric value for icon size comparison
-  getIconSizeValue(sizes) {
-    if (!sizes) return 0;
-    const sizeMatch = sizes.match(/(\d+)x(\d+)/);
-    if (sizeMatch) {
-      return Math.max(parseInt(sizeMatch[1]), parseInt(sizeMatch[2]));
-    }
-    
-    // Handle single size values
-    const singleSizeMatch = sizes.match(/(\d+)/);
-    if (singleSizeMatch) {
-      return parseInt(singleSizeMatch[1]);
-    }
-    
-    return 0;
-  }
-
-  // Your existing methods (keep these)
   extractColors($) {
     const colors = new Set();
     
-    // Extract from style tags
     $('style').each((i, elem) => {
       const styleContent = $(elem).html();
       this.extractColorsFromText(styleContent, colors);
     });
     
-    // Extract from inline styles
     $('[style]').each((i, elem) => {
       const style = $(elem).attr('style');
       this.extractColorsFromText(style, colors);
     });
     
-    // Extract from meta theme-color
     const themeColor = $('meta[name="theme-color"]').attr('content');
     if (themeColor) {
       colors.add(themeColor.toLowerCase());
     }
     
-    return Array.from(colors).slice(0, 8); // Limit to 8 colors
+    return Array.from(colors).slice(0, 8);
   }
 
   extractColorsFromText(text, colorsSet) {
@@ -331,9 +508,8 @@ class MetadataExtractor {
     const matches = text.match(colorRegex) || [];
     
     matches.forEach(color => {
-      // Normalize color format
       if (color.startsWith('#')) {
-        if (color.length === 4) { // #RGB -> #RRGGBB
+        if (color.length === 4) {
           color = '#' + color[1] + color[1] + color[2] + color[2] + color[3] + color[3];
         }
       }
@@ -344,7 +520,6 @@ class MetadataExtractor {
   extractFonts($) {
     const fonts = new Set();
     
-    // Extract from Google Fonts and other font links
     $('link[rel="stylesheet"]').each((i, elem) => {
       const href = $(elem).attr('href');
       if (href && (href.includes('fonts.googleapis.com') || href.includes('font'))) {
@@ -352,7 +527,6 @@ class MetadataExtractor {
       }
     });
     
-    // Extract from style tags and inline styles
     $('style, [style]').each((i, elem) => {
       const styleContent = $(elem).attr('style') || $(elem).html() || '';
       const fontMatches = styleContent.match(/font-family:\s*([^;]+)/gi) || [];

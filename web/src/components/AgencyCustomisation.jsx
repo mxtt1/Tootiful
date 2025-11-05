@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, TextInput, Button, Text, Alert, Card, Group, Stack, Grid, ColorSwatch, Select, ColorPicker, Textarea, SimpleGrid, Image } from "@mantine/core";
-import { IconPlus, IconCheck, IconX, IconEye, IconDownload, IconRefresh, IconEdit, IconColorPicker, IconInfoCircle, IconTrash, IconPalette } from "@tabler/icons-react";
+import { Modal, TextInput, Button, Text, Alert, Card, Group, Stack, ColorSwatch, Select, ColorPicker, Textarea, SimpleGrid, Image } from "@mantine/core";
+import { IconPlus, IconCheck, IconX, IconEye, IconDownload, IconColorPicker, IconInfoCircle, IconTrash, IconPalette, IconShieldCheck } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
+import { Loader } from "@mantine/core";
 import ApiClient from "../api/apiClient";
 
 const CustomizationComponent = ({ agencyId }) => {
@@ -12,6 +13,13 @@ const CustomizationComponent = ({ agencyId }) => {
     const [existingCustomization, setExistingCustomization] = useState(null);
     const [showColorPicker, setShowColorPicker] = useState(false);
     
+    // Track both URL validity AND safety status
+    const [urlStatus, setUrlStatus] = useState({
+        isValid: false,
+        isSafe: false,
+        isChecking: false,
+        lastCheckedUrl: ""
+    });    
     // State management with initial and current values
     const [initialData, setInitialData] = useState({
         websiteUrl: "",
@@ -62,6 +70,110 @@ const CustomizationComponent = ({ agencyId }) => {
         }
     }, [modalOpen, existingCustomization]);
 
+    // Check URL validity AND safety
+    useEffect(() => {
+        const checkUrlValidityAndSafety = async () => {
+            if (!currentData.websiteUrl || currentData.websiteUrl.length < 10) {
+                setUrlStatus({
+                    isValid: false,
+                    isSafe: false,
+                    isChecking: false,
+                    lastCheckedUrl: currentData.websiteUrl
+                });
+                return;
+            }
+
+            setUrlStatus(prev => ({ ...prev, isChecking: true }));
+
+            try {
+                // Step 1: Basic URL format validation
+                const urlObj = new URL(currentData.websiteUrl);
+                
+                // Additional format checks
+                if (!urlObj.hostname || urlObj.hostname.split('.').length < 2) {
+                    throw new Error('Invalid domain format');
+                }
+
+                console.log(`✅ URL format is valid: ${currentData.websiteUrl}`);
+                
+                // Step 2: Enhanced client-side safety checks
+                const isSafe = await performClientSideSafetyChecks(urlObj);
+                
+                const newStatus = {
+                    isValid: true,
+                    isSafe: isSafe,
+                    isChecking: false,
+                    lastCheckedUrl: currentData.websiteUrl
+                };
+
+                setUrlStatus(newStatus);
+
+                // Show green notification when URL becomes safe and valid
+                if (isSafe && currentData.websiteUrl !== urlStatus.lastCheckedUrl) {
+                    notifications.show({
+                        title: "URL Validated ✓",
+                        message: "Website URL is properly formatted and ready for extraction!",
+                        color: "green",
+                        icon: <IconShieldCheck size={16} />,
+                        autoClose: 4000,
+                    });
+                }
+
+            } catch (error) {
+                console.log(`URL check failed:`, error.message);
+                
+                setUrlStatus({
+                    isValid: false,
+                    isSafe: false,
+                    isChecking: false,
+                    lastCheckedUrl: currentData.websiteUrl
+                });
+            }
+        };
+
+        // Debounce the URL check
+        const timeoutId = setTimeout(checkUrlValidityAndSafety, 800);
+        return () => clearTimeout(timeoutId);
+    }, [currentData.websiteUrl]);
+
+    // Client-side safety checks
+    const performClientSideSafetyChecks = async (urlObj) => {
+        const hostname = urlObj.hostname.toLowerCase();
+        const pathname = urlObj.pathname.toLowerCase();
+
+        // 1. Check for dangerous file extensions
+        const dangerousPatterns = [
+            /\.(exe|zip|rar|jar|dmg|pkg|scr|bat|cmd)$/i,
+        ];
+
+        for (const pattern of dangerousPatterns) {
+            if (pattern.test(pathname)) {
+                console.log(`❌ Dangerous file pattern detected: ${pattern}`);
+                return false;
+            }
+        }
+
+        // 2. Check for localhost/internal IPs
+        if (hostname === 'localhost' || hostname.startsWith('127.') || hostname.startsWith('192.168.')) {
+            console.log(`❌ Local/internal IP blocked: ${hostname}`);
+            return false;
+        }
+
+        // 3. Check for explicitly blocked domains (minimal list)
+        const blockedDomains = [
+            'malicious-site.com',
+            'phishing-site.net'
+        ];
+
+        if (blockedDomains.includes(hostname)) {
+            console.log(`❌ Domain explicitly blocked: ${hostname}`);
+            return false;
+        }
+
+        console.log(`✅ All client-side safety checks passed`);
+        return true;
+    };
+
     const loadExistingCustomization = async () => {
     try {
         console.log("Loading existing customization for agency:", agencyId);
@@ -78,9 +190,9 @@ const CustomizationComponent = ({ agencyId }) => {
                 useCustomTheme: agencyData.useCustomTheme,
                 websiteUrl: agencyData.websiteUrl,
                 metadata: agencyData.metadata,
-                name: agencyData.name, // Add name
-                aboutUs: agencyData.aboutUs, // Add aboutUs
-                image: agencyData.image // Add image
+                name: agencyData.name, 
+                aboutUs: agencyData.aboutUs, 
+                image: agencyData.image 
             });
             console.log("Existing customization loaded:", {
                 customTheme: agencyData.customTheme,
@@ -117,8 +229,18 @@ const CustomizationComponent = ({ agencyId }) => {
             
             setInitialData(newData);
             setCurrentData(newData);
+            if (newData.websiteUrl) {
+            setUrlStatus({
+                isValid: true,
+                isSafe: true,
+                isChecking: false,
+                lastCheckedUrl: newData.websiteUrl
+            });
+    }
+
         }
     };
+
 
     const extractAvailableImages = (data) => {
         const images = [
@@ -146,23 +268,28 @@ const CustomizationComponent = ({ agencyId }) => {
         // Also check if customTheme colors changed
         JSON.stringify(currentData.extractedData?.colors || []) !== 
         JSON.stringify(initialData.extractedData?.colors || [])
-    );
+        );
     };
 
     // Manual extraction only - no auto-extract
     const handleExtractMetadata = async () => {
         if (!currentData.websiteUrl || currentData.websiteUrl.length < 10) return;
         
+        // Additional safety check before extraction
+        if (!urlStatus.isValid) {
+            notifications.show({
+                title: "Invalid URL",
+                message: "Please enter a valid website URL before extracting.",
+                color: "red",
+                icon: <IconX size={16} />,
+            });
+            return;
+        }
+
         setLoadingExtraction(true);
+
         try {
             console.log("Extracting metadata from:", currentData.websiteUrl);
-            
-            // Validate URL format
-            try {
-                new URL(currentData.websiteUrl);
-            } catch (urlError) {
-                throw new Error("Invalid URL format. Please include http:// or https://");
-            }
 
             const extractRes = await ApiClient.post(
                 `/agencies/${agencyId}/extract-metadata`,
@@ -170,20 +297,26 @@ const CustomizationComponent = ({ agencyId }) => {
             );
             console.log("Full extract response:", extractRes);
 
-            let metadata;
-            if (extractRes.data && extractRes.data.metadata) {
+            // Handle different response structures
+            let success, metadata, error;
+            
+            if (extractRes.success !== undefined) {
+                success = extractRes.success;
+                metadata = extractRes.metadata;
+                error = extractRes.error;
+            } else if (extractRes.data?.success !== undefined) {
+                success = extractRes.data.success;
                 metadata = extractRes.data.metadata;
-            } else if (extractRes.metadata) {
-                metadata = extractRes.metadata;
-            } else if (extractRes.success && extractRes.metadata) {
-                metadata = extractRes.metadata;
+                error = extractRes.data.error;
             } else {
-                console.warn("Unexpected response structure:", extractRes);
-                throw new Error("Unexpected response format from server");
+                success = false;
+                error = "Invalid response format from server";
             }
 
-            console.log("Final metadata being set:", metadata);
-            
+            if (!success) {
+                throw new Error(error || "Extraction failed");
+            }
+
             // Update current data with extracted metadata
             const updatedData = {
                 ...currentData,
@@ -208,7 +341,6 @@ const CustomizationComponent = ({ agencyId }) => {
                 updatedData.displayName = domainName;
             }
             
-            // Auto-populate About Us with extracted description
             if (metadata.description && !currentData.aboutUs) {
                 updatedData.aboutUs = metadata.description;
                 notifications.show({
@@ -219,14 +351,13 @@ const CustomizationComponent = ({ agencyId }) => {
                 });
             }
             
-            // Auto-select first color if available
             if (metadata.colors && metadata.colors.length > 0) {
                 updatedData.selectedColor = metadata.colors[0];
             } else {
                 updatedData.selectedColor = '#6155F5';
             }
 
-            // AUTO-SELECT FIRST AVAILABLE IMAGE
+            // Auto-select first available image
             if (metadata.displayImage || metadata.logo || metadata.ogImage) {
                 const firstAvailableImage = updatedData.availableImages[0];
                 if (firstAvailableImage) {
@@ -247,7 +378,7 @@ const CustomizationComponent = ({ agencyId }) => {
                 title: "Success",
                 message: "Website data extracted successfully! Fields have been auto-populated.",
                 color: "green",
-                icon: <IconDownload size={16} />,
+                icon: <IconCheck size={16} />,
             });
 
         } catch (error) {
@@ -257,12 +388,14 @@ const CustomizationComponent = ({ agencyId }) => {
             
             if (error.message.includes("Invalid URL")) {
                 errorMessage = error.message;
-            } else if (error.message.includes("500")) {
-                errorMessage += "Server error occurred. The website might be blocking our requests or the extraction service might be down.";
-            } else if (error.message.includes("network") || error.message.includes("Network")) {
-                errorMessage += "Network error. Please check your connection and try again.";
+            } else if (error.message.includes("blocked")) {
+                errorMessage = "This website was blocked for security reasons";
+            } else if (error.message.includes("timeout")) {
+                errorMessage = "The website took too long to respond. Please try again.";
+            } else if (error.message.includes("ENOTFOUND")) {
+                errorMessage = "Website not found. Please check the URL and try again.";
             } else {
-                errorMessage += "You can still customize manually.";
+                errorMessage += "The website might be blocking our requests or the extraction service might be down.";
             }
             
             notifications.show({
@@ -276,7 +409,6 @@ const CustomizationComponent = ({ agencyId }) => {
         }
     };
 
-    // Input handlers
     const handleInputChange = (field, value) => {
         setCurrentData(prev => ({ ...prev, [field]: value }));
     };
@@ -485,58 +617,47 @@ const CustomizationComponent = ({ agencyId }) => {
 
         console.log("Save customization response:", saveRes);
 
-        if (saveRes) {
-            notifications.show({
-                title: "Success",
-                message: existingCustomization ? "Branding updated successfully!" : "Customization saved successfully!",
-                color: "green",
-            });
-            
-            // Update initial data to current data after successful save
-            setInitialData(currentData);
-            setModalOpen(false);
-            
-            // Trigger update event for ALL components
-            window.dispatchEvent(new Event('customizationUpdated'));
-            console.log("Customization update event dispatched");
-            
-            // Force reload to get updated data
-            await loadExistingCustomization();
-        } else {
-            throw new Error("Failed to save customization");
-        }
+            if (saveRes) {
+                notifications.show({
+                    title: "Success",
+                    message: existingCustomization ? "Branding updated successfully!" : "Customization saved successfully!",
+                    color: "green",
+                });
+                
+                setInitialData(currentData);
+                setModalOpen(false);
+                window.dispatchEvent(new Event('customizationUpdated'));
+                await loadExistingCustomization();
+            } else {
+                throw new Error("Failed to save customization");
+            }
 
-    } catch (error) {
-        console.error("Error saving customization:", error);
-        notifications.show({
-            title: "Error",
-            message: error.message || "Failed to save customization",
-            color: "red",
-        });
-    } finally {
-        setSubmitting(false);
-    }
-};
+        } catch (error) {
+            console.error("Error saving customization:", error);
+            notifications.show({
+                title: "Error",
+                message: error.message || "Failed to save customization",
+                color: "red",
+            });
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     const isDisplayNameValid = () => {
         return currentData.displayName.trim().length > 0 && currentData.displayName.length <= MAX_DISPLAY_NAME_LENGTH;
     };
 
-    // FIXED: PreviewComponent using currentData
+    // Preview Component
     const PreviewComponent = () => {
         const primaryColor = currentData.selectedColor || existingCustomization?.customTheme?.colors?.[0] || '#6155F5';
         const previewAgencyName = currentData.displayName || existingCustomization?.customTheme?.displayName || 'Your Agency';
 
-        // Use selected image or fallback to available images
         const logoUrl = currentData.selectedImage || 
                       currentData.extractedData?.displayImage || 
                       existingCustomization?.customTheme?.displayImage ||
                       currentData.extractedData?.logo ||
-                      existingCustomization?.customTheme?.logo ||
-                      currentData.extractedData?.ogImage ||
-                      existingCustomization?.customTheme?.ogImage ||
-                      currentData.extractedData?.largeIcon ||
-                      existingCustomization?.customTheme?.largeIcon;
+                      existingCustomization?.customTheme?.logo;
 
         return (
             <Card shadow="sm" padding="lg" style={{ border: '2px solid #e0e0e0', marginBottom: '1rem' }}>
@@ -557,7 +678,6 @@ const CustomizationComponent = ({ agencyId }) => {
                         gap: '8px',
                         padding: '16px 12px'
                     }}>
-                        {/* Agency Logo */}
                         <div style={{ 
                             display: 'flex', 
                             alignItems: 'center', 
@@ -575,7 +695,6 @@ const CustomizationComponent = ({ agencyId }) => {
                                         objectFit: 'contain'
                                     }}
                                     onError={(e) => {
-                                        console.log("Image failed to load:", logoUrl);
                                         e.target.style.display = 'none';
                                     }}
                                 />
@@ -608,7 +727,6 @@ const CustomizationComponent = ({ agencyId }) => {
                             </div>
                         </div>
 
-                        {/* Tutiful branding */}
                         <div style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -648,7 +766,7 @@ const CustomizationComponent = ({ agencyId }) => {
         );
     };
 
-    // FIXED: ImageSelectionSection using currentData
+    // Image Selection Section
     const ImageSelectionSection = () => {
         if (currentData.availableImages.length === 0) return null;
 
@@ -660,7 +778,7 @@ const CustomizationComponent = ({ agencyId }) => {
                 </Text>
                 
                 <SimpleGrid cols={3} spacing="md">
-                    {currentData.availableImages.map((img, index) => (
+                    {currentData.availableImages.map((img) => (
                         <Card 
                             key={img.key}
                             padding="sm" 
@@ -681,7 +799,6 @@ const CustomizationComponent = ({ agencyId }) => {
                                     fit="contain"
                                     style={{ borderRadius: '4px' }}
                                     onError={(e) => {
-                                        console.log(`Image failed to load: ${img.label} - ${img.url}`);
                                         e.target.style.display = 'none';
                                     }}
                                 />
@@ -718,12 +835,11 @@ const CustomizationComponent = ({ agencyId }) => {
         );
     };
 
-    // ExtractedDataDisplay using currentData
+    // Extracted Data Display
     const ExtractedDataDisplay = () => {
         const dataToDisplay = currentData.extractedData || existingCustomization?.customTheme;
         if (!dataToDisplay) return null;
 
-        // Get available colors for selection
         const availableColors = dataToDisplay.colors && dataToDisplay.colors.length > 0 ? dataToDisplay.colors : [];
         const selectData = availableColors.map((color, index) => ({
             value: color,
@@ -754,79 +870,21 @@ const CustomizationComponent = ({ agencyId }) => {
                                 </Text>
                             }
                         />
-                        <Text size="xs" c="dimmed" mt={4}>
-                            {currentData.extractedData && currentData.extractedData.title ? 
-                                `Extracted from website: ${currentData.extractedData.title}` : 
-                                currentData.extractedData ? 'No title extracted from website' : 'Edit to update your agency name'
-                            }
-                        </Text>
                     </div>
 
                     {/* Agency Description */}
                     <div>
                         <Text size="sm" fw={500} mb="xs">Agency Description:</Text>
                         <Textarea
-                            key={`description-${currentData.aboutUs.length}`}
                             value={currentData.aboutUs}
                             onChange={(e) => handleInputChange('aboutUs', e.target.value)}
                             placeholder="Enter agency description..."
                             rows={3}
                         />
-                        <Text size="xs" c="dimmed" mt={4}>
-                            This description will be saved to your agency profile.
-                        </Text>
                     </div>
 
                     {/* Image Selection Section */}
                     <ImageSelectionSection />
-
-                    {/* Show ALL extracted data */}
-                    {(currentData.extractedData || existingCustomization) && (
-                        <Card shadow="sm" padding="md" style={{ backgroundColor: '#f8f9fa' }}>
-                            <Text size="sm" fw={500} mb="xs">Available Data:</Text>
-                            <Stack spacing="xs">
-                                {dataToDisplay.title && (
-                                    <Text size="xs"><strong>Title:</strong> {dataToDisplay.title}</Text>
-                                )}
-                                
-                                {dataToDisplay.description && (
-                                    <Text size="xs" lineClamp={2}><strong>Description:</strong> {dataToDisplay.description}</Text>
-                                )}
-                                
-                                {/* Show ALL available images */}
-                                {currentData.availableImages.length > 0 && (
-                                    <div>
-                                        <Text size="xs" fw={500} mb="xs">Available Images:</Text>
-                                        <Stack spacing="xs">
-                                            {currentData.availableImages.map((img) => (
-                                                <div key={img.key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <img 
-                                                        src={img.url} 
-                                                        alt={img.label}
-                                                        style={{ 
-                                                            width: '24px', 
-                                                            height: '24px',
-                                                            borderRadius: '4px',
-                                                            objectFit: 'contain'
-                                                        }}
-                                                        onError={(e) => {
-                                                            console.log(`Image failed to load: ${img.label} - ${img.url}`);
-                                                            e.target.style.display = 'none';
-                                                        }}
-                                                    />
-                                                    <Text size="xs">{img.label}</Text>
-                                                </div>
-                                            ))}
-                                        </Stack>
-                                    </div>
-                                )}
-                                
-                                {availableColors.length === 0 && (
-                                    <Text size="xs" c="orange">No brand colors detected</Text>
-                                )}
-                            </Stack>
-                        </Card>
-                    )}
 
                     {/* Color Selection Section */}
                     <div>
@@ -834,7 +892,6 @@ const CustomizationComponent = ({ agencyId }) => {
                             Select Primary Brand Color:
                         </Text>
 
-                        {/* Multiple Choice Selection for Extracted Colors */}
                         {availableColors.length > 0 && (
                             <>
                                 <Select
@@ -845,7 +902,6 @@ const CustomizationComponent = ({ agencyId }) => {
                                     mb="md"
                                 />
                                 
-                                {/* Color Swatches Preview */}
                                 <Text size="xs" c="dimmed" mb="xs">Click on a color to select:</Text>
                                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
                                     {availableColors.map((color, index) => (
@@ -918,18 +974,9 @@ const CustomizationComponent = ({ agencyId }) => {
                                             Add Color
                                         </Button>
                                     </Group>
-                                    
-                                    {currentData.customColor && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <Text size="sm">Preview:</Text>
-                                            <ColorSwatch color={currentData.customColor} size={20} />
-                                            <Text size="sm">{currentData.customColor}</Text>
-                                        </div>
-                                    )}
                                 </Stack>
                             )}
 
-                            {/* Manual Color Input Fallback */}
                             {!showColorPicker && (
                                 <TextInput
                                     value={currentData.selectedColor}
@@ -946,7 +993,6 @@ const CustomizationComponent = ({ agencyId }) => {
                             )}
                         </Card>
 
-                        {/* Selected Color Display */}
                         {currentData.selectedColor && (
                             <Card shadow="sm" padding="sm" mt="md" style={{ backgroundColor: '#f8f9fa' }}>
                                 <Group>
@@ -964,7 +1010,7 @@ const CustomizationComponent = ({ agencyId }) => {
         );
     };
 
-    // Different button based on whether customization exists
+    // Customization Button
     const CustomizationButton = () => {
         if (existingCustomization) {
             return (
@@ -993,205 +1039,215 @@ const CustomizationComponent = ({ agencyId }) => {
         );
     };
 
-        return (
-            <>
-                <CustomizationButton />
+    return (
+        <>
+            <CustomizationButton />
 
-                <Modal
-                    opened={modalOpen}
-                    onClose={() => {
-                        setModalOpen(false);
-                        setPreviewMode(false);
-                        // Reset to initial data when closing without saving
-                        if (existingCustomization) {
-                            // Reload the existing data instead of resetting
-                            populateExistingData();
-                        } else {
-                            const resetData = {
-                                websiteUrl: "",
-                                displayName: "",
-                                aboutUs: "",
-                                selectedColor: "",
-                                selectedImage: "",
-                                customColor: "",
-                                extractedData: null,
-                                availableImages: []
-                            };
-                            setInitialData(resetData);
-                            setCurrentData(resetData);
-                        }
-                    }}
-                    title={existingCustomization ? "Manage Your Branding" : "Setup Your Agency Branding"}
-                    centered
-                    size="lg"
-                >
-                    <Stack spacing="md">
-                        {/* Website URL Input */}
-                        <Card shadow="sm" padding="md">
-                            <Text size="sm" fw={500} mb="xs">
-                                {existingCustomization ? 'Update Your Website URL' : 'Start with your website URL:'}
-                            </Text>
-                            <Group>
-                                <TextInput
-                                    placeholder="https://youragency.com"
-                                    value={currentData.websiteUrl}
-                                    onChange={(e) => handleInputChange('websiteUrl', e.target.value)}
-                                    style={{ flex: 1 }}
-                                />
-                                <Button
-                                    variant="outline"
-                                    onClick={handleExtractMetadata}
-                                    loading={loadingExtraction}
-                                    disabled={!currentData.websiteUrl || currentData.websiteUrl.length < 10}
-                                    leftSection={<IconDownload size={16} />}
-                                >
-                                    Extract
-                                </Button>
-                            </Group>
-                            <Text size="xs" c="dimmed" mt={4}>
-                                {existingCustomization 
-                                    ? 'Update your website URL and click Extract to get new branding data'
-                                    : 'Enter your website URL and click Extract to get your branding automatically'
-                                }
-                            </Text>
-                        </Card>
-
-                        {/* EXTRACTED DATA DISPLAY - ALWAYS SHOW WHEN WE HAVE DATA */}
-                        {(currentData.extractedData || existingCustomization) && <ExtractedDataDisplay />}
-
-                        {/* MANUAL INPUT - ONLY SHOW WHEN NO EXISTING DATA AND NO EXTRACTED DATA */}
-                        {!currentData.extractedData && !existingCustomization && (
-                            <Card shadow="sm" padding="md">
-                                <Text size="sm" fw={500} mb="xs">Or customize manually:</Text>
-                                <TextInput
-                                    ref={displayNameInputRef}
-                                    label="Agency Display Name"
-                                    description={`Maximum ${MAX_DISPLAY_NAME_LENGTH} characters`}
-                                    placeholder="Enter your agency display name..."
-                                    value={currentData.displayName}
-                                    onChange={handleDisplayNameChange}
-                                    maxLength={MAX_DISPLAY_NAME_LENGTH}
-                                    error={currentData.displayName.length > MAX_DISPLAY_NAME_LENGTH ? 
-                                        `Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or less` : null}
-                                    rightSection={
-                                        <Text size="sm" c={currentData.displayName.length > MAX_DISPLAY_NAME_LENGTH ? "red" : "dimmed"}>
-                                            {characterCount}/{MAX_DISPLAY_NAME_LENGTH}
-                                        </Text>
-                                    }
-                                />
-                                <Textarea
-                                    label="Agency Description"
-                                    placeholder="Enter agency description..."
-                                    value={currentData.aboutUs}
-                                    onChange={(e) => handleInputChange('aboutUs', e.target.value)}
-                                    rows={3}
-                                    mt="md"
-                                />
-                            </Card>
-                        )}
-
-                        {/* PREVIEW - SHOW WHEN WE HAVE DATA OR IN PREVIEW MODE */}
-                        {(previewMode || currentData.extractedData) && <PreviewComponent />}
-
-                        {/* VALIDATION MESSAGES */}
-                        {currentData.displayName.length > 25 && currentData.displayName.length <= MAX_DISPLAY_NAME_LENGTH && (
-                            <Alert color="yellow">
-                                <Text size="sm">
-                                    Your display name is getting long. Consider a shorter version for better display.
-                                </Text>
-                            </Alert>
-                        )}
-
-                        {currentData.displayName.length > MAX_DISPLAY_NAME_LENGTH && (
-                            <Alert color="red">
-                                <Text size="sm">
-                                    Display name exceeds {MAX_DISPLAY_NAME_LENGTH} characters. Please shorten it before saving.
-                                </Text>
-                            </Alert>
-                        )}
-
-                        {/* Show change indicator */}
-                        {hasChanges() && (
-                            <Alert color="blue" title="Unsaved Changes">
-                                <Text size="sm">You have unsaved changes. Click "Save" to apply them.</Text>
-                            </Alert>
-                        )}
-
-                        {/* Action Buttons */}
-                        <Group justify="space-between" mt="xl">
+            <Modal
+                opened={modalOpen}
+                onClose={() => {
+                    setModalOpen(false);
+                    setPreviewMode(false);
+                    setUrlStatus({
+                        isValid: false,
+                        isSafe: false,
+                        isChecking: false,
+                        lastCheckedUrl: ""
+                    });
+                    if (existingCustomization) {
+                        populateExistingData();
+                    } else {
+                        const resetData = {
+                            websiteUrl: "",
+                            displayName: "",
+                            aboutUs: "",
+                            selectedColor: "",
+                            selectedImage: "",
+                            customColor: "",
+                            extractedData: null,
+                            availableImages: []
+                        };
+                        setInitialData(resetData);
+                        setCurrentData(resetData);
+                    }
+                }}
+                title={existingCustomization ? "Manage Your Branding" : "Setup Your Agency Branding"}
+                centered
+                size="lg"
+            >
+                <Stack spacing="md">
+                                  {/* ENHANCED: Website URL Input with Safety Status */}
+                    <Card shadow="sm" padding="md">
+                        <Text size="sm" fw={500} mb="xs">
+                            {existingCustomization ? 'Update Your Website URL' : 'Start with your website URL:'}
+                        </Text>
+                        <Group>
+                        <TextInput
+                            placeholder="https://youragency.com"
+                            value={currentData.websiteUrl}
+                            onChange={(e) => handleInputChange('websiteUrl', e.target.value)}
+                            style={{ flex: 1 }}
+                            rightSection={
+                                urlStatus.isChecking ? (
+                                    <Loader size={16} />
+                                ) : urlStatus.isValid && urlStatus.isSafe ? (
+                                    <IconShieldCheck size={16} style={{ color: '#40c057' }} />
+                                ) : urlStatus.isValid ? (
+                                    <IconCheck size={16} style={{ color: '#fab005' }} />
+                                ) : currentData.websiteUrl.length > 0 ? (
+                                    <IconX size={16} style={{ color: '#fa5252' }} />
+                                ) : null
+                            }
+                            rightSectionPointerEvents="none"
+                        />
                             <Button
                                 variant="outline"
-                                leftSection={<IconEye size={16} />}
-                                onClick={() => setPreviewMode(!previewMode)}
-                                disabled={!currentData.displayName}
+                                onClick={handleExtractMetadata}
+                                loading={loadingExtraction}
+                                disabled={!urlStatus.isValid || !urlStatus.isSafe ||currentData.websiteUrl.length < 10}
+                                leftSection={<IconDownload size={16} />}
                             >
-                                {previewMode ? 'Hide Preview' : 'Show Preview'}
+                                Extract
                             </Button>
-                            
-                            <Group>
-                                {/* Reset Data Button */}
-                                {existingCustomization && (
-                                    <Button
-                                        variant="outline"
-                                        color="red"
-                                        leftSection={<IconTrash size={16} />}
-                                        onClick={handleResetData}
-                                    >
-                                        Reset to Default
-                                    </Button>
-                                )}
-                                
-                                {!existingCustomization && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                            const resetData = {
-                                                websiteUrl: "",
-                                                displayName: "",
-                                                aboutUs: "",
-                                                selectedColor: "",
-                                                selectedImage: "",
-                                                customColor: "",
-                                                extractedData: null,
-                                                availableImages: []
-                                            };
-                                            setCurrentData(resetData);
-                                            setPreviewMode(false);
-                                        }}
-                                    >
-                                        Reset
-                                    </Button>
-                                )}
-                                
-                                <Button
-                                    leftSection={<IconCheck size={16} />}
-                                    onClick={handleUrlSubmit}
-                                    loading={submitting}
-                                    disabled={!isDisplayNameValid()}
-                                >
-                                    {submitting ? "Processing..." : existingCustomization ? "Update Branding" : "Save Customization"}
-                                </Button>
-                            </Group>
                         </Group>
+                        
+                        {/* Enhanced status messages */}
+                        <Text size="xs" c={
+                            urlStatus.isChecking ? "blue" : 
+                            urlStatus.isValid && urlStatus.isSafe ? "green" : 
+                            urlStatus.isValid ? "orange" : 
+                            currentData.websiteUrl.length > 0 ? "red" : "dimmed"
+                        } mt={4}>
+                            {urlStatus.isChecking ? "Checking URL safety..." :
+                             urlStatus.isValid && urlStatus.isSafe ? "✓ URL is valid and safe - ready to extract!" :
+                             urlStatus.isValid ? "⚠ URL format is valid but safety not confirmed" :
+                             currentData.websiteUrl.length > 0 ? "✗ Please enter a valid website URL" :
+                             existingCustomization ? 'Update your website URL and click Extract to get new branding data' :
+                             'Enter your website URL and click Extract to get your branding automatically'}
+                        </Text>
 
-                        <Card shadow="sm" padding="md" style={{ backgroundColor: '#f8f9fa' }}>
-                            <Text size="sm" c="dimmed">
-                                <strong>Tips:</strong>
-                                <br />• Keep display name under 20 characters for best appearance
-                                <br />• Display name must be {MAX_DISPLAY_NAME_LENGTH} characters or less
-                                <br />• Choose from extracted brand colors or pick a custom color
-                                <br />• Select one of the available images as your brand logo
-                                <br />• Use the color picker for precise color selection
-                                <br />• All fields are editable. Customize as needed
-                                <br />• Use "Reset to Default" to remove customization and return to Tutiful branding
-                            </Text>
+                        {/* Safety status indicator */}
+                        {urlStatus.isValid && urlStatus.isSafe && (
+                            <Alert color="green" title="Safe to Extract" icon={<IconShieldCheck size={16} />} mt="sm">
+                                <Text size="sm">This website URL has passed safety checks and is ready for metadata extraction.</Text>
+                            </Alert>
+                        )}
+                    </Card>
+
+
+                    {/* EXTRACTED DATA DISPLAY */}
+                    {(currentData.extractedData || existingCustomization) && <ExtractedDataDisplay />}
+
+                    {/* MANUAL INPUT */}
+                    {!currentData.extractedData && !existingCustomization && (
+                        <Card shadow="sm" padding="md">
+                            <Text size="sm" fw={500} mb="xs">Or customize manually:</Text>
+                            <TextInput
+                                ref={displayNameInputRef}
+                                label="Agency Display Name"
+                                description={`Maximum ${MAX_DISPLAY_NAME_LENGTH} characters`}
+                                placeholder="Enter your agency display name..."
+                                value={currentData.displayName}
+                                onChange={handleDisplayNameChange}
+                                maxLength={MAX_DISPLAY_NAME_LENGTH}
+                                error={currentData.displayName.length > MAX_DISPLAY_NAME_LENGTH ? 
+                                    `Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or less` : null}
+                                rightSection={
+                                    <Text size="sm" c={currentData.displayName.length > MAX_DISPLAY_NAME_LENGTH ? "red" : "dimmed"}>
+                                        {characterCount}/{MAX_DISPLAY_NAME_LENGTH}
+                                    </Text>
+                                }
+                            />
+                            <Textarea
+                                label="Agency Description"
+                                placeholder="Enter agency description..."
+                                value={currentData.aboutUs}
+                                onChange={(e) => handleInputChange('aboutUs', e.target.value)}
+                                rows={3}
+                                mt="md"
+                            />
                         </Card>
-                    </Stack>
-                </Modal>
-            </>
-        );
+                    )}
 
+                    {/* PREVIEW */}
+                    {(previewMode || currentData.extractedData) && <PreviewComponent />}
 
+                    {/* VALIDATION MESSAGES */}
+                    {currentData.displayName.length > MAX_DISPLAY_NAME_LENGTH && (
+                        <Alert color="red">
+                            <Text size="sm">
+                                Display name exceeds {MAX_DISPLAY_NAME_LENGTH} characters. Please shorten it before saving.
+                            </Text>
+                        </Alert>
+                    )}
+
+                    {/* Show change indicator */}
+                    {hasChanges() && (
+                        <Alert color="blue" title="Unsaved Changes">
+                            <Text size="sm">You have unsaved changes. Click "Save" to apply them.</Text>
+                        </Alert>
+                    )}
+
+                    {/* Action Buttons */}
+                    <Group justify="space-between" mt="xl">
+                        <Button
+                            variant="outline"
+                            leftSection={<IconEye size={16} />}
+                            onClick={() => setPreviewMode(!previewMode)}
+                            disabled={!currentData.displayName}
+                        >
+                            {previewMode ? 'Hide Preview' : 'Show Preview'}
+                        </Button>
+                        
+                        <Group>
+                            {/* Reset Data Button */}
+                            {existingCustomization && (
+                                <Button
+                                    variant="outline"
+                                    color="red"
+                                    leftSection={<IconTrash size={16} />}
+                                    onClick={handleResetData}
+                                >
+                                    Reset to Default
+                                </Button>
+                            )}
+                            
+                            {!existingCustomization && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        const resetData = {
+                                            websiteUrl: "",
+                                            displayName: "",
+                                            aboutUs: "",
+                                            selectedColor: "",
+                                            selectedImage: "",
+                                            customColor: "",
+                                            extractedData: null,
+                                            availableImages: []
+                                        };
+                                        setCurrentData(resetData);
+                                        setPreviewMode(false);
+                                    }}
+                                >
+                                    Reset
+                                </Button>
+                            )}
+                            
+                            <Button
+                                leftSection={<IconCheck size={16} />}
+                                onClick={handleUrlSubmit}
+                                loading={submitting}
+                                disabled={!isDisplayNameValid()}
+                            >
+                                {submitting ? "Processing..." : existingCustomization ? "Update Branding" : "Save Customization"}
+                            </Button>
+                        </Group>
+                    </Group>
+                </Stack>
+            </Modal>
+        </>
+    );
 };
 
 export default CustomizationComponent;

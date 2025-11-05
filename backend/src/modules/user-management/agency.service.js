@@ -247,12 +247,19 @@ class AgencyService {
     }
 
     try {
-      const metadata = await metadataExtractor.extractMetadata(websiteUrl);
+      const result = await metadataExtractor.extractMetadata(websiteUrl);
       
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          error: result.error,
+          safety: result.safety
+        });
+      }
       // Save the extracted metadata to agency
       await Agency.update(
         { 
-          metadata: metadata,
+          metadata: result.metadata,
           websiteUrl: websiteUrl 
         },
         { where: { id: agencyId } }
@@ -260,7 +267,8 @@ class AgencyService {
       
       res.json({
         success: true,
-        metadata,
+        metadata: result.metadata,
+        safety: result.safety,
         previewUrl: websiteUrl
       });
     } catch (error) {
@@ -271,7 +279,6 @@ class AgencyService {
       });
     }
   }
-
 
   // Helper function to get agencyId from authenticated user
   getAgencyIdFromUser(user) {
