@@ -76,6 +76,16 @@ export const tutorsStyles = StyleSheet.create({
     color: "#374151",
     marginBottom: 5,
   },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  infoText: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginLeft: 6,
+  },
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -115,6 +125,12 @@ export const tutorsStyles = StyleSheet.create({
     color: "#8B5CF6",
     fontWeight: "500",
   },
+  noSubjectsText: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    fontStyle: "italic",
+    marginTop: 2,
+  },
   actionButtons: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -140,7 +156,7 @@ export const tutorsStyles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
-    flex: 0.45,
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },

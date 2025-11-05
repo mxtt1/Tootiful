@@ -38,9 +38,8 @@ export default function ViewTutorProfileScreen() {
 
       const tutorData = {
         ...response,
-        age: response.age || 35,
-        rating: response.rating || 4.5,
-        totalReviews: response.totalReviews || Math.floor(Math.random() * 50) + 10,
+        // rating: response.rating || 4.5,
+        // totalReviews: response.totalReviews || Math.floor(Math.random() * 50) + 10,
         education: response.education || "University Graduate",
         aboutMe: response.aboutMe || `I am a passionate ${response.subjects?.[0]?.name || "subject"} tutor with extensive experience helping students excel in their studies.`,
         subjects: response.subjects || [],
@@ -64,7 +63,7 @@ export default function ViewTutorProfileScreen() {
     setExpandedSubjects({});
     setSubjectLessons({});
     setLoadingLessons({});
-    
+
     // Fetch fresh tutor data
     fetchTutorData();
   };
@@ -211,6 +210,7 @@ export default function ViewTutorProfileScreen() {
 
       <ScrollView
         style={styles.content}
+        contentContainerStyle={styles.scrollViewContent}
         refreshControl={
           <RefreshControl
             refreshing={loading}
@@ -247,14 +247,13 @@ export default function ViewTutorProfileScreen() {
                 {tutor.firstName} {tutor.lastName}
               </Text>
 
-              <View style={styles.subjectAndAge}>
-                <Text style={styles.primarySubject}>
-                  {tutor.subjects?.[0]?.name || "Mathematics"}
-                </Text>
-                <Text style={styles.age}>Age {tutor.age}</Text>
+              <View style={styles.contactInfo}>
+                <Ionicons name="mail-outline" size={16} color="#E0D4FF" />
+                <Text style={styles.emailText}>{tutor.email}</Text>
               </View>
 
               <View style={styles.contactInfo}>
+                <Ionicons name="call-outline" size={16} color="#E0D4FF" />
                 <Text style={styles.phoneNumber}>{tutor.phone}</Text>
               </View>
             </View>
@@ -403,7 +402,7 @@ export default function ViewTutorProfileScreen() {
           )}
         </View>
 
-        {/* Ratings Section */}
+        {/* Ratings Section 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ratings</Text>
           <View style={styles.ratingContainer}>
@@ -418,13 +417,14 @@ export default function ViewTutorProfileScreen() {
           </View>
         </View>
 
-        {/* Action Buttons for Students */}
+          Action Buttons for Students Dummy Data Removed
         <View style={styles.actionButtonsContainer}>
           <TouchableOpacity style={styles.primaryButton}>
             <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
             <Text style={styles.primaryButtonText}>Send Message</Text>
           </TouchableOpacity>
         </View>
+        */}
       </ScrollView>
     </View>
   );

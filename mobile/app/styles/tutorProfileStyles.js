@@ -54,6 +54,9 @@ export const tutorProfileStyles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  scrollViewContent: {
+    paddingBottom: 40,
+  },
   profileCard: {
     backgroundColor: "#8B5CF6",
     marginHorizontal: 20,
@@ -91,29 +94,20 @@ export const tutorProfileStyles = StyleSheet.create({
     color: "#FFFFFF",
     marginBottom: 8,
   },
-  subjectAndAge: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  primarySubject: {
-    fontSize: 16,
-    color: "#E5E7EB",
-    marginRight: 16,
-  },
-  age: {
-    fontSize: 16,
-    color: "#E5E7EB",
-  },
   contactInfo: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  emailText: {
+    fontSize: 15,
+    color: "#FFFFFF",
+    marginLeft: 8,
   },
   phoneNumber: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#FFFFFF",
-    fontWeight: "500",
+    marginLeft: 8,
   },
   section: {
     backgroundColor: "#FFFFFF",
@@ -140,11 +134,13 @@ export const tutorProfileStyles = StyleSheet.create({
   },
   subjectMainInfo: {
     flex: 1,
+    flexShrink: 1,
   },
   subjectName: {
     fontSize: 16,
     fontWeight: "600",
     color: "#374151",
+    flexWrap: "wrap",
   },
   subjectGrade: {
     fontSize: 14,
@@ -192,6 +188,7 @@ export const tutorProfileStyles = StyleSheet.create({
   subjectHeaderLeft: {
     flex: 1,
     marginRight: 12,
+    flexShrink: 1,
   },
   lessonsContainer: {
     backgroundColor: "#FFFFFF",

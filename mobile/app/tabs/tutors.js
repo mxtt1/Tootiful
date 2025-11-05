@@ -14,52 +14,6 @@ import { router, useFocusEffect } from "expo-router";
 import { tutorsStyles as styles } from "../styles/tutorsStyles";
 import tutorService from "../../services/tutorService";
 
-// Mock tutors data (fallback)
-const MOCK_TUTORS = [
-  {
-    id: 1,
-    firstName: "Alice",
-    lastName: "Smith",
-    email: "alice.smith@example.com",
-    phone: "87654321",
-    subjects: [
-      { name: "Mathematics", experienceLevel: "advanced" },
-      { name: "Physics", experienceLevel: "intermediate" },
-    ],
-    rating: 4.8,
-    totalReviews: 24,
-    isOnline: true,
-  },
-  {
-    id: 2,
-    firstName: "Bob",
-    lastName: "Johnson",
-    email: "bob.johnson@example.com",
-    phone: "87654322",
-    subjects: [
-      { name: "English", experienceLevel: "expert" },
-      { name: "Literature", experienceLevel: "advanced" },
-    ],
-    rating: 4.6,
-    totalReviews: 18,
-    isOnline: false,
-  },
-  {
-    id: 3,
-    firstName: "Carol",
-    lastName: "Wilson",
-    email: "carol.wilson@example.com",
-    phone: "87654323",
-    subjects: [
-      { name: "Chemistry", experienceLevel: "expert" },
-      { name: "Biology", experienceLevel: "advanced" },
-    ],
-    rating: 4.9,
-    totalReviews: 31,
-    isOnline: true,
-  },
-];
-
 export default function TutorsScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [tutors, setTutors] = useState([]);
@@ -102,13 +56,15 @@ export default function TutorsScreen() {
         email: tutor.email,
         phone: tutor.phone,
         image: tutor.image,
+        education: tutor.education || "University Graduate",
+        dateOfBirth: tutor.dateOfBirth || "1990-01-01",
         subjects: tutor.subjects.map((subject) => ({
           name: subject.name,
           experienceLevel: subject.TutorSubject.experienceLevel,
         })),
-        rating: 4.5, // Mock rating since not in API yet
-        totalReviews: Math.floor(Math.random() * 50) + 10, // Mock reviews
-        isOnline: Math.random() > 0.3, // Mock online status
+        // rating: 4.5, // Mock rating since not in API yet
+        // totalReviews: Math.floor(Math.random() * 50) + 10, // Mock reviews
+        // isOnline: Math.random() > 0.3, // Mock online status
       }));
 
       console.log(
@@ -161,6 +117,7 @@ export default function TutorsScreen() {
     router.push(`/viewTutorProfile?id=${tutor.id}`);
   };
 
+  /* Nonfunctional: remove for now
   const renderStars = (rating) => {
     const stars = [];
     const fullStars = Math.floor(rating);
@@ -190,6 +147,7 @@ export default function TutorsScreen() {
 
     return stars;
   };
+  */
 
   return (
     <View style={styles.safeArea}>
@@ -263,6 +221,23 @@ export default function TutorsScreen() {
                       {tutor.firstName} {tutor.lastName}
                     </Text>
 
+                    {/* Education and Birth Date */}
+                    {tutor.education && (
+                      <View style={styles.infoRow}>
+                        <Ionicons name="school-outline" size={14} color="#6B7280" />
+                        <Text style={styles.infoText}>{tutor.education}</Text>
+                      </View>
+                    )}
+                    {tutor.dateOfBirth && (
+                      <View style={styles.infoRow}>
+                        <Ionicons name="calendar-outline" size={14} color="#6B7280" />
+                        <Text style={styles.infoText}>
+                          Born {new Date(tutor.dateOfBirth).toLocaleDateString()}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Nonfunctional: remove for now
                     <View style={styles.ratingContainer}>
                       <View style={styles.starsContainer}>
                         {renderStars(tutor.rating)}
@@ -271,25 +246,31 @@ export default function TutorsScreen() {
                         {tutor.rating} ({tutor.totalReviews} reviews)
                       </Text>
                     </View>
+                    */}
                   </View>
                 </View>
 
                 {/* Subjects */}
                 <View style={styles.subjectsContainer}>
                   <Text style={styles.subjectsLabel}>Subjects:</Text>
-                  <View style={styles.subjectsTags}>
-                    {tutor.subjects.map((subject, index) => (
-                      <View key={index} style={styles.subjectTag}>
-                        <Text style={styles.subjectTagText}>
-                          {subject.name} ({subject.experienceLevel})
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
+                  {tutor.subjects && tutor.subjects.length > 0 ? (
+                    <View style={styles.subjectsTags}>
+                      {tutor.subjects.map((subject, index) => (
+                        <View key={index} style={styles.subjectTag}>
+                          <Text style={styles.subjectTagText}>
+                            {subject.name} ({subject.experienceLevel})
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={styles.noSubjectsText}>No subjects listed</Text>
+                  )}
                 </View>
 
                 {/* Action Buttons */}
                 <View style={styles.actionButtons}>
+                  {/* Nonfunctional: remove for now 
                   <TouchableOpacity style={styles.messageButton}>
                     <Ionicons
                       name="chatbubble-outline"
@@ -298,6 +279,7 @@ export default function TutorsScreen() {
                     />
                     <Text style={styles.messageButtonText}>Message</Text>
                   </TouchableOpacity>
+                  */}
 
                   <TouchableOpacity
                     style={styles.viewProfileButton}
