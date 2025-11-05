@@ -507,6 +507,7 @@ class AgencyService {
         "image",
         "aboutUs",
         "isActive",
+        "websiteUrl", "useCustomTheme", "metadata", "customTheme"
       ],
     });
 

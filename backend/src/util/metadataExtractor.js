@@ -12,22 +12,23 @@ class MetadataExtractor {
     ];
   }
 
+  // Main method to extract metadata from a given URL
   async extractMetadata(url) {
     console.log(`🔍 Starting metadata extraction for: ${url}`);
     
     try {
-      // Step 1: URL normalization
+      // Step 1: URL normalization - clean and validate the input URL
       const normalizedUrl = this.normalizeUrl(url);
       console.log(`✅ Normalized URL: ${normalizedUrl}`);
 
-      // Step 2: Quick safety check
+      // Step 2: Quick safety check - ensure URL is safe to process
       await this.quickSafetyCheck(normalizedUrl);
       console.log(`✅ Safety check passed`);
 
       // Step 3: Attempt to fetch the website
       console.log(`🌐 Fetching website content...`);
       const response = await axios.get(normalizedUrl, {
-        timeout: 10000, // 10 second timeout
+        timeout: 10000, // 10 second timeout to avoid hanging requests
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; AgencyMetadataBot/1.0; +https://yourdomain.com)'
         },
@@ -39,12 +40,12 @@ class MetadataExtractor {
 
       console.log(`📡 Response status: ${response.status}`);
 
-      // Check for HTTP errors
+      // Check for HTTP errors (400+ status codes)
       if (response.status >= 400) {
         throw new Error(`HTTP ${response.status}: ${this.getStatusText(response.status)}`);
       }
 
-      // Check if we got HTML content
+      // Check if we got HTML content (not PDF, image, etc.)
       const contentType = response.headers['content-type'] || '';
       if (!contentType.includes('text/html')) {
         throw new Error(`Expected HTML but got: ${contentType}`);
@@ -52,27 +53,29 @@ class MetadataExtractor {
 
       console.log(`✅ Successfully fetched HTML content`);
       
+      // Load HTML into cheerio for DOM parsing
       const $ = cheerio.load(response.data);
       
-      // Extract metadata
+      // Extract metadata into structured object
       const metadata = {
         url: normalizedUrl,
-        title: $('title').text()?.trim() || '',
-        favicon: this.extractFavicon($, normalizedUrl),
-        logo: this.extractLogo($, normalizedUrl),
-        ogImage: this.extractOgImage($, normalizedUrl),
-        twitterImage: this.extractTwitterImage($, normalizedUrl),
-        largeIcon: this.extractLargeIcon($, normalizedUrl),
-        displayImage: null,
-        colors: this.extractColors($),
-        fonts: this.extractFonts($),
-        description: $('meta[name="description"]').attr('content')?.trim() || '',
-        keywords: $('meta[name="keywords"]').attr('content')?.trim() || '',
-        viewport: $('meta[name="viewport"]').attr('content') || '',
-        ogTitle: $('meta[property="og:title"]').attr('content')?.trim() || '',
-        ogDescription: $('meta[property="og:description"]').attr('content')?.trim() || '',
+        title: $('title').text()?.trim() || '', // Page title
+        favicon: this.extractFavicon($, normalizedUrl), // Site favicon
+        logo: this.extractLogo($, normalizedUrl), // Website logo
+        ogImage: this.extractOgImage($, normalizedUrl), // Open Graph image
+        twitterImage: this.extractTwitterImage($, normalizedUrl), // Twitter card image
+        largeIcon: this.extractLargeIcon($, normalizedUrl), // Large app icons
+        displayImage: null,  // Will be set to best available image
+        colors: this.extractColors($), // Color scheme from CSS
+        fonts: this.extractFonts($), // Font families used
+        description: $('meta[name="description"]').attr('content')?.trim() || '', // Meta description
+        keywords: $('meta[name="keywords"]').attr('content')?.trim() || '', // Meta keywords
+        viewport: $('meta[name="viewport"]').attr('content') || '', // Viewport meta tag
+        ogTitle: $('meta[property="og:title"]').attr('content')?.trim() || '', // Open Graph title
+        ogDescription: $('meta[property="og:description"]').attr('content')?.trim() || '', // Open Graph description
       };
 
+      // Determine the best display image from available options
       metadata.displayImage = this.getBestDisplayImage(metadata);
 
       console.log(`✅ Successfully extracted metadata:`, {
@@ -106,7 +109,8 @@ class MetadataExtractor {
     }
   }
 
-    getBestDisplayImage(metadata) {
+  // Select the best available image for display purposes
+  getBestDisplayImage(metadata) {
     const imagePriority = [
       metadata.logo,        // Actual website logo
       metadata.ogImage,     // Open Graph image (usually high quality)
@@ -115,6 +119,7 @@ class MetadataExtractor {
       metadata.favicon      // Regular favicon (last resort)
     ];
 
+    // Return the first good quality image found in priority order
     for (const imageUrl of imagePriority) {
       if (imageUrl && this.isLikelyGoodImage(imageUrl)) {
         console.log(`✅ Selected display image: ${imageUrl}`);
@@ -126,7 +131,7 @@ class MetadataExtractor {
     return null;
   }
 
-  // ✅ ADD THIS MISSING METHOD:
+  // Determine if an image URL is likely to be good quality for display
   isLikelyGoodImage(url) {
     if (!url) return false;
     
@@ -136,7 +141,7 @@ class MetadataExtractor {
       return false;
     }
     
-    // Skip very small favicons
+    // Skip very small favicons (usually 16x16 pixels)
     if (url.includes('favicon.ico')) {
       console.log(`🔄 Skipping default favicon.ico`);
       return false;
@@ -157,14 +162,16 @@ class MetadataExtractor {
     return isGood;
   }
 
+  // Extract numeric size value from "sizes" attribute (e.g., "192x192" -> 192)
   getIconSizeValue(sizes) {
     if (!sizes) return 0;
+    // Handle "WxH" format (e.g "192x192")
     const sizeMatch = sizes.match(/(\d+)x(\d+)/);
     if (sizeMatch) {
       return Math.max(parseInt(sizeMatch[1]), parseInt(sizeMatch[2]));
     }
     
-    // Handle single size values
+    // Handle single size values (e.g "192")
     const singleSizeMatch = sizes.match(/(\d+)/);
     if (singleSizeMatch) {
       return parseInt(singleSizeMatch[1]);
@@ -173,11 +180,12 @@ class MetadataExtractor {
     return 0;
   }
 
+  // Normalize and validate URL format
   normalizeUrl(url) {
     console.log(`🔄 Normalizing URL: ${url}`);
     
     try {
-      // Add protocol if missing
+      // Add protocol if missing (default to HTTPS)
       if (!url.startsWith('http')) {
         url = 'https://' + url;
         console.log(`🔧 Added HTTPS protocol: ${url}`);
@@ -190,7 +198,7 @@ class MetadataExtractor {
         throw new Error('Invalid URL: No hostname found');
       }
 
-      // Basic domain validation
+      // Basic domain validation (must have at least domain.TLD)
       const domainParts = urlObj.hostname.split('.');
       if (domainParts.length < 2) {
         throw new Error('Invalid domain format');
@@ -205,6 +213,7 @@ class MetadataExtractor {
     }
   }
 
+  // Comprehensive safety check for URLs
   async quickSafetyCheck(url) {
     console.log(`🛡️ Running safety check for: ${url}`);
     
@@ -223,7 +232,7 @@ class MetadataExtractor {
 
     // 2. Check for dangerous file extensions in path (not domain)
     const dangerousPatterns = [
-      /\.(exe|zip|rar|jar|dmg|pkg|scr|bat|cmd)$/i, // Removed .com from patterns
+      /\.(exe|zip|rar|jar|dmg|pkg|scr|bat|cmd)$/i,
     ];
 
     const pathname = urlObj.pathname.toLowerCase();
@@ -243,6 +252,16 @@ class MetadataExtractor {
       throw new Error('Local/internal URLs are not allowed');
     }
     console.log(`✅ Not a local/internal URL`);
+
+    // 4. Check for dangerous TLDs/extensions in domain
+    const dangerousTLDs = ['exe', 'bat', 'cmd', 'scr', 'pif', 'msi']; // Removed 'com' as it's legitimate
+    const domainExt = hostname.split('.').pop().toLowerCase();
+    
+    if (dangerousTLDs.includes(domainExt)) {
+      console.log(`❌ Dangerous domain extension: ${domainExt}`);
+      throw new Error('Domain uses a potentially dangerous extension');
+    }
+    console.log(`✅ Domain extension is safe`);
 
     console.log(`✅ All safety checks passed`);
     return true;
@@ -277,6 +296,8 @@ class MetadataExtractor {
       return 'This website was blocked for security reasons.';
     } else if (message.includes('invalid url')) {
       return 'Invalid URL format. Please check the website address.';
+    } else if (message.includes('dangerous')) {
+      return 'This website was blocked for security reasons.';
     } else {
       return `Unable to extract data: ${error.message}`;
     }
@@ -296,16 +317,16 @@ class MetadataExtractor {
     return statusTexts[statusCode] || 'Unknown Error';
   }
 
-
+  // Extract website logo using various CSS selector patterns
   extractLogo($, baseUrl) {
     const logoSelectors = [
       '.logo img',
-      '[class*="logo"] img',
+      '[class*="logo"] img', // Any class containing "logo"
       '.header-logo img',
       '.site-logo img',
       '.brand-logo img',
-      'header img:first-child',
-      'nav img:first-child',
+      'header img:first-child', // First image in header
+      'nav img:first-child', // First image in navigation
       '.navbar img',
       '.header img',
       '#logo img',
@@ -324,7 +345,7 @@ class MetadataExtractor {
       }
     }
 
-        // Also check for SVG logos
+    // Also check for SVG logos
     const svgSelectors = [
       '.logo svg',
       '[class*="logo"] svg',
@@ -343,7 +364,6 @@ class MetadataExtractor {
     return null;
   }
 
-  // NEW: Extract Open Graph image (usually high quality)
   extractOgImage($, baseUrl) {
     const ogImage = $('meta[property="og:image"]').attr('content') ||
                    $('meta[name="og:image"]').attr('content');
@@ -356,7 +376,6 @@ class MetadataExtractor {
     return null;
   }
 
-  // NEW: Extract Twitter image
   extractTwitterImage($, baseUrl) {
     const twitterImage = $('meta[name="twitter:image"]').attr('content') ||
                         $('meta[property="twitter:image"]').attr('content') ||
@@ -370,7 +389,6 @@ class MetadataExtractor {
     return null;
   }
 
-  // NEW: Extract the largest available icon
   extractLargeIcon($, baseUrl) {
     const icons = [];
     
@@ -381,8 +399,8 @@ class MetadataExtractor {
       if (href) {
         icons.push({
           url: this.resolveUrl(href, baseUrl),
-          sizes: sizes || '180x180', // Default Apple touch icon size
-          priority: 1 // High priority - these are usually good quality
+          sizes: sizes || '180x180',
+          priority: 1
         });
       }
     });
@@ -393,7 +411,6 @@ class MetadataExtractor {
       if (href) {
         try {
           const manifestUrl = this.resolveUrl(href, baseUrl);
-          // Could fetch and parse web manifest for more icons
           console.log('Found web app manifest:', manifestUrl);
         } catch (error) {
           console.log('Could not fetch manifest:', error.message);
@@ -407,20 +424,18 @@ class MetadataExtractor {
       const sizes = $(elem).attr('sizes');
       if (href && sizes) {
         const sizeValue = this.getIconSizeValue(sizes);
-        if (sizeValue >= 32) { // Only consider icons 32px or larger
+        if (sizeValue >= 32) {
           icons.push({
             url: this.resolveUrl(href, baseUrl),
             sizes: sizes,
-            priority: sizeValue >= 192 ? 2 : 3 // Higher priority for larger icons
+            priority: sizeValue >= 192 ? 2 : 3
           });
         }
       }
     });
 
-    // Sort by priority and size, then return the best one
     if (icons.length > 0) {
       const bestIcon = icons.sort((a, b) => {
-        // First by priority, then by size
         if (a.priority !== b.priority) {
           return a.priority - b.priority;
         }

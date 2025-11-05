@@ -65,6 +65,7 @@ class AgencyService {
       throw error;
     }
   }
+
 }
 
 export default new AgencyService();

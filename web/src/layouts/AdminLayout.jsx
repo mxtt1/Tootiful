@@ -41,12 +41,16 @@ const AdminLayout = ({ children }) => {
         document.documentElement.style.setProperty('--agency-primary', colors[0]);
         document.documentElement.style.setProperty('--sidebar-accent', colors[0]);
       }
-      
-      // Only update the page title, dont touch favicon
+        
       if (config.customTheme.title || config.customTheme.displayName) {
         const title = config.customTheme.title || config.customTheme.displayName;
         document.title = `${title} - Tutiful Portal`;
       }
+
+      const existingFavicon = document.querySelector('link[rel="icon"]');
+        if (existingFavicon) {
+          existingFavicon.remove();
+        }
       
       // Debug log to see what images are available
       console.log("Available customization images:", {

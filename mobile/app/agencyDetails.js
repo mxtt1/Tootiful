@@ -29,14 +29,13 @@ export default function AgencyDetailsScreen() {
   useEffect(() => {
     if (id) {
       fetchAgencyDetails();
-      fetchBrandCustomization();
     }
   }, [id]);
 
   const fetchAgencyDetails = async () => {
     try {
       setLoading(true);
-      setError(null);agencyDetails
+      setError(null);
 
       console.log("🔄 Fetching agency details for ID:", id);
 
@@ -52,9 +51,17 @@ export default function AgencyDetailsScreen() {
       console.log("✅ Agency locations:", locationsResponse);
       console.log("✅ Agency lessons:", lessonsResponse);
 
-      setAgency(agencyResponse.data);
+      const agencyData = agencyResponse.data;
+      
+      // ✅ EXTRACT BRAND COLORS FROM AGENCY RESPONSE
+      const colors = agencyData.customTheme?.colors || [];
+      setBrandColors(colors);
+      console.log("🎨 Brand colors extracted:", colors);
+
+      setAgency(agencyData);
       setLocations(locationsResponse.data || locationsResponse || []);
       setLessons(lessonsResponse.data || lessonsResponse || []);
+      
     } catch (error) {
       console.error("❌ Error fetching agency details:", error);
       setError("Failed to load agency details. Please try again.");
@@ -62,18 +69,6 @@ export default function AgencyDetailsScreen() {
       setLoading(false);
     }
   };
-
-  const fetchBrandCustomization = async () => {
-    try {
-      const response = await agencyService.getAgencyCustomization(id);
-      if (response.success && response.config) {
-        setBrandColors(response.config.customTheme?.colors || []);
-      }
-    } catch (error) {
-      console.log("No brand customization found or error:", error);
-    }
-  };
-
   const handleEnrollInLesson = async (lesson) => {
     try {
       // Check if user is authenticated
