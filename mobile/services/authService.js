@@ -59,6 +59,17 @@ class AuthService {
     return apiClient.accessToken;
   }
 
+  // Verify token with backend and get current user
+  async getCurrentUser() {
+    try {
+      const response = await apiClient.get("/auth/me");
+      return response.user;
+    } catch (error) {
+      console.error("Failed to get current user:", error);
+      throw error;
+    }
+  }
+
   // Auto-refresh token with retry logic
   async autoRefreshToken() {
     try {
