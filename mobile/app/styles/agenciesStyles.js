@@ -681,4 +681,19 @@ export const agencyDetailsStyles = StyleSheet.create({
   subjectLessons: {
     paddingLeft: 8,
   },
+  refreshButton: {
+  padding: 8,
+},
+lastUpdated: {
+  paddingHorizontal: 16,
+  paddingVertical: 8,
+  backgroundColor: '#f8f9fa',
+  borderBottomWidth: 1,
+  borderBottomColor: '#e9ecef',
+},
+lastUpdatedText: {
+  fontSize: 12,
+  color: '#6c757d',
+  textAlign: 'center',
+},
 });

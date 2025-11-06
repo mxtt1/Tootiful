@@ -7,10 +7,11 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState, useEffect } from "react";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useState, useEffect, useCallback } from "react";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { agencyDetailsStyles as styles } from "./styles/agenciesStyles";
 import agencyService from "../services/agencyService";
 import authService from "../services/authService";
@@ -22,9 +23,11 @@ export default function AgencyDetailsScreen() {
   const [locations, setLocations] = useState([]);
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [expandedSubjects, setExpandedSubjects] = useState({});
   const [brandColors, setBrandColors] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null); 
 
   useEffect(() => {
     if (id) {
@@ -39,12 +42,15 @@ export default function AgencyDetailsScreen() {
 
       console.log("🔄 Fetching agency details for ID:", id);
 
+      // Add cache-busting timestamp
+      const timestamp = new Date().getTime();
+
       // Fetch agency details, locations, and lessons in parallel
       const [agencyResponse, locationsResponse, lessonsResponse] =
         await Promise.all([
-          agencyService.getAgencyById(id),
-          agencyService.getAgencyLocations(id),
-          agencyService.getLessonsByAgencyId(id),
+          agencyService.getAgencyById(id, { _: timestamp }),
+          agencyService.getAgencyLocations(id, { _: timestamp }),
+          agencyService.getLessonsByAgencyId(id, { _: timestamp }),
         ]);
 
       console.log("✅ Agency details:", agencyResponse.data);
@@ -78,6 +84,7 @@ export default function AgencyDetailsScreen() {
       setBrandColors(brandData.colors);
       setLocations(locationsResponse.data || []);
       setLessons(lessonsResponse.data || []);
+      setLastUpdated(new Date());
       
     } catch (error) {
       console.error("❌ Error fetching agency details:", error);
@@ -86,6 +93,34 @@ export default function AgencyDetailsScreen() {
     setLoading(false); 
   }
 };
+
+  // Initial load
+  useEffect(() => {
+    if (id) {
+      fetchAgencyDetails();
+    }
+  }, [id]);
+
+  // Refresh on screen focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log("🔄 Screen focused - refreshing agency data");
+      fetchAgencyDetails();
+    }, [id])
+  );
+
+  // Pull-to-refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchAgencyDetails();
+    setRefreshing(false);
+  }, []);
+
+  // Manual refresh handler
+  const handleManualRefresh = () => {
+    console.log("🔄 Manual refresh triggered");
+    fetchAgencyDetails();
+  };
 
   const handleEnrollInLesson = async (lesson) => {
     try {
@@ -182,7 +217,7 @@ export default function AgencyDetailsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Header */}
+        {/* Enhanced Header */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -191,11 +226,38 @@ export default function AgencyDetailsScreen() {
             <Ionicons name="arrow-back" size={24} color={getPrimaryColor()} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Agency Details</Text>
+          <TouchableOpacity
+            onPress={handleManualRefresh}
+            style={styles.refreshButton}
+          >
+            <Ionicons 
+              name="refresh" 
+              size={24} 
+              color={getPrimaryColor()} 
+            />
+          </TouchableOpacity>
         </View>
+
+        {/* Last Updated Indicator */}
+        {lastUpdated && (
+          <View style={styles.lastUpdated}>
+            <Text style={styles.lastUpdatedText}>
+              Updated {lastUpdated.toLocaleTimeString()}
+            </Text>
+          </View>
+        )}
 
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={onRefresh}
+              colors={["#8B5CF6"]}
+              tintColor="#8B5CF6"
+            />
+          }
         >
           {/* Agency Header */}
           <View style={styles.agencyHeader}>
