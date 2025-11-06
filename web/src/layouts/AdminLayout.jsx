@@ -29,79 +29,68 @@ const AdminLayout = ({ children }) => {
   const location = useLocation();
   const { user, logout, loading } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [tenantConfig, setTenantConfig] = useState(null);
+  const [agency, setAgency] = useState(null);
 
-  // Apply custom theme colors and title - ONLY these, no favicon changes
-  const applyCustomizations = (config) => {
-      if (!config.customTheme) return;
+  // Apply custom theme colors and title
+  const applyCustomizations = (agencyData) => {
+    if (!agencyData?.useCustomTheme || !agencyData.customTheme) return;
+    
+    const colors = agencyData.customTheme.colors || [];
+    if (colors[0]) {
+      document.documentElement.style.setProperty('--mantine-primary-color', colors[0]);
+      document.documentElement.style.setProperty('--agency-primary', colors[0]);
+      document.documentElement.style.setProperty('--sidebar-accent', colors[0]);
+    }
       
-      const colors = config.customTheme.colors || [];
-      if (colors[0]) {
-        document.documentElement.style.setProperty('--mantine-primary-color', colors[0]);
-        document.documentElement.style.setProperty('--agency-primary', colors[0]);
-        document.documentElement.style.setProperty('--sidebar-accent', colors[0]);
-      }
-        
-      if (config.customTheme.title || config.customTheme.displayName) {
-        const title = config.customTheme.title || config.customTheme.displayName;
-        document.title = `${title} - Tutiful Portal`;
-      }
+    if (agencyData.customTheme.title || agencyData.name) {
+      const title = agencyData.customTheme.title || agencyData.name;
+      document.title = `${title} - Tutiful Portal`;
+    }
 
-      const existingFavicon = document.querySelector('link[rel="icon"]');
-        if (existingFavicon) {
-          existingFavicon.remove();
-        }
-      
-      // Debug log to see what images are available
-      console.log("Available customization images:", {
-          selectedImage: config.customTheme.selectedImage,
-          displayImage: config.customTheme.displayImage,
-          logo: config.customTheme.logo,
-          agencyImage: config.image // From agency model
-      });
+    const existingFavicon = document.querySelector('link[rel="icon"]');
+    if (existingFavicon) {
+      existingFavicon.remove();
+    }
+  
+    // Debug log to see what images are available
+    console.log("Available agency images:", {
+      agencyImage: agencyData.image,
+      customTheme: agencyData.customTheme,
+      metadata: agencyData.metadata
+    });
   };
 
-  // Load tenant customization configuration
+  // Load agency data
   useEffect(() => {
-    const loadTenantConfig = async () => {
+    const loadAgency = async () => {
       try {
         // Get agency ID from user context
         const agencyId = user?.agencyId || user?.id;
         
         if (!agencyId) {
           console.warn("No agency ID available for user");
-          setTenantConfig(null);
+          setAgency(null);
           return;
         }
 
-        // Use the existing agency profile endpoint that includes customization
+        // Use the agency profile endpoint
         const response = await ApiClient.get(`/agencies/${agencyId}`);
         
         if (response.success && response.data) {
           const agencyData = response.data;
-          
-          // Format as config object expected by the rest of the code
-          const config = {
-            customTheme: agencyData.customTheme,
-            useCustomTheme: agencyData.useCustomTheme,
-            metadata: agencyData.metadata,
-            websiteUrl: agencyData.websiteUrl,
-            image: agencyData.image
-          };
-          
-          setTenantConfig(config);
-          applyCustomizations(config);
+          setAgency(agencyData);
+          applyCustomizations(agencyData);
         } else {
-          setTenantConfig(null);
+          setAgency(null);
         }
       } catch (error) {
-        console.error("Failed to load tenant config:", error);
-        setTenantConfig(null);
+        console.error("Failed to load agency:", error);
+        setAgency(null);
       }
     };
 
-    loadTenantConfig();
-  }, [user]); // Add user as dependency
+    loadAgency();
+  }, [user]);
 
   // Listen for customization updates from other components
   useEffect(() => {
@@ -115,18 +104,10 @@ const AdminLayout = ({ children }) => {
         
         if (response.success && response.data) {
           const agencyData = response.data;
-          const config = {
-            customTheme: agencyData.customTheme,
-            useCustomTheme: agencyData.useCustomTheme,
-            metadata: agencyData.metadata,
-            websiteUrl: agencyData.websiteUrl,
-            image: agencyData.image
-          };
-          
-          setTenantConfig(config);
-          applyCustomizations(config);
+          setAgency(agencyData);
+          applyCustomizations(agencyData);
         } else {
-          setTenantConfig(null);
+          setAgency(null);
           // Reset to default if no customization
           document.documentElement.style.setProperty('--mantine-primary-color', '#6155F5');
           document.documentElement.style.setProperty('--agency-primary', '#6155F5');
@@ -134,14 +115,14 @@ const AdminLayout = ({ children }) => {
           document.title = "Tutiful Portal";
         }
       } catch (error) {
-        console.error("Failed to reload tenant config:", error);
-        setTenantConfig(null);
+        console.error("Failed to reload agency:", error);
+        setAgency(null);
       }
     };
 
     window.addEventListener('customizationUpdated', handleCustomizationUpdate);
     return () => window.removeEventListener('customizationUpdated', handleCustomizationUpdate);
-  }, [user]); // Add user as dependency
+  }, [user]);
 
   const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed);
   const handleLogout = async () => {
@@ -192,10 +173,10 @@ const AdminLayout = ({ children }) => {
     return "A";
   };
 
-  // Get panel title from customization or fallback
+  // Get panel title from agency or fallback
   const getPanelTitle = () => {
-    if (tenantConfig?.customTheme?.displayName) return tenantConfig.customTheme.displayName;
-    if (tenantConfig?.customTheme?.title) return tenantConfig.customTheme.title;
+    if (agency?.useCustomTheme && agency?.customTheme?.title) return agency.customTheme.title;
+    if (agency?.name) return agency.name;
     
     if (user?.role === "admin") return "Admin Panel";
     if (user?.userType === "agencyAdmin") return "Agency Admin Panel";
@@ -205,24 +186,28 @@ const AdminLayout = ({ children }) => {
 
   // Get agency name for fallback logo
   const getAgencyDisplayName = () => {
-    return tenantConfig?.customTheme?.displayName || 
-           tenantConfig?.customTheme?.title || 
+    return (agency?.useCustomTheme && agency?.customTheme?.title) || 
+           agency?.name || 
            "MindFlex";
   };
 
-  // Get logo URL with priority order - INCLUDING favicon for sidebar display only
+  // Get logo URL with priority order
   const getLogoUrl = () => {
-    const customTheme = tenantConfig?.customTheme;
-    if (!customTheme) return null;
-      
-    // Priority order for sidebar logo display (includes favicon for display purposes)
-    return customTheme.selectedImage || // ADD THIS: Use selected image first
-           customTheme.displayImage || 
-           customTheme.logo || 
-           customTheme.ogImage || 
-           customTheme.twitterImage ||
-           customTheme.largeIcon || 
-           customTheme.favicon; // Keep favicon here for SIDEBAR DISPLAY ONLY
+    if (!agency) return null;
+    
+    // Priority order for sidebar logo display
+    if (agency.useCustomTheme && agency.customTheme) {
+      return agency.customTheme.selectedImage || 
+             agency.customTheme.displayImage || 
+             agency.customTheme.logo || 
+             agency.customTheme.ogImage || 
+             agency.customTheme.twitterImage ||
+             agency.customTheme.largeIcon || 
+             agency.customTheme.favicon;
+    }
+    
+    // Fallback to agency image
+    return agency.image;
   };
 
   const getUserRoleDisplay = () => {
@@ -245,7 +230,9 @@ const AdminLayout = ({ children }) => {
       {/* Sidebar Navigation */}
       <div 
         className={`admin-sidebar ${sidebarCollapsed ? "collapsed" : ""}`}
-        style={{ '--sidebar-accent': tenantConfig?.customTheme?.colors?.[0] || '#6155F5' }}
+        style={{ 
+          '--sidebar-accent': (agency?.useCustomTheme && agency?.customTheme?.colors?.[0]) || '#6155F5' 
+        }}
       >
         {/* Agency Logo Section */}
         <div className="sidebar-logo">
@@ -473,8 +460,8 @@ const AdminLayout = ({ children }) => {
       <div className={`admin-main ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         <header className="admin-header"
           style={{
-            borderBottomColor: tenantConfig?.customTheme?.colors?.[0] ? 
-              `color-mix(in srgb, ${tenantConfig.customTheme.colors[0]} 20%, transparent)` : 
+            borderBottomColor: (agency?.useCustomTheme && agency?.customTheme?.colors?.[0]) ? 
+              `color-mix(in srgb, ${agency.customTheme.colors[0]} 20%, transparent)` : 
               undefined
           }}
         >
@@ -500,8 +487,8 @@ const AdminLayout = ({ children }) => {
                 <UnstyledButton className="user-menu">
                   <Group gap="sm">
                     <Avatar 
-                      color={tenantConfig?.customTheme?.colors?.[0] ? undefined : "violet"}
-                      style={{ backgroundColor: tenantConfig?.customTheme?.colors?.[0] || undefined }}
+                      color={(agency?.useCustomTheme && agency?.customTheme?.colors?.[0]) ? undefined : "violet"}
+                      style={{ backgroundColor: (agency?.useCustomTheme && agency?.customTheme?.colors?.[0]) || undefined }}
                       radius="xl" 
                       size="sm"
                     >

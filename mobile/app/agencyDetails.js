@@ -52,23 +52,41 @@ export default function AgencyDetailsScreen() {
       console.log("✅ Agency lessons:", lessonsResponse);
 
       const agencyData = agencyResponse.data;
-      
-      // ✅ EXTRACT BRAND COLORS FROM AGENCY RESPONSE
-      const colors = agencyData.customTheme?.colors || [];
-      setBrandColors(colors);
-      console.log("🎨 Brand colors extracted:", colors);
+        
+      const brandData = {
+        // Use custom display name if available, otherwise agency name
+        displayName: agencyData.customTheme?.displayName || agencyData.name,
+        
+        // Use custom colors if available
+        colors: agencyData.customTheme?.colors || [],
+        
+        // Use selected brand image, fallback to agency image
+        brandImage: agencyData.image,
+        
+        // Use custom description if available
+        aboutUs: agencyData.customTheme?.description || agencyData.aboutUs,
+        
+        // Include all metadata for potential future use
+        metadata: agencyData.metadata,
+        customTheme: agencyData.customTheme,
+        useCustomTheme: agencyData.useCustomTheme
+      };
 
+      console.log("🎨 Enhanced brand data:", brandData);
+      
       setAgency(agencyData);
-      setLocations(locationsResponse.data || locationsResponse || []);
-      setLessons(lessonsResponse.data || lessonsResponse || []);
+      setBrandColors(brandData.colors);
+      setLocations(locationsResponse.data || []);
+      setLessons(lessonsResponse.data || []);
       
     } catch (error) {
       console.error("❌ Error fetching agency details:", error);
-      setError("Failed to load agency details. Please try again.");
+      setError(error.message || "Failed to load agency details");
     } finally {
-      setLoading(false);
-    }
-  };
+    setLoading(false); 
+  }
+};
+
   const handleEnrollInLesson = async (lesson) => {
     try {
       // Check if user is authenticated

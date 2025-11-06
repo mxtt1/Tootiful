@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, aboutUsRef } from 'react';
 import { Modal, TextInput, Button, Text, Alert, Card, Group, Stack, ColorSwatch, Select, ColorPicker, Textarea, SimpleGrid, Image } from "@mantine/core";
 import { IconPlus, IconCheck, IconX, IconEye, IconDownload, IconColorPicker, IconInfoCircle, IconTrash, IconPalette, IconShieldCheck } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
@@ -227,7 +227,6 @@ const CustomizationComponent = ({ agencyId }) => {
                 })
             };
             
-            setInitialData(newData);
             setCurrentData(newData);
             if (newData.websiteUrl) {
             setUrlStatus({
@@ -272,165 +271,204 @@ const CustomizationComponent = ({ agencyId }) => {
     };
 
     // Manual extraction only - no auto-extract
-    const handleExtractMetadata = async () => {
-        if (!currentData.websiteUrl || currentData.websiteUrl.length < 10) return;
+const handleExtractMetadata = async () => {
+    if (!currentData.websiteUrl || currentData.websiteUrl.length < 10) return;
+    
+    // Additional safety check before extraction
+    if (!urlStatus.isValid) {
+        notifications.show({
+            title: "Invalid URL",
+            message: "Please enter a valid website URL before extracting.",
+            color: "red",
+            icon: <IconX size={16} />,
+        });
+        return;
+    }
+
+    setLoadingExtraction(true);
+
+    try {
+        console.log("Extracting metadata from:", currentData.websiteUrl);
+
+        const extractRes = await ApiClient.post(
+            `/agencies/${agencyId}/extract-metadata`,
+            { websiteUrl: currentData.websiteUrl }
+        );
+        console.log("Full extract response:", extractRes);
+
+        // Handle different response structures
+        let success, metadata, error;
         
-        // Additional safety check before extraction
-        if (!urlStatus.isValid) {
-            notifications.show({
-                title: "Invalid URL",
-                message: "Please enter a valid website URL before extracting.",
-                color: "red",
-                icon: <IconX size={16} />,
-            });
-            return;
+        if (extractRes.success !== undefined) {
+            success = extractRes.success;
+            metadata = extractRes.metadata;
+            error = extractRes.error;
+        } else if (extractRes.data?.success !== undefined) {
+            success = extractRes.data.success;
+            metadata = extractRes.data.metadata;
+            error = extractRes.data.error;
+        } else {
+            success = false;
+            error = "Invalid response format from server";
         }
 
-        setLoadingExtraction(true);
+        if (!success) {
+            throw new Error(error || "Extraction failed");
+        }
 
-        try {
-            console.log("Extracting metadata from:", currentData.websiteUrl);
+        console.log("Extracted metadata:", metadata);
 
-            const extractRes = await ApiClient.post(
-                `/agencies/${agencyId}/extract-metadata`,
-                { websiteUrl: currentData.websiteUrl }
-            );
-            console.log("Full extract response:", extractRes);
+        // Create the base updated data object
+        const baseUpdatedData = {
+            ...currentData,
+            extractedData: metadata,
+            availableImages: extractAvailableImages(metadata)
+        };
 
-            // Handle different response structures
-            let success, metadata, error;
+        // DEBUG: Log what we're getting from metadata
+        console.log("Metadata fields:", {
+            title: metadata?.title,
+            ogTitle: metadata?.ogTitle,
+            description: metadata?.description,
+            ogDescription: metadata?.ogDescription,
+            hasTitle: !!(metadata?.title || metadata?.ogTitle),
+            hasDescription: !!(metadata?.description || metadata?.ogDescription)
+        });
+
+        // AUTO-POPULATION LOGIC - FIXED
+        const updatedData = { ...baseUpdatedData };
+
+        // Priority order for agency name: og:title > title > fallback to domain
+        const extractedTitle = metadata?.ogTitle || metadata?.title;
+        
+        // Auto-populate display name - always use extracted title if available
+        if (extractedTitle && extractedTitle.trim()) {
+            const title = extractedTitle.trim();
+            updatedData.displayName = title;
             
-            if (extractRes.success !== undefined) {
-                success = extractRes.success;
-                metadata = extractRes.metadata;
-                error = extractRes.error;
-            } else if (extractRes.data?.success !== undefined) {
-                success = extractRes.data.success;
-                metadata = extractRes.data.metadata;
-                error = extractRes.data.error;
-            } else {
-                success = false;
-                error = "Invalid response format from server";
-            }
-
-            if (!success) {
-                throw new Error(error || "Extraction failed");
-            }
-
-            // Update current data with extracted metadata
-            const updatedData = {
-                ...currentData,
-                extractedData: metadata,
-                availableImages: extractAvailableImages(metadata)
-            };
-
-            // Auto-populate fields from extracted data
-            if (metadata.title && !currentData.displayName) {
-                const title = metadata.title;
-                if (title.length > MAX_DISPLAY_NAME_LENGTH) {
-                    notifications.show({
-                        title: "Title Too Long",
-                        message: `Website title "${title}" exceeds ${MAX_DISPLAY_NAME_LENGTH} characters. Please edit it before saving.`,
-                        color: "orange",
-                        icon: <IconX size={16} />,
-                    });
-                }
-                updatedData.displayName = title;
-            } else if (!metadata.title && !currentData.displayName) {
-                const domainName = currentData.websiteUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
-                updatedData.displayName = domainName;
-            }
-            
-            if (metadata.description && !currentData.aboutUs) {
-                updatedData.aboutUs = metadata.description;
+            if (title.length > MAX_DISPLAY_NAME_LENGTH) {
                 notifications.show({
-                    title: "Description Found",
-                    message: "Website description has been auto-filled",
+                    title: "Title Too Long",
+                    message: `Website title "${title}" exceeds ${MAX_DISPLAY_NAME_LENGTH} characters. Please edit it before saving.`,
+                    color: "orange",
+                    icon: <IconX size={16} />,
+                });
+            } else {
+                notifications.show({
+                    title: "Name Auto-filled",
+                    message: "Agency name has been auto-filled from website title",
                     color: "blue",
                     icon: <IconInfoCircle size={16} />,
                 });
             }
-            
-            if (metadata.colors && metadata.colors.length > 0) {
-                updatedData.selectedColor = metadata.colors[0];
-            } else {
-                updatedData.selectedColor = '#6155F5';
-            }
-
-            // Auto-select first available image
-            if (metadata.displayImage || metadata.logo || metadata.ogImage) {
-                const firstAvailableImage = updatedData.availableImages[0];
-                if (firstAvailableImage) {
-                    updatedData.selectedImage = firstAvailableImage.url;
-                    notifications.show({
-                        title: "Image Selected",
-                        message: `Auto-selected "${firstAvailableImage.label}" as brand image`,
-                        color: "blue",
-                        icon: <IconInfoCircle size={16} />,
-                    });
-                }
-            }
-
-            setCurrentData(updatedData);
-            setPreviewMode(true);
-            
-            notifications.show({
-                title: "Success",
-                message: "Website data extracted successfully! Fields have been auto-populated.",
-                color: "green",
-                icon: <IconCheck size={16} />,
-            });
-
-        } catch (error) {
-            console.error("Error extracting metadata:", error);
-            
-            let errorMessage = "Could not extract website data. ";
-            
-            if (error.message.includes("Invalid URL")) {
-                errorMessage = error.message;
-            } else if (error.message.includes("blocked")) {
-                errorMessage = "This website was blocked for security reasons";
-            } else if (error.message.includes("timeout")) {
-                errorMessage = "The website took too long to respond. Please try again.";
-            } else if (error.message.includes("ENOTFOUND")) {
-                errorMessage = "Website not found. Please check the URL and try again.";
-            } else {
-                errorMessage += "The website might be blocking our requests or the extraction service might be down.";
-            }
-            
-            notifications.show({
-                title: "Extraction Failed",
-                message: errorMessage,
-                color: "red",
-                icon: <IconX size={16} />,
-            });
-        } finally {
-            setLoadingExtraction(false);
+        } 
+        // Fallback to domain name if no title and no existing name
+        else if (!updatedData.displayName) {
+            const domainName = currentData.websiteUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+            updatedData.displayName = domainName;
+            console.log("Using domain name as fallback:", domainName);
         }
-    };
+        
+        // Priority order for description: og:description > description
+        const extractedDescription = metadata?.ogDescription || metadata?.description;
+        
+        // Auto-populate about us from metadata description
+        if (extractedDescription && extractedDescription.trim()) {
+            const description = extractedDescription.trim();
+            updatedData.aboutUs = description;
+            notifications.show({
+                title: "Description Found",
+                message: "Agency description has been auto-filled",
+                color: "blue",
+                icon: <IconInfoCircle size={16} />,
+            });
+        }
+        
+        // Auto-select color
+        if (metadata?.colors && metadata.colors.length > 0) {
+            updatedData.selectedColor = metadata.colors[0];
+        } else if (!currentData.selectedColor) {
+            updatedData.selectedColor = '#6155F5';
+        }
+
+        // Auto-select first available image
+        if (updatedData.availableImages.length > 0 && !currentData.selectedImage) {
+            const firstAvailableImage = updatedData.availableImages[0];
+            if (firstAvailableImage) {
+                updatedData.selectedImage = firstAvailableImage.url;
+                notifications.show({
+                    title: "Image Selected",
+                    message: `Auto-selected "${firstAvailableImage.label}" as brand image`,
+                    color: "blue",
+                    icon: <IconInfoCircle size={16} />,
+                });
+            }
+        }
+
+        console.log("Final updated data:", {
+            displayName: updatedData.displayName,
+            aboutUs: updatedData.aboutUs,
+            selectedColor: updatedData.selectedColor,
+            selectedImage: updatedData.selectedImage,
+            availableImages: updatedData.availableImages.length
+        });
+
+        // FIX: Only update currentData, NOT initialData
+        setCurrentData(updatedData);
+        setPreviewMode(true);
+        
+        notifications.show({
+            title: "Success",
+            message: "Website data extracted successfully! Fields have been auto-populated.",
+            color: "green",
+            icon: <IconCheck size={16} />,
+        });
+
+    } catch (error) {
+        console.error("Error extracting metadata:", error);
+        
+        let errorMessage = "Could not extract website data. ";
+        
+        if (error.message.includes("Invalid URL")) {
+            errorMessage = error.message;
+        } else if (error.message.includes("blocked")) {
+            errorMessage = "This website was blocked for security reasons";
+        } else if (error.message.includes("timeout")) {
+            errorMessage = "The website took too long to respond. Please try again.";
+        } else if (error.message.includes("ENOTFOUND")) {
+            errorMessage = "Website not found. Please check the URL and try again.";
+        } else {
+            errorMessage += "The website might be blocking our requests or the extraction service might be down.";
+        }
+        
+        notifications.show({
+            title: "Extraction Failed",
+            message: errorMessage,
+            color: "red",
+            icon: <IconX size={16} />,
+        });
+    } finally {
+        setLoadingExtraction(false);
+    }
+};
 
     const handleInputChange = (field, value) => {
         setCurrentData(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleDisplayNameChange = (e) => {
-        const value = e.target.value;
-        const cursorPosition = e.target.selectionStart;
-        
-        if (value.length <= MAX_DISPLAY_NAME_LENGTH) {
-            handleInputChange('displayName', value);
-        } else {
-            handleInputChange('displayName', value.substring(0, MAX_DISPLAY_NAME_LENGTH));
+const handleDisplayNameChange = (e) => {
+    const value = e.target.value;
+    // Allow full input without truncation
+    handleInputChange('displayName', value);
+    
+    // Keep cursor position
+    setTimeout(() => {
+        if (displayNameInputRef.current) {
+            displayNameInputRef.current.focus();
+            displayNameInputRef.current.setSelectionRange(e.target.selectionStart, e.target.selectionStart);
         }
-        
-        setTimeout(() => {
-            if (displayNameInputRef.current) {
-                displayNameInputRef.current.focus();
-                const newCursorPosition = Math.min(cursorPosition, MAX_DISPLAY_NAME_LENGTH);
-                displayNameInputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
-            }
-        }, 0);
-    };
+    }, 0);
+};
 
     const handleColorSelect = (color) => {
         handleInputChange('selectedColor', color);
@@ -853,29 +891,35 @@ const CustomizationComponent = ({ agencyId }) => {
                 </Text>
                 
                 <Stack spacing="md">
-                    {/* Agency Name */}
-                    <div>
-                        <Text size="sm" fw={500} mb="xs">Agency Name:</Text>
-                        <TextInput
-                            ref={displayNameInputRef}
-                            value={currentData.displayName}
-                            onChange={handleDisplayNameChange}
-                            placeholder="Edit agency name..."
-                            maxLength={MAX_DISPLAY_NAME_LENGTH}
-                            error={currentData.displayName.length > MAX_DISPLAY_NAME_LENGTH ? 
-                                `Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or less` : null}
-                            rightSection={
-                                <Text size="sm" c={currentData.displayName.length > MAX_DISPLAY_NAME_LENGTH ? "red" : "dimmed"}>
-                                    {characterCount}/{MAX_DISPLAY_NAME_LENGTH}
-                                </Text>
-                            }
-                        />
-                    </div>
+                {/* Agency Name */}
+                <div>
+                    <Text size="sm" fw={500} mb="xs">Agency Name:</Text>
+                    <TextInput
+                        ref={displayNameInputRef}
+                        value={currentData.displayName}
+                        onChange={handleDisplayNameChange}
+                        placeholder="Edit agency name..."
+                        // REMOVED: maxLength={MAX_DISPLAY_NAME_LENGTH}
+                        error={currentData.displayName.length > MAX_DISPLAY_NAME_LENGTH ? 
+                            `Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or less (current: ${currentData.displayName.length})` : null}
+                        rightSection={
+                            <Text size="sm" c={currentData.displayName.length > MAX_DISPLAY_NAME_LENGTH ? "red" : "dimmed"}>
+                                {characterCount}/{MAX_DISPLAY_NAME_LENGTH}
+                            </Text>
+                        }
+                    />
+                    {currentData.displayName.length > MAX_DISPLAY_NAME_LENGTH && (
+                        <Text size="xs" c="red" mt={4}>
+                            This name is too long for display. Please shorten it to {MAX_DISPLAY_NAME_LENGTH} characters or less.
+                        </Text>
+                    )}
+                </div>
 
                     {/* Agency Description */}
                     <div>
                         <Text size="sm" fw={500} mb="xs">Agency Description:</Text>
                         <Textarea
+                            ref={aboutUsRef}
                             value={currentData.aboutUs}
                             onChange={(e) => handleInputChange('aboutUs', e.target.value)}
                             placeholder="Enter agency description..."
@@ -1159,6 +1203,7 @@ const CustomizationComponent = ({ agencyId }) => {
                                 }
                             />
                             <Textarea
+                                ref={aboutUsRef}
                                 label="Agency Description"
                                 placeholder="Enter agency description..."
                                 value={currentData.aboutUs}
