@@ -1,7 +1,7 @@
 import { Notification, User, Lesson, Subject, StudentLesson, Location, Agency } from "../../models/index.js";
 import { Op } from "sequelize";
 import { getNextGradeLevel, canProgressToNextGrade } from "../../util/enum/gradeProgressionEnum.js";
-import sequelize from "../../config/database.js"; // ← ADD THIS IMPORT
+import sequelize from "../../config/database.js";
 
 class NotificationService {
 
@@ -23,93 +23,101 @@ class NotificationService {
   }
 
   async handleGetNextGradeOptions(req, res) {
-      const { lessonId } = req.params;
-      
-      try {
-          const currentLesson = await Lesson.findByPk(lessonId, {
-              include: [{
-                  model: Subject,
-                  as: "subject",
-                  attributes: ["id", "name", "gradeLevel"]
-              }]
-          });
+    const { lessonId } = req.params;
+    
+    try {
+        const currentLesson = await Lesson.findByPk(lessonId, {
+            include: [{
+                model: Subject,
+                as: "subject",
+                attributes: ["id", "name", "gradeLevel"]
+            }]
+        });
 
-          if (!currentLesson) {
-              return res.status(404).json({ success: false, message: "Lesson not found" });
-          }
+        if (!currentLesson) {
+            return res.status(404).json({ success: false, message: "Lesson not found" });
+        }
 
-          // Use the same logic from NotificationService to find next grade lessons
-          const nextGradeLevel = this.getNextGradeLevel(currentLesson.subject.gradeLevel);
-          if (!nextGradeLevel) {
-              return res.status(400).json({ 
-                  success: false, 
-                  message: `No next grade level available for ${currentLesson.subject.gradeLevel}` 
-              });
-          }
+        // Use the same logic from NotificationService to find next grade lessons
+        const nextGradeLevel = this.getNextGradeLevel(currentLesson.subject.gradeLevel);
+        
+        // ✅ MODIFIED: Instead of returning error, return success with empty array
+        if (!nextGradeLevel) {
+            return res.status(200).json({ 
+                success: true, 
+                data: {
+                    availableNextGradeLessons: []
+                }
+            });
+        }
 
-          const nextGradeSubject = await Subject.findOne({
-              where: {
-                  name: currentLesson.subject.name,
-                  gradeLevel: nextGradeLevel,
-                  isActive: true
-              }
-          });
+        const nextGradeSubject = await Subject.findOne({
+            where: {
+                name: currentLesson.subject.name,
+                gradeLevel: nextGradeLevel,
+                isActive: true
+            }
+        });
 
-          if (!nextGradeSubject) {
-              return res.status(404).json({ 
-                  success: false, 
-                  message: `No ${nextGradeLevel} level found for subject ${currentLesson.subject.name}` 
-              });
-          }
+        // ✅ MODIFIED: Instead of returning error, return success with empty array
+        if (!nextGradeSubject) {
+            return res.status(200).json({ 
+                success: true, 
+                data: {
+                    availableNextGradeLessons: []
+                }
+            });
+        }
 
-          const nextGradeLessons = await Lesson.findAll({
-              where: {
-                  subjectId: nextGradeSubject.id,
-                  agencyId: currentLesson.agencyId,
-                  isActive: true,
-                  currentCap: { [Op.lt]: sequelize.col('totalCap') }
-              },
-              include: [
-                  {
-                      model: Subject,
-                      as: "subject",
-                      attributes: ["id", "name", "gradeLevel"]
-                  },
-                  {
-                      model: Location,
-                      as: "location",
-                      attributes: ["id", "address"]
-                  },
-                  {
-                      model: User,
-                      as: "tutor",
-                      attributes: ["id", "firstName", "lastName"]
-                  }
-              ]
-          });
+        const nextGradeLessons = await Lesson.findAll({
+            where: {
+                subjectId: nextGradeSubject.id,
+                agencyId: currentLesson.agencyId,
+                isActive: true,
+                currentCap: { [Op.lt]: sequelize.col('totalCap') }
+            },
+            include: [
+                {
+                    model: Subject,
+                    as: "subject",
+                    attributes: ["id", "name", "gradeLevel"]
+                },
+                {
+                    model: Location,
+                    as: "location",
+                    attributes: ["id", "address"]
+                },
+                {
+                    model: User,
+                    as: "tutor",
+                    attributes: ["id", "firstName", "lastName"]
+                }
+            ]
+        });
 
-          res.status(200).json({
-              success: true,
-              data: {
-                  availableNextGradeLessons: nextGradeLessons.map(lesson => ({
-                      id: lesson.id,
-                      title: lesson.title,
-                      dayOfWeek: lesson.dayOfWeek,
-                      timeSlot: `${lesson.startTime} - ${lesson.endTime}`,
-                      location: lesson.location?.address,
-                      tutor: lesson.tutor ? `${lesson.tutor.firstName} ${lesson.tutor.lastName}` : 'Not assigned',
-                      availableSpots: lesson.totalCap - lesson.currentCap
-                  }))
-              }
-          });
+        res.status(200).json({
+            success: true,
+            data: {
+                availableNextGradeLessons: nextGradeLessons.map(lesson => ({
+                    id: lesson.id,
+                    title: lesson.title,
+                    dayOfWeek: lesson.dayOfWeek,
+                    timeSlot: `${lesson.startTime} - ${lesson.endTime}`,
+                    location: lesson.location?.address,
+                    tutor: lesson.tutor ? `${lesson.tutor.firstName} ${lesson.tutor.lastName}` : 'Not assigned',
+                    availableSpots: lesson.totalCap - lesson.currentCap
+                }))
+                // ✅ REMOVED: currentLessonInfo - no longer needed
+            }
+        });
 
-      } catch (error) {
-          console.error("Error getting next grade options:", error);
-          res.status(500).json({ 
-              success: false, 
-              message: "Failed to get next grade options" 
-          });
-      }
+    } catch (error) {
+        console.error("Error getting next grade options:", error);
+        res.status(500).json({ 
+            success: false, 
+            message: "Failed to get next grade options" 
+        });
+    }
   }
 
   async handleGetNotificationStats(req, res) {
@@ -124,7 +132,7 @@ class NotificationService {
 
   async handleSendGradeProgressionNotifications(req, res) {
     const { lessonId } = req.params;
-    const { selectedLessonIds } = req.body; // ← ADD THIS
+    const { selectedLessonIds } = req.body;
     
     const result = await this.sendGradeProgressionNotifications(lessonId, selectedLessonIds);
     
@@ -172,7 +180,7 @@ class NotificationService {
   }
 
   // Business logic methods
-  async sendGradeProgressionNotifications(lessonId, selectedLessonIds = []) { // ← ADD PARAMETER
+  async sendGradeProgressionNotifications(lessonId, selectedLessonIds = []) {
     const transaction = await sequelize.transaction();
     try {
       console.log(`Sending grade progression notifications for lesson: ${lessonId}`);
@@ -309,7 +317,7 @@ class NotificationService {
 
       if (nextGradeLessons.length === 0) {
           throw new Error(`No available lessons found for ${nextGradeSubject.name} (${nextGradeLevel})`);
-      } // ← FIXED: Added missing closing brace and semicolon
+      } 
 
       // 5. Get enrolled students from current lesson
       const enrolledStudents = currentLesson.enrollments
@@ -343,9 +351,8 @@ class NotificationService {
                 availableLessonIds: nextGradeLessons.map(lesson => lesson.id),
                 studentName: `${student.firstName} ${student.lastName}`,
                 actionRequired: true,
-                // ADD DEEP LINK INFO
-                targetLessonId: nextGradeLessons[0]?.id, // First selected lesson
-                targetScreen: 'lesson-details' // Go to lesson details page
+                targetLessonId: nextGradeLessons[0]?.id,
+                targetScreen: 'lesson-details'
             }
           }, { transaction });
 
@@ -499,11 +506,9 @@ class NotificationService {
     return getNextGradeLevel(currentGradeLevel);
   }
 
-  // Update the canProgressToNextGrade method
   canProgressToNextGrade(currentGradeLevel) {
     return canProgressToNextGrade(currentGradeLevel);
   }
-
 }
 
 export default NotificationService;

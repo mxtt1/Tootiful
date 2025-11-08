@@ -80,6 +80,7 @@ export default function ManageLesson() {
     const [availableNextLessons, setAvailableNextLessons] = useState([]);
     const [selectedLessonIds, setSelectedLessonIds] = useState([]);
     const [showCreateLessonOption, setShowCreateLessonOption] = useState(false);
+    
 
     // Form data - simplified for testing
     const [formData, setFormData] = useState({
@@ -764,29 +765,31 @@ const handleSendNotification = async (lesson) => {
     try {
         // First, check if there are available next grade lessons
         const response = await apiClient.get(`/notifications/${lesson.id}/next-grade-options`);
-        const nextLessons = response.data?.data?.availableNextGradeLessons || response.data?.availableNextGradeLessons || [];
+        
+        // ✅ MODIFIED: Always show modal, even if no lessons found
+        const nextLessons = response.data?.data?.availableNextGradeLessons || [];
         
         console.log("Available next grade lessons:", nextLessons);
         
-        if (nextLessons.length === 0) {
-            // No next grade lessons found - show option to create
-            setShowCreateLessonOption(true);
-            setNotificationModalOpen(true);
-            return;
-        }
-
-        // Auto-select all available lessons by default
+        // ✅ MODIFIED: Always open modal, just with different content
         setAvailableNextLessons(nextLessons);
         setSelectedLessonIds(nextLessons.map(lesson => lesson.id));
-        setShowCreateLessonOption(false);
+        setShowCreateLessonOption(nextLessons.length === 0); // Show create option only if no lessons
         setNotificationModalOpen(true);
 
     } catch (error) {
         console.error("❌ Error checking next grade options:", error);
+        
+        // ✅ MODIFIED: Even on error, show modal with create option
+        setAvailableNextLessons([]);
+        setSelectedLessonIds([]);
+        setShowCreateLessonOption(true);
+        setNotificationModalOpen(true);
+        
         notifications.show({
-            title: "Error",
-            message: error.response?.data?.message || "Failed to load next grade options",
-            color: "red",
+            title: "Info",
+            message: "No next grade lessons found. You can create one now.",
+            color: "blue",
         });
     } finally {
         setSendingNotification(false);
