@@ -107,7 +107,6 @@ class NotificationService {
                     tutor: lesson.tutor ? `${lesson.tutor.firstName} ${lesson.tutor.lastName}` : 'Not assigned',
                     availableSpots: lesson.totalCap - lesson.currentCap
                 }))
-                // ✅ REMOVED: currentLessonInfo - no longer needed
             }
         });
 
@@ -129,13 +128,13 @@ class NotificationService {
       data: stats
     });
   }
+  
 
   async handleSendGradeProgressionNotifications(req, res) {
     const { lessonId } = req.params;
-    const { selectedLessonIds } = req.body;
+    const { selectedLessonIds, customMessage } = req.body; 
     
-    const result = await this.sendGradeProgressionNotifications(lessonId, selectedLessonIds);
-    
+    const result = await this.sendGradeProgressionNotifications(lessonId, selectedLessonIds, customMessage);    
     res.status(200).json({
       success: true,
       message: `Grade progression notifications sent to ${result.notifiedStudents} students`,
@@ -180,7 +179,7 @@ class NotificationService {
   }
 
   // Business logic methods
-  async sendGradeProgressionNotifications(lessonId, selectedLessonIds = []) {
+  async sendGradeProgressionNotifications(lessonId, selectedLessonIds = [], customMessage = null) {
     const transaction = await sequelize.transaction();
     try {
       console.log(`Sending grade progression notifications for lesson: ${lessonId}`);
@@ -334,10 +333,14 @@ class NotificationService {
       const notificationResults = [];
       for (const student of enrolledStudents) {
         try {
-          // Update notification metadata to include deep link info
+          // ✅ USE custom message if provided, otherwise use default
+          const notificationMessage = customMessage 
+            ? customMessage
+            : `Great job completing ${currentLesson.subject.name} ${currentLesson.subject.gradeLevel}! Continue to ${currentLesson.subject.name} ${nextGradeLevel}.`;
+
           const notification = await Notification.create({
             title: `🎓 Ready for ${nextGradeLevel}!`,
-            message: `Great job completing ${currentLesson.subject.name} ${currentLesson.subject.gradeLevel}! Continue to ${currentLesson.subject.name} ${nextGradeLevel}.`,
+            message: notificationMessage, // ✅ Use dynamic message
             type: 'grade_progression',
             lessonId: currentLesson.id,
             agencyId: currentLesson.agencyId,
@@ -352,7 +355,10 @@ class NotificationService {
                 studentName: `${student.firstName} ${student.lastName}`,
                 actionRequired: true,
                 targetLessonId: nextGradeLessons[0]?.id,
-                targetScreen: 'lesson-details'
+                targetScreen: 'lesson-details',
+                // ✅ ADD: Track if custom message was used
+                usedCustomMessage: !!customMessage,
+                originalMessage: customMessage ? `Great job completing ${currentLesson.subject.name} ${currentLesson.subject.gradeLevel}! Continue to ${currentLesson.subject.name} ${nextGradeLevel}.` : null
             }
           }, { transaction });
 
@@ -360,7 +366,8 @@ class NotificationService {
             studentId: student.id,
             studentName: `${student.firstName} ${student.lastName}`,
             status: 'sent',
-            notificationId: notification.id
+            notificationId: notification.id,
+            usedCustomMessage: !!customMessage // ✅ Track in results
           });
 
           console.log(`Notification created for student: ${student.email}`);
@@ -403,6 +410,8 @@ class NotificationService {
         })),
         notifiedStudents: notificationResults.filter(r => r.status === 'sent').length,
         totalStudents: enrolledStudents.length,
+        usedCustomMessage: !!customMessage, // ✅ ADD this
+        customMessage: customMessage || null, // ✅ ADD this
         notificationResults
       };
 

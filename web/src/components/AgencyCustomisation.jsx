@@ -258,15 +258,15 @@ const CustomizationComponent = ({ agencyId }) => {
 
     // Check if there are any changes
     const hasChanges = () => {
-    return (
-        currentData.websiteUrl !== initialData.websiteUrl ||
-        currentData.displayName !== initialData.displayName ||
-        currentData.aboutUs !== initialData.aboutUs ||
-        currentData.selectedColor !== initialData.selectedColor ||
-        currentData.selectedImage !== initialData.selectedImage ||
-        // Also check if customTheme colors changed
-        JSON.stringify(currentData.extractedData?.colors || []) !== 
-        JSON.stringify(initialData.extractedData?.colors || [])
+        return (
+            currentData.websiteUrl !== initialData.websiteUrl ||
+            currentData.displayName !== initialData.displayName ||
+            currentData.aboutUs !== initialData.aboutUs ||
+            currentData.selectedColor !== initialData.selectedColor ||
+            currentData.selectedImage !== initialData.selectedImage ||
+            // Also check if customTheme colors changed
+            JSON.stringify(currentData.extractedData?.colors || []) !== 
+            JSON.stringify(initialData.extractedData?.colors || [])
         );
     };
 
@@ -557,103 +557,100 @@ const handleDisplayNameChange = (e) => {
     };
 
     const handleUrlSubmit = async () => {
-    if (!isDisplayNameValid()) {
-        if (currentData.displayName.length > MAX_DISPLAY_NAME_LENGTH) {
+        if (!isDisplayNameValid()) {
+            if (currentData.displayName.length > MAX_DISPLAY_NAME_LENGTH) {
+                notifications.show({
+                    title: "Display Name Too Long",
+                    message: `Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or less. Current: ${currentData.displayName.length} characters.`,
+                    color: "red",
+                    icon: <IconX size={16} />,
+                });
+            }
+            return;
+        }
+        
+        if (!currentData.displayName.trim()) return;
+        
+        // Check if there are changes
+        if (!hasChanges()) {
             notifications.show({
-                title: "Display Name Too Long",
-                message: `Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or less. Current: ${currentData.displayName.length} characters.`,
-                color: "red",
-                icon: <IconX size={16} />,
+                title: "No Changes",
+                message: "No changes detected to save",
+                color: "blue",
+                icon: <IconCheck size={16} />,
             });
+            setModalOpen(false);
+            return;
         }
-        return;
-    }
-    
-    if (!currentData.displayName.trim()) return;
-    
-    // Check if there are changes
-    if (!hasChanges()) {
-        notifications.show({
-            title: "No Changes",
-            message: "No changes detected to save",
-            color: "blue",
-            icon: <IconCheck size={16} />,
-        });
-        setModalOpen(false);
-        return;
-    }
-    
-    setSubmitting(true);
-    try {
-        console.log("Saving customization...");
+        
+        setSubmitting(true);
+        try {
+            console.log("Saving customization...");
 
-        // Use selected color as the primary color - ALWAYS include colors
-        const colors = currentData.selectedColor ? [currentData.selectedColor] : [];
+            // Use selected color as the primary color - ALWAYS include colors
+            const colors = currentData.selectedColor ? [currentData.selectedColor] : [];
 
-        // Store ALL extracted data including images and selected image
-        const customTheme = currentData.extractedData ? {
-        ...currentData.extractedData,
-        displayName: currentData.displayName || currentData.extractedData.title,
-        websiteUrl: currentData.websiteUrl,
-        colors: colors, // Always include colors
-        selectedImage: currentData.selectedImage,
-        // Preserve all image URLs
-        displayImage: currentData.extractedData.displayImage,
-        logo: currentData.extractedData.logo,
-        ogImage: currentData.extractedData.ogImage,
-        twitterImage: currentData.extractedData.twitterImage,
-        largeIcon: currentData.extractedData.largeIcon,
-        favicon: currentData.extractedData.favicon,
-        title: currentData.extractedData.title,
-        description: currentData.extractedData.description
-        } : {
-        title: currentData.displayName,
-        displayName: currentData.displayName,
-        websiteUrl: currentData.websiteUrl,
-        colors: colors, // Always include colors
-        selectedImage: currentData.selectedImage
-        };
+            // Store ALL extracted data including images and selected image
+            const customTheme = currentData.extractedData ? {
+                ...currentData.extractedData,
+                displayName: currentData.displayName || currentData.extractedData.title,
+                websiteUrl: currentData.websiteUrl,
+                colors: colors, // Always include colors
+                selectedImage: currentData.selectedImage,
+                // Preserve all image URLs
+                displayImage: currentData.extractedData.displayImage,
+                logo: currentData.extractedData.logo,
+                ogImage: currentData.extractedData.ogImage,
+                twitterImage: currentData.extractedData.twitterImage,
+                largeIcon: currentData.extractedData.largeIcon,
+                favicon: currentData.extractedData.favicon,
+                title: currentData.extractedData.title,
+                description: currentData.extractedData.description
+            } : {
+                title: currentData.displayName,
+                displayName: currentData.displayName,
+                websiteUrl: currentData.websiteUrl,
+                colors: colors, // Always include colors
+                selectedImage: currentData.selectedImage
+            };
 
-        // Store metadata separately if we have extracted data
-        const metadata = currentData.extractedData ? {
-        ...currentData.extractedData
-        } : null;
+            // Prepare update data - only send changed fields
+            const updateData = {
+                useCustomTheme: true
+            };
 
-        // Prepare update data - only send changed fields
-        const updateData = {
-        useCustomTheme: true
-        };
+            if (currentData.websiteUrl !== initialData.websiteUrl) {
+                updateData.websiteUrl = currentData.websiteUrl;
+            }
+            
+            if (currentData.displayName !== initialData.displayName) {
+                updateData.name = currentData.displayName; // This matches your Agency model's 'name' field
+            }
+            
+            if (currentData.aboutUs !== initialData.aboutUs) {
+                updateData.aboutUs = currentData.aboutUs; // This matches your Agency model's 'aboutUs' field
+            }
 
-        // Only include fields that have changed
-        if (currentData.websiteUrl !== initialData.websiteUrl) {
-        updateData.websiteUrl = currentData.websiteUrl;
-        }
-        if (currentData.displayName !== initialData.displayName) {
-        updateData.name = currentData.displayName;
-        }
-        if (currentData.aboutUs !== initialData.aboutUs) {
-        updateData.aboutUs = currentData.aboutUs;
-        }
+            // Save the selected image to the agency's image field
+            if (currentData.selectedImage && currentData.selectedImage !== initialData.selectedImage) {
+                updateData.image = currentData.selectedImage; // This matches your Agency model's 'image' field
+            }
 
-        // UPDATE: Save the selected image to the agency's image field
-        if (currentData.selectedImage && currentData.selectedImage !== initialData.selectedImage) {
-            updateData.image = currentData.selectedImage;
-        }
+            // ALWAYS include customTheme and metadata if we have current data
+            // This ensures color changes are saved
+            if (currentData.extractedData || currentData.displayName || currentData.selectedColor) {
+                updateData.customTheme = customTheme;
+            }
+            
+            if (currentData.extractedData) {
+                updateData.metadata = currentData.extractedData;
+            }
 
-        // ALWAYS include customTheme and metadata if we have current data
-        // This ensures color changes are saved
-        if (currentData.extractedData || currentData.displayName || currentData.selectedColor) {
-        updateData.customTheme = customTheme;
-        }
-        if (currentData.extractedData) {
-        updateData.metadata = metadata;
-        }
+            console.log("Sending update data to backend:", updateData);
 
-        console.log("Sending update data:", updateData);
+            const saveRes = await ApiClient.patch(`/agencies/${agencyId}`, updateData);
 
-        const saveRes = await ApiClient.patch(`/agencies/${agencyId}`, updateData);
-
-        console.log("Save customization response:", saveRes);
+            console.log("Save customization response:", saveRes);
 
             if (saveRes) {
                 notifications.show({
@@ -662,10 +659,17 @@ const handleDisplayNameChange = (e) => {
                     color: "green",
                 });
                 
+                // Update initial data to current data
                 setInitialData(currentData);
                 setModalOpen(false);
+                
+                // Dispatch the update event to refresh AdminLayout
                 window.dispatchEvent(new Event('customizationUpdated'));
+                console.log("Customization update event dispatched");
+                
+                // Reload the agency data to ensure AdminLayout gets fresh data
                 await loadExistingCustomization();
+                
             } else {
                 throw new Error("Failed to save customization");
             }
