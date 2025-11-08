@@ -777,10 +777,11 @@ if (creatingFromNotification) {
     };
 
 const handleSendNotification = async (lesson) => {
-    console.log("Sending notification for lesson:", lesson.title);
+    console.log("🔔 Frontend: handleSendNotification called for lesson:", lesson.id, lesson.title);
     
     // Check if lesson has enrolled students
     if (lesson.currentCap === 0) {
+        console.log("❌ Frontend: No enrolled students");
         notifications.show({
             title: "No Students",
             message: "This lesson has no enrolled students to notify",
@@ -789,17 +790,26 @@ const handleSendNotification = async (lesson) => {
         return;
     }
 
+    console.log("🔔 Frontend: Lesson has students, proceeding...");
     setSelectedLessonForNotification(lesson);
     setSendingNotification(true);
 
     try {
+        console.log("🔔 Frontend: Making API call to /notifications/" + lesson.id + "/next-grade-options");
+        
+        // Add debug for auth headers
+        console.log("🔔 Frontend: Auth token exists:", !!localStorage.getItem('token'));
+        
         // First, check if there are available next grade lessons
         const response = await apiClient.get(`/notifications/${lesson.id}/next-grade-options`);
+        
+        console.log("🔔 Frontend: API response received:", response);
+        console.log("🔔 Frontend: Response status:", response.status);
         
         // Always show modal, even if no lessons found
         const nextLessons = response.data?.data?.availableNextGradeLessons || [];
         
-        console.log("Available next grade lessons:", nextLessons);
+        console.log("🔔 Frontend: Available next grade lessons:", nextLessons);
         
         // Always open modal, just with different content
         setAvailableNextLessons(nextLessons);
@@ -808,7 +818,10 @@ const handleSendNotification = async (lesson) => {
         setNotificationModalOpen(true);
 
     } catch (error) {
-        console.error("Error checking next grade options:", error);
+        console.error("🔔 Frontend: Error checking next grade options:", error);
+        console.error("🔔 Frontend: Error response:", error.response);
+        console.error("🔔 Frontend: Error status:", error.response?.status);
+        console.error("🔔 Frontend: Error message:", error.response?.data);
         
         // Even on error, show modal with create option
         setAvailableNextLessons([]);
