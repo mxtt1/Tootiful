@@ -1,13 +1,9 @@
 import { Notification, User, Lesson, Subject, StudentLesson, Location, Agency } from "../../models/index.js";
 import { Op } from "sequelize";
-import LessonService from "./lesson.service.js";
-import gradeLevelEnum from "../../util/enum/gradeLevelEnum.js";
+import { getNextGradeLevel, canProgressToNextGrade } from "../../util/enum/gradeProgressionEnum.js";
 import sequelize from "../../config/database.js"; // ← ADD THIS IMPORT
 
 class NotificationService {
-  constructor() {
-    this.lessonService = new LessonService();
-  }
 
   // Route handler methods with complete HTTP response logic
   async handleGetUserNotifications(req, res) {
@@ -24,6 +20,96 @@ class NotificationService {
       success: true,
       data: notifications
     });
+  }
+
+  async handleGetNextGradeOptions(req, res) {
+      const { lessonId } = req.params;
+      
+      try {
+          const currentLesson = await Lesson.findByPk(lessonId, {
+              include: [{
+                  model: Subject,
+                  as: "subject",
+                  attributes: ["id", "name", "gradeLevel"]
+              }]
+          });
+
+          if (!currentLesson) {
+              return res.status(404).json({ success: false, message: "Lesson not found" });
+          }
+
+          // Use the same logic from NotificationService to find next grade lessons
+          const nextGradeLevel = this.getNextGradeLevel(currentLesson.subject.gradeLevel);
+          if (!nextGradeLevel) {
+              return res.status(400).json({ 
+                  success: false, 
+                  message: `No next grade level available for ${currentLesson.subject.gradeLevel}` 
+              });
+          }
+
+          const nextGradeSubject = await Subject.findOne({
+              where: {
+                  name: currentLesson.subject.name,
+                  gradeLevel: nextGradeLevel,
+                  isActive: true
+              }
+          });
+
+          if (!nextGradeSubject) {
+              return res.status(404).json({ 
+                  success: false, 
+                  message: `No ${nextGradeLevel} level found for subject ${currentLesson.subject.name}` 
+              });
+          }
+
+          const nextGradeLessons = await Lesson.findAll({
+              where: {
+                  subjectId: nextGradeSubject.id,
+                  agencyId: currentLesson.agencyId,
+                  isActive: true,
+                  currentCap: { [Op.lt]: sequelize.col('totalCap') }
+              },
+              include: [
+                  {
+                      model: Subject,
+                      as: "subject",
+                      attributes: ["id", "name", "gradeLevel"]
+                  },
+                  {
+                      model: Location,
+                      as: "location",
+                      attributes: ["id", "address"]
+                  },
+                  {
+                      model: User,
+                      as: "tutor",
+                      attributes: ["id", "firstName", "lastName"]
+                  }
+              ]
+          });
+
+          res.status(200).json({
+              success: true,
+              data: {
+                  availableNextGradeLessons: nextGradeLessons.map(lesson => ({
+                      id: lesson.id,
+                      title: lesson.title,
+                      dayOfWeek: lesson.dayOfWeek,
+                      timeSlot: `${lesson.startTime} - ${lesson.endTime}`,
+                      location: lesson.location?.address,
+                      tutor: lesson.tutor ? `${lesson.tutor.firstName} ${lesson.tutor.lastName}` : 'Not assigned',
+                      availableSpots: lesson.totalCap - lesson.currentCap
+                  }))
+              }
+          });
+
+      } catch (error) {
+          console.error("Error getting next grade options:", error);
+          res.status(500).json({ 
+              success: false, 
+              message: "Failed to get next grade options" 
+          });
+      }
   }
 
   async handleGetNotificationStats(req, res) {
@@ -409,49 +495,13 @@ class NotificationService {
     await notification.destroy();
   }
 
-  // Helper method to determine next grade level using your actual enum
   getNextGradeLevel(currentGradeLevel) {
-    const gradeProgression = {
-      // Primary School Levels
-      [gradeLevelEnum.P1]: gradeLevelEnum.P2,
-      [gradeLevelEnum.P2]: gradeLevelEnum.P3,
-      [gradeLevelEnum.P3]: gradeLevelEnum.P4,
-      [gradeLevelEnum.P4]: gradeLevelEnum.P5,
-      [gradeLevelEnum.P5]: gradeLevelEnum.P6,
-      
-      // Secondary School Levels
-      [gradeLevelEnum.SEC1]: gradeLevelEnum.SEC2,
-      [gradeLevelEnum.SEC2]: gradeLevelEnum.SEC3,
-      [gradeLevelEnum.SEC3]: gradeLevelEnum.SEC4,
-      [gradeLevelEnum.SEC4]: gradeLevelEnum.SEC5,
-      
-      // Junior College
-      [gradeLevelEnum.JC1]: gradeLevelEnum.JC2,
-      
-      // International Grades
-      [gradeLevelEnum.GRADE_1]: gradeLevelEnum.GRADE_2,
-      [gradeLevelEnum.GRADE_2]: gradeLevelEnum.GRADE_3,
-      [gradeLevelEnum.GRADE_3]: gradeLevelEnum.GRADE_4,
-      [gradeLevelEnum.GRADE_4]: gradeLevelEnum.GRADE_5,
-      [gradeLevelEnum.GRADE_5]: gradeLevelEnum.GRADE_6,
-      [gradeLevelEnum.GRADE_6]: gradeLevelEnum.GRADE_7,
-      [gradeLevelEnum.GRADE_7]: gradeLevelEnum.GRADE_8,
-      [gradeLevelEnum.GRADE_8]: gradeLevelEnum.GRADE_9,
-      [gradeLevelEnum.GRADE_9]: gradeLevelEnum.GRADE_10,
-      [gradeLevelEnum.GRADE_10]: gradeLevelEnum.GRADE_11,
-      [gradeLevelEnum.GRADE_11]: gradeLevelEnum.GRADE_12,
-      
-      // Early Education
-      [gradeLevelEnum.KINDERGARTEN]: gradeLevelEnum.GRADE_1,
-      [gradeLevelEnum.PRESCHOOL]: gradeLevelEnum.KINDERGARTEN,
-    };
-
-    return gradeProgression[currentGradeLevel] || null;
+    return getNextGradeLevel(currentGradeLevel);
   }
 
-  // Optional: Helper to check if grade progression is possible
+  // Update the canProgressToNextGrade method
   canProgressToNextGrade(currentGradeLevel) {
-    return this.getNextGradeLevel(currentGradeLevel) !== null;
+    return canProgressToNextGrade(currentGradeLevel);
   }
 
 }

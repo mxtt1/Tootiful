@@ -13,6 +13,9 @@ router.get('/', authenticateToken, asyncHandler(notificationService.handleGetUse
 // GET /api/notifications/stats - Get notification statistics (unread count, etc.)
 router.get('/stats', authenticateToken, asyncHandler(notificationService.handleGetNotificationStats.bind(notificationService)));
 
+// GET /api/notifications/lessonId/next-grade-options - Get next grade lesson
+router.get('/:lessonId/next-grade-options', authenticateToken, asyncHandler(notificationService.handleGetNextGradeOptions.bind(notificationService)));
+
 // POST /api/notifications/grade-progression/:lessonId - Send grade progression notifications for a lesson
 router.post('/grade-progression/:lessonId', authenticateToken, asyncHandler(notificationService.handleSendGradeProgressionNotifications.bind(notificationService)));
 

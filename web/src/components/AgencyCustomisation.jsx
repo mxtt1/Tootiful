@@ -795,7 +795,7 @@ const handleDisplayNameChange = (e) => {
                     }}>
                         <div>
                             <Text size="md" fw={600}>
-                                {previewAgencyName} Panel
+                                {previewAgencyName} 
                             </Text>
                         </div>
                     </div>
@@ -1235,14 +1235,6 @@ const handleDisplayNameChange = (e) => {
 
                     {/* Action Buttons */}
                     <Group justify="space-between" mt="xl">
-                        <Button
-                            variant="outline"
-                            leftSection={<IconEye size={16} />}
-                            onClick={() => setPreviewMode(!previewMode)}
-                            disabled={!currentData.displayName}
-                        >
-                            {previewMode ? 'Hide Preview' : 'Show Preview'}
-                        </Button>
                         
                         <Group>
                             {/* Reset Data Button */}

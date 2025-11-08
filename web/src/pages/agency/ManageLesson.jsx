@@ -22,7 +22,7 @@ import {
     Textarea,
 } from "@mantine/core";
 import { TimeInput } from '@mantine/dates';
-import { IconEdit, IconTrash, IconSearch, IconPlus, IconClock, IconUser } from "@tabler/icons-react";
+import { IconEdit, IconTrash, IconSearch, IconPlus, IconUser, IconBell } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useAuth } from "../../auth/AuthProvider";
 
@@ -72,6 +72,14 @@ export default function ManageLesson() {
         isAttended: false,
         notes: ""
     });
+
+    // notifications
+    const [sendingNotification, setSendingNotification] = useState(false);
+    const [notificationModalOpen, setNotificationModalOpen] = useState(false);
+    const [selectedLessonForNotification, setSelectedLessonForNotification] = useState(null);
+    const [availableNextLessons, setAvailableNextLessons] = useState([]);
+    const [selectedLessonIds, setSelectedLessonIds] = useState([]);
+    const [showCreateLessonOption, setShowCreateLessonOption] = useState(false);
 
     // Form data - simplified for testing
     const [formData, setFormData] = useState({
@@ -737,6 +745,92 @@ export default function ManageLesson() {
         }
     };
 
+const handleSendNotification = async (lesson) => {
+    console.log("Sending notification for lesson:", lesson.title);
+    
+    // Check if lesson has enrolled students
+    if (lesson.currentCap === 0) {
+        notifications.show({
+            title: "No Students",
+            message: "This lesson has no enrolled students to notify",
+            color: "yellow",
+        });
+        return;
+    }
+
+    setSelectedLessonForNotification(lesson);
+    setSendingNotification(true);
+
+    try {
+        // First, check if there are available next grade lessons
+        const response = await apiClient.get(`/notifications/${lesson.id}/next-grade-options`);
+        const nextLessons = response.data?.data?.availableNextGradeLessons || response.data?.availableNextGradeLessons || [];
+        
+        console.log("Available next grade lessons:", nextLessons);
+        
+        if (nextLessons.length === 0) {
+            // No next grade lessons found - show option to create
+            setShowCreateLessonOption(true);
+            setNotificationModalOpen(true);
+            return;
+        }
+
+        // Auto-select all available lessons by default
+        setAvailableNextLessons(nextLessons);
+        setSelectedLessonIds(nextLessons.map(lesson => lesson.id));
+        setShowCreateLessonOption(false);
+        setNotificationModalOpen(true);
+
+    } catch (error) {
+        console.error("❌ Error checking next grade options:", error);
+        notifications.show({
+            title: "Error",
+            message: error.response?.data?.message || "Failed to load next grade options",
+            color: "red",
+        });
+    } finally {
+        setSendingNotification(false);
+    }
+};
+
+    const handleConfirmSendNotification = async () => {
+        if (!selectedLessonForNotification) return;
+
+        setSendingNotification(true);
+        try {
+            console.log("📤 Sending notifications for lesson:", selectedLessonForNotification.id);
+            
+            const response = await apiClient.post(
+                `/notifications/grade-progression/${selectedLessonForNotification.id}`,
+                { selectedLessonIds }
+            );
+
+            const result = response.data;
+            
+            notifications.show({
+                title: "✅ Notifications Sent!",
+                message: `Grade progression notifications sent to ${result.notifiedStudents} students`,
+                color: "green",
+            });
+
+            // Close modal and reset
+            setNotificationModalOpen(false);
+            setSelectedLessonForNotification(null);
+            setAvailableNextLessons([]);
+            setSelectedLessonIds([]);
+
+        } catch (error) {
+            console.error("❌ Error sending notifications:", error);
+            notifications.show({
+                title: "Error",
+                message: error.response?.data?.message || "Failed to send notifications",
+                color: "red",
+            });
+        } finally {
+            setSendingNotification(false);
+        }
+    };
+
     const getStatusColor = (isActive) => {
         return isActive ? "green" : "gray";
     };
@@ -941,6 +1035,16 @@ export default function ManageLesson() {
                                                     onClick={() => handleEditLesson(lesson)}
                                                 >
                                                     <IconEdit size={16} />
+                                                </ActionIcon>
+                                                        {/* ADD NOTIFICATION BUTTON */}
+                                                <ActionIcon
+                                                    color="green"
+                                                    variant="light"
+                                                    onClick={() => handleSendNotification(lesson)}
+                                                    disabled={lesson.currentCap === 0} // Only enable if students enrolled
+                                                    title="Send grade progression notification"
+                                                >
+                                                    <IconBell size={16} />
                                                 </ActionIcon>
                                                 <ActionIcon
                                                     color="red"
@@ -1410,126 +1514,286 @@ export default function ManageLesson() {
                         </Button>
                     </Group>
                 </Stack>
-            </Modal>
-            {/* ✅ NEW: Simple Attendance Dates Modal */}
-            <Modal
-                opened={attendanceDetailModalOpen}
-                onClose={() => {
-                    setAttendanceDetailModalOpen(false);
-                    setSelectedAttendance(null);
-                    setAttendanceFormData({ tutorId: "", isAttended: false, notes: "" });
-                    setAttendanceTutors([]);
-                }}
-                title="Edit Attendance Details"
-                size="md"
-            >
-                <Stack spacing="md">
-                    {selectedAttendance && (
-                        <Card withBorder padding="sm">
-                            <Group justify="space-between" mb="xs">
-                                <div>
-                                    <Text size="lg" fw={600}>
-                                        📅 {new Date(selectedAttendance.date).toLocaleDateString('en-US', {
-                                            weekday: 'long',
-                                            year: 'numeric',
-                                            month: 'long',
-                                            day: 'numeric'
-                                        })}
-                                    </Text>
-                                    <Text size="sm" c="dimmed">
-                                        📚 {selectedLessonAttendance?.title}
-                                    </Text>
-                                </div>
-                                <Badge
-                                    color={selectedAttendance.isPaid ? "green" : "orange"}
-                                    size="sm"
-                                >
-                                    {selectedAttendance.isPaid ? "Paid" : "Unpaid"}
-                                </Badge>
-                            </Group>
+                </Modal>
+                {/* ✅ NEW: Simple Attendance Dates Modal */}
+                <Modal
+                    opened={attendanceDetailModalOpen}
+                    onClose={() => {
+                        setAttendanceDetailModalOpen(false);
+                        setSelectedAttendance(null);
+                        setAttendanceFormData({ tutorId: "", isAttended: false, notes: "" });
+                        setAttendanceTutors([]);
+                    }}
+                    title="Edit Attendance Details"
+                    size="md"
+                >
+                    <Stack spacing="md">
+                        {selectedAttendance && (
+                            <Card withBorder padding="sm">
+                                <Group justify="space-between" mb="xs">
+                                    <div>
+                                        <Text size="lg" fw={600}>
+                                            📅 {new Date(selectedAttendance.date).toLocaleDateString('en-US', {
+                                                weekday: 'long',
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
+                                            })}
+                                        </Text>
+                                        <Text size="sm" c="dimmed">
+                                            📚 {selectedLessonAttendance?.title}
+                                        </Text>
+                                    </div>
+                                    <Badge
+                                        color={selectedAttendance.isPaid ? "green" : "orange"}
+                                        size="sm"
+                                    >
+                                        {selectedAttendance.isPaid ? "Paid" : "Unpaid"}
+                                    </Badge>
+                                </Group>
 
-                            <Group spacing="md">
-                                <Text size="sm">
-                                    <strong>Session ID:</strong> {String(selectedAttendance.id).slice(0, 8)}...
-                                </Text>
-                                <Text size="sm">
-                                    <strong>Rate:</strong> ${selectedAttendance.tutorRate || 0}
-                                </Text>
-                            </Group>
-                        </Card>
-                    )}
+                                <Group spacing="md">
+                                    <Text size="sm">
+                                        <strong>Session ID:</strong> {String(selectedAttendance.id).slice(0, 8)}...
+                                    </Text>
+                                    <Text size="sm">
+                                        <strong>Rate:</strong> ${selectedAttendance.tutorRate || 0}
+                                    </Text>
+                                </Group>
+                            </Card>
+                        )}
 
-                    <div>
-                        <Text size="md" fw={500} mb="sm">
-                            📝 Edit Session Details:
+                        <div>
+                            <Text size="md" fw={500} mb="sm">
+                                📝 Edit Session Details:
+                            </Text>
+
+                            <Stack spacing="md">
+                                <Select
+                                    label="Assigned Tutor"
+                                    placeholder="Select tutor for this session"
+                                    data={attendanceTutors.map(tutor => ({
+                                        value: tutor.id,
+                                        label: `${tutor.firstName} ${tutor.lastName}`
+                                    }))}
+                                    value={attendanceFormData.tutorId}
+                                    onChange={(value) => setAttendanceFormData(prev => ({
+                                        ...prev,
+                                        tutorId: value
+                                    }))}
+                                    searchable
+                                    clearable={false}
+                                    description="Change the tutor for this specific session"
+                                    error={attendanceFormErrors.tutorId}
+                                    required
+                                />
+                            </Stack>
+                        </div>
+
+                        {/* ✅ Show warning if changing tutor */}
+                        {selectedAttendance && attendanceFormData.tutorId !== selectedAttendance.tutorId && (
+                            <Alert color="yellow" title="⚠️ Tutor Change Detected">
+                                <Text size="sm">
+                                    You are changing the tutor for this session from{" "}
+                                    <strong>{selectedAttendance.tutorName || "Unknown"}</strong> to{" "}
+                                    <strong>
+                                        {attendanceFormData.tutorId
+                                            ? attendanceTutors.find(t => t.id === attendanceFormData.tutorId)?.firstName + " " +
+                                            attendanceTutors.find(t => t.id === attendanceFormData.tutorId)?.lastName
+                                            : "No tutor assigned"
+                                        }
+                                    </strong>.
+                                </Text>
+                                <Text size="sm" mt="xs">
+                                    This will affect payment calculations for this specific session.
+                                </Text>
+                            </Alert>
+                        )}
+
+                        <Group justify="flex-end" mt="lg">
+                            <Button
+                                variant="subtle"
+                                onClick={() => {
+                                    setAttendanceDetailModalOpen(false);
+                                    setSelectedAttendance(null);
+                                    setAttendanceFormData({ tutorId: "", isAttended: false, notes: "" });
+                                    setAttendanceTutors([]);
+                                }}
+                                disabled={updatingAttendance}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                color="blue"
+                                onClick={handleUpdateAttendance}
+                                loading={updatingAttendance}
+                                leftSection={<IconEdit size={16} />}
+                            >
+                                Update Attendance
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Modal>
+
+    <Modal
+        opened={notificationModalOpen}
+        onClose={() => {
+            setNotificationModalOpen(false);
+            setSelectedLessonForNotification(null);
+            setAvailableNextLessons([]);
+            setSelectedLessonIds([]);
+            setShowCreateLessonOption(false);
+        }}
+        title={showCreateLessonOption ? "Create Next Grade Lesson" : "Send Grade Progression Notifications"}
+        size="lg"
+    >
+        <Stack spacing="md">
+            {selectedLessonForNotification && (
+                <Card withBorder padding="sm">
+                    <Text size="lg" fw={600} mb="xs">
+                        Current Lesson: {selectedLessonForNotification.title}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                        {getSubjectName(selectedLessonForNotification.subjectId)}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                        👥 {selectedLessonForNotification.currentCap} enrolled students
+                    </Text>
+                </Card>
+            )}
+
+            {showCreateLessonOption ? (
+                <div>
+                    <Alert color="blue" title="No Next Grade Lessons Available">
+                        <Text size="sm" mb="md">
+                            No next grade lessons found for this subject.
+                            You need to create a new lesson first before sending progression notifications.
                         </Text>
+                    </Alert>
 
-                        <Stack spacing="md">
-                            <Select
-                                label="Assigned Tutor"
-                                placeholder="Select tutor for this session"
-                                data={attendanceTutors.map(tutor => ({
-                                    value: tutor.id,
-                                    label: `${tutor.firstName} ${tutor.lastName}`
-                                }))}
-                                value={attendanceFormData.tutorId}
-                                onChange={(value) => setAttendanceFormData(prev => ({
-                                    ...prev,
-                                    tutorId: value
-                                }))}
-                                searchable
-                                clearable={false}
-                                description="Change the tutor for this specific session"
-                                error={attendanceFormErrors.tutorId}
-                                required
-                            />
-                        </Stack>
-                    </div>
-
-                    {/* ✅ Show warning if changing tutor */}
-                    {selectedAttendance && attendanceFormData.tutorId !== selectedAttendance.tutorId && (
-                        <Alert color="yellow" title="⚠️ Tutor Change Detected">
-                            <Text size="sm">
-                                You are changing the tutor for this session from{" "}
-                                <strong>{selectedAttendance.tutorName || "Unknown"}</strong> to{" "}
-                                <strong>
-                                    {attendanceFormData.tutorId
-                                        ? attendanceTutors.find(t => t.id === attendanceFormData.tutorId)?.firstName + " " +
-                                        attendanceTutors.find(t => t.id === attendanceFormData.tutorId)?.lastName
-                                        : "No tutor assigned"
-                                    }
-                                </strong>.
-                            </Text>
-                            <Text size="sm" mt="xs">
-                                This will affect payment calculations for this specific session.
-                            </Text>
-                        </Alert>
-                    )}
-
-                    <Group justify="flex-end" mt="lg">
-                        <Button
-                            variant="subtle"
+                    <Group justify="center" mt="lg">
+                        <Button 
+                            color="blue" 
                             onClick={() => {
-                                setAttendanceDetailModalOpen(false);
-                                setSelectedAttendance(null);
-                                setAttendanceFormData({ tutorId: "", isAttended: false, notes: "" });
-                                setAttendanceTutors([]);
+                                setNotificationModalOpen(false);
+                                handleCreateLesson();
                             }}
-                            disabled={updatingAttendance}
                         >
-                            Cancel
-                        </Button>
-                        <Button
-                            color="blue"
-                            onClick={handleUpdateAttendance}
-                            loading={updatingAttendance}
-                            leftSection={<IconEdit size={16} />}
-                        >
-                            Update Attendance
+                            📝 Create New Lesson
                         </Button>
                     </Group>
-                </Stack>
-            </Modal>
+                </div>
+            ) : (
+                <div>
+                    <Text size="md" fw={500} mb="sm">
+                        Available Next Grade Lessons:
+                    </Text>
+                    
+                    {availableNextLessons.length === 0 ? (
+                        <Alert color="yellow" title="No Lessons Available">
+                            No next grade lessons found. Students will be notified but won't see specific lesson options.
+                        </Alert>
+                    ) : (
+                        <Card withBorder padding="sm" style={{ maxHeight: "400px", overflowY: "auto" }}>
+                            <Stack spacing="xs">
+                                {availableNextLessons.map((lesson) => (
+                                    <div
+                                        key={lesson.id}
+                                        style={{
+                                            padding: "12px",
+                                            borderRadius: "6px",
+                                            border: selectedLessonIds.includes(lesson.id) 
+                                                ? "2px solid #228be6" 
+                                                : "1px solid #e9ecef",
+                                            backgroundColor: selectedLessonIds.includes(lesson.id) 
+                                                ? "#e7f5ff" 
+                                                : "#f8f9fa",
+                                            cursor: "pointer",
+                                            transition: "all 0.2s"
+                                        }}
+                                        onClick={() => {
+                                            setSelectedLessonIds(prev => 
+                                                prev.includes(lesson.id)
+                                                    ? prev.filter(id => id !== lesson.id)
+                                                    : [...prev, lesson.id]
+                                            );
+                                        }}
+                                    >
+                                        <Group justify="space-between">
+                                            <div style={{ flex: 1 }}>
+                                                <Text size="sm" fw={600}>
+                                                    {lesson.title}
+                                                </Text>
+                                                <Text size="xs" c="dimmed">
+                                                    📍 {lesson.location} | 👨‍🏫 {lesson.tutor}
+                                                </Text>
+                                                <Text size="xs" c="dimmed">
+                                                    🗓️ {lesson.dayOfWeek} | 🕐 {lesson.timeSlot}
+                                                </Text>
+                                                <Text size="xs" c="green">
+                                                    ✅ {lesson.availableSpots} spots available
+                                                </Text>
+                                            </div>
+                                            <div>
+                                                {selectedLessonIds.includes(lesson.id) && (
+                                                    <Badge color="blue" size="sm">
+                                                        Selected
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </Group>
+                                    </div>
+                                ))}
+                            </Stack>
+                        </Card>
+                    )}
+                    
+                    <Alert color="blue" title="ℹ️ How it works">
+                        <Text size="sm">
+                            This will notify all enrolled students that they've completed this level and 
+                            show them the selected next grade lessons they can enroll in.
+                        </Text>
+                    </Alert>
+
+                    <Group justify="space-between" mt="md">
+                        <Button
+                            variant="light"
+                            onClick={() => {
+                                setSelectedLessonIds(availableNextLessons.map(lesson => lesson.id));
+                            }}
+                            disabled={availableNextLessons.length === 0}
+                        >
+                            Select All
+                        </Button>
+                        
+                        <Group>
+                            <Button
+                                variant="subtle"
+                                onClick={() => {
+                                    setNotificationModalOpen(false);
+                                    setSelectedLessonForNotification(null);
+                                    setAvailableNextLessons([]);
+                                    setSelectedLessonIds([]);
+                                    setShowCreateLessonOption(false);
+                                }}
+                                disabled={sendingNotification}
+                            >
+                                Cancel
+                            </Button>
+                            <Button 
+                                onClick={handleConfirmSendNotification}
+                                loading={sendingNotification}
+                                disabled={availableNextLessons.length === 0 || selectedLessonIds.length === 0}
+                                color="green"
+                            >
+                                {sendingNotification ? "Sending..." : `Send to ${selectedLessonForNotification?.currentCap || 0} Students`}
+                            </Button>
+                        </Group>
+                    </Group>
+                </div>
+            )}
+        </Stack>
+    </Modal>
         </Container>
     );
 }
