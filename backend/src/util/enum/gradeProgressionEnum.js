@@ -1,55 +1,58 @@
-// Import the base grade levels for reference
+// gradeProgressionEnum.js - UPDATED VERSION
 import gradeLevelEnum from './gradeLevelEnum.js';
 
 const gradeProgressionEnum = {
   // Preschool to Primary
-  [gradeLevelEnum.PRESCHOOL]: gradeLevelEnum.KINDERGARTEN,
-  [gradeLevelEnum.KINDERGARTEN]: gradeLevelEnum.P1,
+  'Preschool': 'Kindergarten',
+  'Kindergarten': 'Primary 1',
 
-  // Primary School Progressions
-  [gradeLevelEnum.P1]: gradeLevelEnum.P2,
-  [gradeLevelEnum.P2]: gradeLevelEnum.P3,
-  [gradeLevelEnum.P3]: gradeLevelEnum.P4,
-  [gradeLevelEnum.P4]: gradeLevelEnum.P5,
-  [gradeLevelEnum.P5]: gradeLevelEnum.P6,
+  // Primary School Progressions - USE THE SAME NAMES AS YOUR SUBJECTS
+  'Primary 1': 'Primary 2',
+  'Primary 2': 'Primary 3', 
+  'Primary 3': 'Primary 4',
+  'Primary 4': 'Primary 5',
+  'Primary 5': 'Primary 6',
 
   // Bridge: Primary to Secondary
-  [gradeLevelEnum.P6]: gradeLevelEnum.SEC1,
+  'Primary 6': 'Secondary 1',
 
   // Secondary School Progressions
-  [gradeLevelEnum.SEC1]: gradeLevelEnum.SEC2,
-  [gradeLevelEnum.SEC2]: gradeLevelEnum.SEC3,
-  [gradeLevelEnum.SEC3]: gradeLevelEnum.SEC4,
-  [gradeLevelEnum.SEC4]: gradeLevelEnum.SEC5,
+  'Secondary 1': 'Secondary 2',
+  'Secondary 2': 'Secondary 3',
+  'Secondary 3': 'Secondary 4',
+  'Secondary 4': 'Secondary 5',
 
-  // Bridge: Secondary to JC / International / Polytrack (choose your path)
-  [gradeLevelEnum.SEC4]: gradeLevelEnum.JC1, // O-Level path
-  [gradeLevelEnum.SEC5]: gradeLevelEnum.JC1, // N(A)-Level path
+  // Bridge: Secondary to JC
+  'Secondary 4': 'Junior College 1', // O-Level path
+  'Secondary 5': 'Junior College 1', // N(A)-Level path
 
   // Junior College Progressions
-  [gradeLevelEnum.JC1]: gradeLevelEnum.JC2,
+  'Junior College 1': 'Junior College 2',
 
-  // International Grades Progressions (1–12)
-  [gradeLevelEnum.GRADE_1]: gradeLevelEnum.GRADE_2,
-  [gradeLevelEnum.GRADE_2]: gradeLevelEnum.GRADE_3,
-  [gradeLevelEnum.GRADE_3]: gradeLevelEnum.GRADE_4,
-  [gradeLevelEnum.GRADE_4]: gradeLevelEnum.GRADE_5,
-  [gradeLevelEnum.GRADE_5]: gradeLevelEnum.GRADE_6,
-  [gradeLevelEnum.GRADE_6]: gradeLevelEnum.GRADE_7,
-  [gradeLevelEnum.GRADE_7]: gradeLevelEnum.GRADE_8,
-  [gradeLevelEnum.GRADE_8]: gradeLevelEnum.GRADE_9,
-  [gradeLevelEnum.GRADE_9]: gradeLevelEnum.GRADE_10,
-  [gradeLevelEnum.GRADE_10]: gradeLevelEnum.GRADE_11,
-  [gradeLevelEnum.GRADE_11]: gradeLevelEnum.GRADE_12,
+  // International Grades Progressions
+  'Grade 1': 'Grade 2',
+  'Grade 2': 'Grade 3',
+  'Grade 3': 'Grade 4',
+  'Grade 4': 'Grade 5',
+  'Grade 5': 'Grade 6',
+  'Grade 6': 'Grade 7',
+  'Grade 7': 'Grade 8',
+  'Grade 8': 'Grade 9',
+  'Grade 9': 'Grade 10',
+  'Grade 10': 'Grade 11',
+  'Grade 11': 'Grade 12',
 
   // Final grades - no progression
-  [gradeLevelEnum.JC2]: null,
-  [gradeLevelEnum.GRADE_12]: null,
+  'Junior College 2': null,
+  'Grade 12': null,
 };
 
 // Helper functions
 export const getNextGradeLevel = (currentGradeLevel) => {
-  return gradeProgressionEnum[currentGradeLevel] || null;
+  console.log(`Getting next grade for: "${currentGradeLevel}"`);
+  const nextGrade = gradeProgressionEnum[currentGradeLevel];
+  console.log(`Next grade result:`, nextGrade);
+  return nextGrade || null;
 };
 
 export const canProgressToNextGrade = (currentGradeLevel) => {
@@ -57,24 +60,6 @@ export const canProgressToNextGrade = (currentGradeLevel) => {
     gradeProgressionEnum[currentGradeLevel] !== null &&
     gradeProgressionEnum[currentGradeLevel] !== undefined
   );
-};
-
-export const getNextGradeOptions = (currentSubject) => {
-  if (!currentSubject) return null;
-
-  const nextGrade = getNextGradeLevel(currentSubject.gradeLevel);
-  if (!nextGrade) {
-    return {
-      canProgress: false,
-      message: `No next grade level available for ${currentSubject.gradeLevel}`,
-    };
-  }
-
-  return {
-    canProgress: true,
-    nextGrade,
-    message: `Progress to ${currentSubject.name} ${nextGrade}`,
-  };
 };
 
 export default gradeProgressionEnum;

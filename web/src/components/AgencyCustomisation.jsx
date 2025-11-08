@@ -513,7 +513,8 @@ const handleDisplayNameChange = (e) => {
                 useCustomTheme: false,
                 customTheme: {},
                 metadata: {},
-                websiteUrl: null
+                websiteUrl: null,
+                image: null
             });
             
             if (resetRes) {
