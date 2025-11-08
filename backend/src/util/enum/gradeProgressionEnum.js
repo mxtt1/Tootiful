@@ -47,13 +47,13 @@ const gradeProgressionEnum = {
   'Grade 12': null,
 };
 
-// Helper functions
-export const getNextGradeLevel = (currentGradeLevel) => {
-  console.log(`Getting next grade for: "${currentGradeLevel}"`);
-  const nextGrade = gradeProgressionEnum[currentGradeLevel];
-  console.log(`Next grade result:`, nextGrade);
-  return nextGrade || null;
-};
+    // Helper functions
+    export const getNextGradeLevel = (currentGradeLevel) => {  
+    console.log(`🔍 DEBUG - getNextGradeLevel called with: "${currentGradeLevel}"`);
+    const result = gradeProgressionEnum[currentGradeLevel] || null;  // Look up in the enum object
+    console.log(`🔍 DEBUG - getNextGradeLevel result:`, result);
+    return result;
+    };
 
 export const canProgressToNextGrade = (currentGradeLevel) => {
   return (

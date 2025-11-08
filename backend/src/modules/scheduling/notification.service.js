@@ -26,6 +26,8 @@ class NotificationService {
     const { lessonId } = req.params;
     
     try {
+        console.log("🔍 DEBUG - Getting next grade options for lesson:", lessonId);
+        
         const currentLesson = await Lesson.findByPk(lessonId, {
             include: [{
                 model: Subject,
@@ -38,11 +40,19 @@ class NotificationService {
             return res.status(404).json({ success: false, message: "Lesson not found" });
         }
 
-        // Use the same logic from NotificationService to find next grade lessons
-        const nextGradeLevel = this.getNextGradeLevel(currentLesson.subject.gradeLevel);
+        console.log("🔍 DEBUG - Current lesson subject:", {
+            name: currentLesson.subject.name,
+            gradeLevel: currentLesson.subject.gradeLevel
+        });
+
+        // ✅ FIXED: Use imported function directly
+        const nextGradeLevel = getNextGradeLevel(currentLesson.subject.gradeLevel);
+        
+        console.log("🔍 DEBUG - Next grade level result:", nextGradeLevel);
         
         // ✅ MODIFIED: Instead of returning error, return success with empty array
         if (!nextGradeLevel) {
+            console.log("❌ DEBUG - No next grade level found for:", currentLesson.subject.gradeLevel);
             return res.status(200).json({ 
                 success: true, 
                 data: {
@@ -50,6 +60,11 @@ class NotificationService {
                 }
             });
         }
+
+        console.log("🔍 DEBUG - Looking for next grade subject:", {
+            name: currentLesson.subject.name,
+            nextGradeLevel: nextGradeLevel
+        });
 
         const nextGradeSubject = await Subject.findOne({
             where: {
@@ -59,8 +74,11 @@ class NotificationService {
             }
         });
 
+        console.log("🔍 DEBUG - Next grade subject found:", nextGradeSubject);
+
         // ✅ MODIFIED: Instead of returning error, return success with empty array
         if (!nextGradeSubject) {
+            console.log("❌ DEBUG - No next grade subject found");
             return res.status(200).json({ 
                 success: true, 
                 data: {
@@ -68,6 +86,8 @@ class NotificationService {
                 }
             });
         }
+
+        console.log("🔍 DEBUG - Looking for next grade lessons for subject:", nextGradeSubject.id);
 
         const nextGradeLessons = await Lesson.findAll({
             where: {
@@ -95,6 +115,8 @@ class NotificationService {
             ]
         });
 
+        console.log("🔍 DEBUG - Found next grade lessons:", nextGradeLessons.length);
+
         res.status(200).json({
             success: true,
             data: {
@@ -111,7 +133,7 @@ class NotificationService {
         });
 
     } catch (error) {
-        console.error("Error getting next grade options:", error);
+        console.error("❌ Error getting next grade options:", error);
         res.status(500).json({ 
             success: false, 
             message: "Failed to get next grade options" 
@@ -129,7 +151,6 @@ class NotificationService {
     });
   }
   
-
   async handleSendGradeProgressionNotifications(req, res) {
     const { lessonId } = req.params;
     const { selectedLessonIds, customMessage } = req.body; 
@@ -218,8 +239,8 @@ class NotificationService {
         throw new Error("Lesson subject not found");
       }
 
-      // 2. Determine the next grade level using your actual enum
-      const nextGradeLevel = this.getNextGradeLevel(currentLesson.subject.gradeLevel);
+      // ✅ FIXED: Use imported function directly
+      const nextGradeLevel = getNextGradeLevel(currentLesson.subject.gradeLevel);
       if (!nextGradeLevel) {
         throw new Error(`No next grade level available for ${currentLesson.subject.gradeLevel}`);
       }
@@ -367,7 +388,7 @@ class NotificationService {
             studentName: `${student.firstName} ${student.lastName}`,
             status: 'sent',
             notificationId: notification.id,
-            usedCustomMessage: !!customMessage // ✅ Track in results
+            usedCustomMessage: !!customMessage // Track in results
           });
 
           console.log(`Notification created for student: ${student.email}`);
@@ -410,8 +431,8 @@ class NotificationService {
         })),
         notifiedStudents: notificationResults.filter(r => r.status === 'sent').length,
         totalStudents: enrolledStudents.length,
-        usedCustomMessage: !!customMessage, // ✅ ADD this
-        customMessage: customMessage || null, // ✅ ADD this
+        usedCustomMessage: !!customMessage, 
+        customMessage: customMessage || null, 
         notificationResults
       };
 
@@ -511,13 +532,6 @@ class NotificationService {
     await notification.destroy();
   }
 
-  getNextGradeLevel(currentGradeLevel) {
-    return getNextGradeLevel(currentGradeLevel);
-  }
-
-  canProgressToNextGrade(currentGradeLevel) {
-    return canProgressToNextGrade(currentGradeLevel);
-  }
 }
 
 export default NotificationService;
