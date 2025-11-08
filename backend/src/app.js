@@ -14,7 +14,7 @@ import paymentRoutes from "./modules/payment/payment.routes.js";
 import adminAnalyticsRoutes from "./modules/analytics/admin.analytics.routes.js";
 import agencyAnalyticsRoutes from "./modules/analytics/agency.analytics.routes.js";
 import paperRoutes from "./modules/papers/paper.routes.js";
-import notificationRoutes from "./modules/notifications/notification.routes.js";
+import notificationRoutes from "./modules/scheduling/notification.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import "./models/index.js";
 
