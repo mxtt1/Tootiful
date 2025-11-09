@@ -85,6 +85,8 @@ export default function ManageLesson() {
     const [nextGradeInfo, setNextGradeInfo] = useState(null);
     const [notificationMessage, setNotificationMessage] = useState("");
     const [customizingMessage, setCustomizingMessage] = useState(false);
+    const [messageError, setMessageError] = useState("");
+
 
     // Form data - simplified for testing
     const [formData, setFormData] = useState({
@@ -222,7 +224,16 @@ export default function ManageLesson() {
 
             const response = await apiClient.get(`/lessons/agency/${agencyId}`);
 
-            const lessonsData = response.data || response || [];
+            // Handle different response structures
+            let lessonsData = [];
+            if (Array.isArray(response.data)) {
+                lessonsData = response.data;
+            } else if (response.data?.data && Array.isArray(response.data.data)) {
+                lessonsData = response.data.data;
+            } else if (Array.isArray(response)) {
+                lessonsData = response;
+            }
+
             const totalCount = response.data?.total || lessonsData.length;
 
             setLessons(lessonsData);
@@ -230,10 +241,20 @@ export default function ManageLesson() {
             setTotalPages(Math.max(1, Math.ceil(totalCount / limit)));
         } catch (err) {
             console.error("Fetch lessons error:", err);
-            setError("Failed to load lessons");
+            const errorMessage = err.response?.data?.message || "Failed to load lessons";
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
+    };
+
+    const validateNotificationMessage = (message) => {
+        if (message.length > 500) {
+            setMessageError("Message must be less than 500 characters");
+            return false;
+        }
+        setMessageError("");
+        return true;
     };
 
     const fetchTutorsBySubject = async (subjectId, shouldClearTutor = true) => {
@@ -797,31 +818,43 @@ const handleSendNotification = async (lesson) => {
     try {
         console.log("🔔 Frontend: Making API call to /notifications/" + lesson.id + "/next-grade-options");
         
-        // Add debug for auth headers
-        console.log("🔔 Frontend: Auth token exists:", !!localStorage.getItem('token'));
-        
         // First, check if there are available next grade lessons
         const response = await apiClient.get(`/notifications/${lesson.id}/next-grade-options`);
         
         console.log("🔔 Frontend: API response received:", response);
-        console.log("🔔 Frontend: Response status:", response.status);
         
-        // Always show modal, even if no lessons found
-        const nextLessons = response.data?.data?.availableNextGradeLessons || [];
+        // Match backend response structure
+        const nextLessons = response.data?.availableNextGradeLessons || [];
+        const nextGradeInfo = response.data?.nextGradeInfo;
         
         console.log("🔔 Frontend: Available next grade lessons:", nextLessons);
+        console.log("🔔 Frontend: Next grade info:", nextGradeInfo);
+        console.log("🔔 Frontend: Next lessons length:", nextLessons.length);
         
         // Always open modal, just with different content
         setAvailableNextLessons(nextLessons);
         setSelectedLessonIds(nextLessons.map(lesson => lesson.id));
-        setShowCreateLessonOption(nextLessons.length === 0); // Show create option only if no lessons
+        
+        // Store next grade info for create lesson flow
+        if (nextGradeInfo) {
+            setNextGradeInfo(nextGradeInfo);
+        }
+        
+        const shouldShowCreateOption = nextLessons.length === 0;
+        console.log("🔔 Frontend: Should show create option?", shouldShowCreateOption);
+        setShowCreateLessonOption(shouldShowCreateOption);
         setNotificationModalOpen(true);
+
+        console.log("🔔 Frontend: Modal state after setting:", {
+            showCreateLessonOption: shouldShowCreateOption,
+            notificationModalOpen: true,
+            availableNextLessons: nextLessons.length
+        });
 
     } catch (error) {
         console.error("🔔 Frontend: Error checking next grade options:", error);
-        console.error("🔔 Frontend: Error response:", error.response);
-        console.error("🔔 Frontend: Error status:", error.response?.status);
-        console.error("🔔 Frontend: Error message:", error.response?.data);
+        
+        const errorMessage = error.response?.data?.message || "Failed to load next grade options";
         
         // Even on error, show modal with create option
         setAvailableNextLessons([]);
@@ -831,7 +864,7 @@ const handleSendNotification = async (lesson) => {
         
         notifications.show({
             title: "Info",
-            message: "No next grade lessons found. You can create one now.",
+            message: errorMessage,
             color: "blue",
         });
     } finally {
@@ -839,50 +872,77 @@ const handleSendNotification = async (lesson) => {
     }
 };
 
-    const handleConfirmSendNotification = async () => {
-        if (!selectedLessonForNotification) return;
+const handleConfirmSendNotification = async () => {
+    if (!selectedLessonForNotification) return;
 
-        setSendingNotification(true);
-        try {
-            console.log("Sending notifications for lesson:", selectedLessonForNotification.id);
-            
-            const payload = {
-                selectedLessonIds,
-                customMessage: customizingMessage ? notificationMessage : null // ✅ Send custom message if provided
-            };
+    // Validate custom message length
+    if (customizingMessage && notificationMessage.length > 500) {
+        notifications.show({
+            title: "Message Too Long",
+            message: "Custom message must be less than 500 characters",
+            color: "red",
+        });
+        return;
+    }
 
-            const response = await apiClient.post(
-                `/notifications/grade-progression/${selectedLessonForNotification.id}`,
-                payload
-            );
+    setSendingNotification(true);
+    try {
+        console.log("Sending notifications for lesson:", selectedLessonForNotification.id);
+        
+        const payload = {
+            selectedLessonIds: selectedLessonIds || [], // ✅ Ensure array
+            customMessage: customizingMessage ? notificationMessage : null
+        };
 
-            const result = response.data;
-            
-            notifications.show({
-                title: "Notifications Sent!",
-                message: `Grade progression notifications sent to ${result.notifiedStudents} students`,
-                color: "green",
-            });
+        console.log("🔔 Frontend: Sending payload:", payload);
 
-            // Close modal and reset
-            setNotificationModalOpen(false);
-            setSelectedLessonForNotification(null);
-            setAvailableNextLessons([]);
-            setSelectedLessonIds([]);
-            setNotificationMessage("");
-            setCustomizingMessage(false);
+        const response = await apiClient.post(
+            `/notifications/grade-progression/${selectedLessonForNotification.id}`,
+            payload
+        );
 
-        } catch (error) {
-            console.error("Error sending notifications:", error);
-            notifications.show({
-                title: "Error",
-                message: error.response?.data?.message || "Failed to send notifications",
-                color: "red",
-            });
-        } finally {
-            setSendingNotification(false);
+        const result = response.data;
+        
+        // Handle different success scenarios
+        let successMessage = `Grade progression notifications sent to ${result.notifiedStudents} students`;
+        
+        if (result.failedStudents > 0) {
+            successMessage += ` (${result.failedStudents} failed)`;
         }
-    };
+        
+        if (result.usedCustomMessage) {
+            successMessage += " with custom message";
+        }
+        
+        notifications.show({
+            title: "Notifications Sent!",
+            message: successMessage,
+            color: "green",
+        });
+
+        // Close modal and reset
+        setNotificationModalOpen(false);
+        setSelectedLessonForNotification(null);
+        setAvailableNextLessons([]);
+        setSelectedLessonIds([]);
+        setNotificationMessage("");
+        setCustomizingMessage(false);
+
+    } catch (error) {
+        console.error("Error sending notifications:", error);
+        
+        const errorMessage = error.response?.data?.message || "Failed to send notifications";
+        
+        notifications.show({
+            title: "Error",
+            message: errorMessage,
+            color: "red",
+        });
+    } finally {
+        setSendingNotification(false);
+    }
+};
+
     const getStatusColor = (isActive) => {
         return isActive ? "green" : "gray";
     };
@@ -1772,11 +1832,15 @@ const handleSendNotification = async (lesson) => {
                                     return;
                                 }
 
-                                // Get next grade level using your backend logic
-                                const response = await apiClient.get(`/notifications/${selectedLessonForNotification.id}/next-grade-options`);
-                                const nextGradeData = response.data?.data;
+                                // Use stored nextGradeInfo or fetch fresh data
+                                let nextGradeData = nextGradeInfo;
                                 
-                                if (!nextGradeData || !nextGradeData.availableNextGradeLessons) {
+                                if (!nextGradeData) {
+                                    const response = await apiClient.get(`/notifications/${selectedLessonForNotification.id}/next-grade-options`);
+                                    nextGradeData = response.data?.nextGradeInfo;
+                                }
+
+                                if (!nextGradeData) {
                                     notifications.show({
                                         title: "Error",
                                         message: "Could not determine next grade level",
@@ -1787,32 +1851,43 @@ const handleSendNotification = async (lesson) => {
 
                                 // Find the next grade subject
                                 const nextGradeSubject = subjects.find(s => 
-                                    s.name === currentSubject.name && 
-                                    s.gradeLevel === nextGradeData.availableNextGradeLessons[0]?.subject?.gradeLevel
+                                    s.name === nextGradeData.subjectName && 
+                                    s.gradeLevel === nextGradeData.nextGrade
                                 );
 
                                 if (nextGradeSubject) {
                                     setPrefilledSubject(nextGradeSubject);
                                     setNextGradeInfo({
-                                        currentSubject: currentSubject.name,
-                                        currentGrade: currentSubject.gradeLevel,
-                                        nextGrade: nextGradeSubject.gradeLevel
+                                        currentSubject: nextGradeData.subjectName,
+                                        currentGrade: nextGradeData.currentGrade,
+                                        nextGrade: nextGradeData.nextGrade
                                     });
                                     setCreatingFromNotification(true);
                                     setNotificationModalOpen(false);
-                                    handleCreateLesson(); // This will open create modal with pre-filled data
+                                    
+                                    // Reset form first, then set pre-filled data
+                                    resetFormData();
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        subjectId: nextGradeSubject.id,
+                                        title: `${nextGradeSubject.name} ${nextGradeSubject.gradeLevel} - Next Level`,
+                                        // You can pre-fill more fields here if needed
+                                    }));
+                                    
+                                    setCreateModalOpen(true);
                                 } else {
                                     notifications.show({
                                         title: "Info",
-                                        message: "Next grade subject not found in available subjects",
+                                        message: `Next grade subject "${nextGradeData.subjectName} ${nextGradeData.nextGrade}" not found in available subjects. Please create it first.`,
                                         color: "blue",
                                     });
                                 }
                             } catch (error) {
                                 console.error("Error preparing next grade lesson:", error);
+                                const errorMessage = error.response?.data?.message || "Failed to prepare next grade lesson creation";
                                 notifications.show({
                                     title: "Error",
-                                    message: "Failed to prepare next grade lesson creation",
+                                    message: errorMessage,
                                     color: "red",
                                 });
                             }
@@ -1903,14 +1978,18 @@ const handleSendNotification = async (lesson) => {
 
                         {customizingMessage ? (
                             <Stack spacing="sm">
-                                <Textarea
-                                    label="Custom Message"
-                                    placeholder="Enter your personalized message for students..."
-                                    value={notificationMessage}
-                                    onChange={(e) => setNotificationMessage(e.target.value)}
-                                    rows={4}
-                                    description="You can personalize the message that students will receive"
-                                />
+                            <Textarea
+                                label="Custom Message"
+                                placeholder="Enter your personalized message for students..."
+                                value={notificationMessage}
+                                onChange={(e) => {
+                                    setNotificationMessage(e.target.value);
+                                    validateNotificationMessage(e.target.value);
+                                }}
+                                rows={4}
+                                description="You can personalize the message that students will receive"
+                                error={messageError}
+                            />
                                 <Alert color="blue" size="sm">
                                     <Text size="xs">
                                         <strong>Note:</strong> A link to view available lessons will be automatically included at the end of your message.
