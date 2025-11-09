@@ -22,7 +22,7 @@ import {
     Textarea,
 } from "@mantine/core";
 import { TimeInput } from '@mantine/dates';
-import { IconEdit, IconTrash, IconSearch, IconPlus, IconUser, IconBell } from "@tabler/icons-react";
+import { IconEdit, IconTrash, IconSearch, IconPlus, IconUser, IconBell, IconHistory } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useAuth } from "../../auth/AuthProvider";
 
@@ -86,7 +86,9 @@ export default function ManageLesson() {
     const [notificationMessage, setNotificationMessage] = useState("");
     const [customizingMessage, setCustomizingMessage] = useState(false);
     const [messageError, setMessageError] = useState("");
-
+    const [pastNotificationsModalOpen, setPastNotificationsModalOpen] = useState(false);
+    const [pastNotifications, setPastNotifications] = useState([]);
+    const [loadingPastNotifications, setLoadingPastNotifications] = useState(false);
 
     // Form data - simplified for testing
     const [formData, setFormData] = useState({
@@ -800,7 +802,6 @@ if (creatingFromNotification) {
 const handleSendNotification = async (lesson) => {
     console.log("🔔 Frontend: handleSendNotification called for lesson:", lesson.id, lesson.title);
     
-    // Check if lesson has enrolled students
     if (lesson.currentCap === 0) {
         console.log("❌ Frontend: No enrolled students");
         notifications.show({
@@ -818,29 +819,31 @@ const handleSendNotification = async (lesson) => {
     try {
         console.log("🔔 Frontend: Making API call to /notifications/" + lesson.id + "/next-grade-options");
         
-        // First, check if there are available next grade lessons
         const response = await apiClient.get(`/notifications/${lesson.id}/next-grade-options`);
         
-        console.log("🔔 Frontend: API response received:", response);
+        console.log("🔔 Frontend: FULL API response:", response);
         
-        // Match backend response structure
-        const nextLessons = response.data?.availableNextGradeLessons || [];
-        const nextGradeInfo = response.data?.nextGradeInfo;
+        // ✅ FIX: Access data directly from response, not response.data
+        const responseData = response; // Your data is at the root level
+        console.log("🔔 Frontend: response (direct):", responseData);
         
-        console.log("🔔 Frontend: Available next grade lessons:", nextLessons);
-        console.log("🔔 Frontend: Next grade info:", nextGradeInfo);
-        console.log("🔔 Frontend: Next lessons length:", nextLessons.length);
+        // ✅ CORRECT: Access properties directly from response
+        const availableLessons = responseData.availableNextGradeLessons || [];
+        const gradeInfo = responseData.nextGradeInfo;
+        
+        console.log("🔔 Frontend: EXTRACTED - Available next grade lessons:", availableLessons);
+        console.log("🔔 Frontend: EXTRACTED - Next grade info:", gradeInfo);
+        console.log("🔔 Frontend: EXTRACTED - Next lessons length:", availableLessons.length);
         
         // Always open modal, just with different content
-        setAvailableNextLessons(nextLessons);
-        setSelectedLessonIds(nextLessons.map(lesson => lesson.id));
+        setAvailableNextLessons(availableLessons);
+        setSelectedLessonIds(availableLessons.map(lesson => lesson.id));
         
-        // Store next grade info for create lesson flow
-        if (nextGradeInfo) {
-            setNextGradeInfo(nextGradeInfo);
+        if (gradeInfo) {
+            setNextGradeInfo(gradeInfo);
         }
         
-        const shouldShowCreateOption = nextLessons.length === 0;
+        const shouldShowCreateOption = availableLessons.length === 0;
         console.log("🔔 Frontend: Should show create option?", shouldShowCreateOption);
         setShowCreateLessonOption(shouldShowCreateOption);
         setNotificationModalOpen(true);
@@ -848,7 +851,8 @@ const handleSendNotification = async (lesson) => {
         console.log("🔔 Frontend: Modal state after setting:", {
             showCreateLessonOption: shouldShowCreateOption,
             notificationModalOpen: true,
-            availableNextLessons: nextLessons.length
+            availableNextLessons: availableLessons.length,
+            nextGradeInfo: gradeInfo
         });
 
     } catch (error) {
@@ -871,6 +875,38 @@ const handleSendNotification = async (lesson) => {
         setSendingNotification(false);
     }
 };
+
+    const handleViewPastNotifications = async (lesson) => {
+        setSelectedLessonForNotification(lesson);
+        setLoadingPastNotifications(true);
+        setPastNotificationsModalOpen(true);
+
+        try {
+            console.log("📋 Fetching past notifications for lesson:", lesson.id);
+            
+            // ✅ Make sure this URL matches your backend route
+            const response = await apiClient.get(`/notifications/lesson/${lesson.id}/sent-notifications`);
+            console.log("📋 Backend response:", response);
+            
+            // ✅ Handle the response structure correctly
+            const notificationsData = response.data || [];
+            
+            console.log(`📊 Found ${notificationsData.length} past notifications`);
+            setPastNotifications(notificationsData);
+            
+        } catch (error) {
+            console.error("❌ Error fetching past notifications:", error);
+            console.log("❌ Error details:", error.response?.data);
+            notifications.show({
+                title: "Error",
+                message: "Failed to load past notifications",
+                color: "red",
+            });
+            setPastNotifications([]);
+        } finally {
+            setLoadingPastNotifications(false);
+        }
+    };
 
 const handleConfirmSendNotification = async () => {
     if (!selectedLessonForNotification) return;
@@ -1149,15 +1185,26 @@ const handleConfirmSendNotification = async () => {
                                                     <IconEdit size={16} />
                                                 </ActionIcon>
                                                         {/* ADD NOTIFICATION BUTTON */}
-                                                <ActionIcon
-                                                    color="green"
-                                                    variant="light"
-                                                    onClick={() => handleSendNotification(lesson)}
-                                                    disabled={lesson.currentCap === 0} // Only enable if students enrolled
-                                                    title="Send grade progression notification"
-                                                >
-                                                    <IconBell size={16} />
-                                                </ActionIcon>
+                                                        <ActionIcon
+                                                            color="green"
+                                                            variant="light"
+                                                            onClick={() => handleSendNotification(lesson)}
+                                                            disabled={lesson.currentCap === 0}
+                                                            title="Send grade progression notification"
+                                                        >
+                                                            <IconBell size={16} />
+                                                        </ActionIcon>
+                                                        {/* view past notifications button */}
+                                                        <ActionIcon
+                                                            color="blue"
+                                                            variant="light"
+                                                            onClick={() => handleViewPastNotifications(lesson)}
+                                                            disabled={lesson.currentCap === 0}
+                                                            title="View past notifications"
+                                                        >
+                                                            <IconHistory size={16} />
+                                                        </ActionIcon>
+
                                                 <ActionIcon
                                                     color="red"
                                                     variant="light"
@@ -2057,6 +2104,104 @@ const handleConfirmSendNotification = async () => {
             )}
         </Stack>
     </Modal>
+    {/* Past Notifications Modal */}
+<Modal
+    opened={pastNotificationsModalOpen}
+    onClose={() => {
+        setPastNotificationsModalOpen(false);
+        setPastNotifications([]);
+        setSelectedLessonForNotification(null);
+    }}
+    title="Past Notifications"
+    size="lg"
+>
+    <Stack spacing="md">
+        {selectedLessonForNotification && (
+            <Card withBorder padding="sm">
+                <Text size="lg" fw={600} mb="xs">
+                    {selectedLessonForNotification.title}
+                </Text>
+                <Text size="sm" c="dimmed">
+                    {getSubjectName(selectedLessonForNotification.subjectId)}
+                </Text>
+                <Text size="sm" c="dimmed">
+                    👥 {selectedLessonForNotification.currentCap} enrolled students
+                </Text>
+            </Card>
+        )}
+
+        <div>
+            <Text size="md" fw={500} mb="sm">
+                📨 Notification History:
+            </Text>
+
+            {loadingPastNotifications ? (
+                <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
+                    <Loader size="sm" />
+                </div>
+            ) : pastNotifications.length === 0 ? (
+                <Alert color="yellow" title="No Past Notifications">
+                    No notifications have been sent for this lesson yet.
+                </Alert>
+            ) : (
+                <Card withBorder padding="sm" style={{ maxHeight: "400px", overflowY: "auto" }}>
+                    <Stack spacing="md">
+                        {pastNotifications.map((notification, index) => (
+                            <Card key={notification.id || index} withBorder padding="md">
+                                <Group justify="space-between" mb="xs">
+                                    <Text size="sm" fw={600}>
+                                        {notification.title}
+                                    </Text>
+                                    <Badge 
+                                        color={notification.status === 'sent' ? 'green' : 'red'}
+                                        size="sm"
+                                    >
+                                        {notification.status}
+                                    </Badge>
+                                </Group>
+                                
+                                <Text size="sm" mb="xs">
+                                    {notification.message}
+                                </Text>
+                                
+                                <Group justify="space-between" mt="xs">
+                                    <Text size="xs" c="dimmed">
+                                        📅 {new Date(notification.sentAt).toLocaleDateString()} at{" "}
+                                        {new Date(notification.sentAt).toLocaleTimeString()}
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        👥 {notification.sentToCount} students
+                                    </Text>
+                                </Group>
+                                
+                                {notification.customMessage && (
+                                    <Alert color="blue" size="sm" mt="xs">
+                                        <Text size="xs">
+                                            <strong>Custom Message:</strong> {notification.customMessage}
+                                        </Text>
+                                    </Alert>
+                                )}
+                            </Card>
+                        ))}
+                    </Stack>
+                </Card>
+            )}
+        </div>
+
+        <Group justify="flex-end" mt="md">
+            <Button
+                variant="subtle"
+                onClick={() => {
+                    setPastNotificationsModalOpen(false);
+                    setPastNotifications([]);
+                    setSelectedLessonForNotification(null);
+                }}
+            >
+                Close
+            </Button>
+        </Group>
+    </Stack>
+</Modal>
         </Container>
     );
 }

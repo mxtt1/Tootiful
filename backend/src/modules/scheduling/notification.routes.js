@@ -33,4 +33,7 @@ router.patch('/read-all', authenticateToken, asyncHandler(notificationService.ha
 // DELETE /api/notifications/:id - Delete a notification
 router.delete('/:id', authenticateToken, asyncHandler(notificationService.handleDeleteNotification.bind(notificationService)));
 
+// GET /api/notifications/lessonId/sent-notifications - Get past notifications for a lesson
+router.get('/lesson/:lessonId/sent-notifications', authenticateToken, asyncHandler(notificationService.handleGetLessonSentNotifications.bind(notificationService)));
+
 export default router;

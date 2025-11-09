@@ -656,6 +656,87 @@ class NotificationService {
 
     await notification.destroy();
   }
+
+  // Add this method to your NotificationService class
+async handleGetLessonSentNotifications(req, res) {
+    const { lessonId } = req.params;
+    
+    try {
+        if (!lessonId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Lesson ID is required" 
+            });
+        }
+
+        const notifications = await Notification.findAll({
+            where: {
+                lessonId: lessonId,
+                type: 'grade_progression'
+            },
+            include: [
+                {
+                    model: User,
+                    as: 'user',
+                    attributes: ['id', 'firstName', 'lastName', 'email']
+                },
+                {
+                    model: Lesson,
+                    as: 'lesson',
+                    attributes: ['id', 'title'],
+                    include: [{
+                        model: Subject,
+                        as: 'subject',
+                        attributes: ['id', 'name', 'gradeLevel']
+                    }]
+                }
+            ],
+            order: [['createdAt', 'DESC']]
+        });
+
+        // Group notifications by the batch they were sent in (simplified approach)
+        const groupedNotifications = this.groupNotificationsByBatch(notifications);
+
+        res.status(200).json({
+            success: true,
+            data: groupedNotifications
+        });
+    } catch (error) {
+        console.error("Error getting lesson notifications:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to retrieve notifications"
+        });
+    }
+}
+
+// Helper method to group notifications
+groupNotificationsByBatch(notifications) {
+    const batches = {};
+    
+    notifications.forEach(notification => {
+        const batchKey = notification.createdAt.toISOString().split('T')[0] + 
+                        '-' + notification.metadata?.batchId;
+        
+        if (!batches[batchKey]) {
+            batches[batchKey] = {
+                id: batchKey,
+                title: notification.title,
+                message: notification.message,
+                sentAt: notification.createdAt,
+                customMessage: notification.metadata?.originalMessage,
+                status: 'sent', // You might want more sophisticated status tracking
+                sentToCount: 0,
+                notifications: []
+            };
+        }
+        
+        batches[batchKey].notifications.push(notification);
+        batches[batchKey].sentToCount++;
+    });
+    
+    return Object.values(batches).sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
+}
 }
 
 export default NotificationService;

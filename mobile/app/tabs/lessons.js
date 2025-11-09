@@ -102,13 +102,28 @@ export default function LessonsScreen() {
   const fetchNotifications = async () => {
     try {
       setLoadingNotifications(true);
+      console.log('🔔 DEBUG: Starting to fetch notifications...');
+      
       const response = await notificationService.getUserNotifications();
-      setNotifications(response.data || []);
+      console.log('🔔 DEBUG: Raw notifications response:', response);
+      
+      const notificationsData = response.data || [];
+      console.log('🔔 DEBUG: Notifications data:', notificationsData);
+      
+      setNotifications(notificationsData);
       
       const stats = await notificationService.getNotificationStats();
+      console.log('🔔 DEBUG: Stats data:', stats);
+      
       setNotificationStats(stats.data || { total: 0, unread: 0 });
+      
     } catch (error) {
-      console.error("❌ Error fetching notifications:", error);
+      console.error('❌ DEBUG: Error fetching notifications:', error);
+      console.log('🔔 DEBUG: Error details:', {
+        message: error.message,
+        response: error.response,
+        status: error.response?.status
+      });
     } finally {
       setLoadingNotifications(false);
     }

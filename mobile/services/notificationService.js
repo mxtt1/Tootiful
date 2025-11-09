@@ -1,47 +1,57 @@
+// services/notificationService.js
 import apiClient from './apiClient';
 
 class NotificationService {
-  async getUserNotifications(options = {}) {
-    const { limit = 50, offset = 0, unreadOnly = false } = options;
-    
-    const params = new URLSearchParams();
-    if (limit) params.append('limit', limit);
-    if (offset) params.append('offset', offset);
-    if (unreadOnly) params.append('unreadOnly', unreadOnly);
-    
-    const response = await apiClient.get(`/notifications?${params}`);
-    return response.data;
+  async getUserNotifications(limit = 50, offset = 0, unreadOnly = false) {
+    try {
+      const params = { limit, offset };
+      if (unreadOnly) params.unreadOnly = 'true';
+      
+      const response = await apiClient.get('/notifications', { params });
+      console.log('📨 Notifications response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error fetching notifications:', error);
+      throw error;
+    }
   }
 
   async getNotificationStats() {
-    const response = await apiClient.get('/notifications/stats');
-    return response.data;
+    try {
+      const response = await apiClient.get('/notifications/stats');
+      console.log('📊 Notification stats:', response);
+      
+      return {
+        data: response.data || { total: 0, unread: 0 },
+        success: response.success
+      };
+    } catch (error) {
+      console.error('❌ Error fetching notification stats:', error);
+      throw error;
+    }
   }
 
   async markAsRead(notificationId) {
-    const response = await apiClient.patch(`/notifications/${notificationId}/read`);
-    return response.data;
+    try {
+      const response = await apiClient.patch(`/notifications/${notificationId}/read`);
+      console.log('✅ Marked as read:', notificationId);
+      return response;
+    } catch (error) {
+      console.error('❌ Error marking notification as read:', error);
+      throw error;
+    }
   }
 
   async markAllAsRead() {
-    const response = await apiClient.patch('/notifications/read-all');
-    return response.data;
+    try {
+      const response = await apiClient.patch('/notifications/read-all');
+      console.log('✅ Marked all as read');
+      return response;
+    } catch (error) {
+      console.error('❌ Error marking all as read:', error);
+      throw error;
+    }
   }
-
-  async deleteNotification(notificationId) {
-    const response = await apiClient.delete(`/notifications/${notificationId}`);
-    return response.data;
-  }
-    async sendGradeProgressionNotifications(lessonId, selectedLessonIds = [], customMessage = null) {
-    const payload = {
-      selectedLessonIds,
-      customMessage // ✅ Include custom message in payload
-    };
-    
-    const response = await apiClient.post(`/notifications/grade-progression/${lessonId}`, payload);
-    return response.data;
-  }
-  
 }
 
 export default new NotificationService();
