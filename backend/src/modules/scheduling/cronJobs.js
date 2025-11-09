@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import NotificationService from './services/NotificationService.js';
+import NotificationService from './notification.service.js';
 
 const notificationService = new NotificationService();
 
