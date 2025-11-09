@@ -219,7 +219,6 @@ class NotificationService {
         subjectName: lesson.subject.name,
         availableLessonIds: nextGradeLessons.map(l => l.id),
         targetLessonId: targetLessonId,
-        targetScreen: 'lesson-details',
         sentAutomatically: true,
         sentDate: new Date().toISOString().split('T')[0],
         studentName: `${student.firstName} ${student.lastName}`,

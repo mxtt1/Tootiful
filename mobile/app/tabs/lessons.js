@@ -131,7 +131,7 @@ export default function LessonsScreen() {
     }
   };
 
-  // Handle notification press
+// Handle notification press
 const handleNotificationPress = async (notification) => {
   try {
     // Mark as read
@@ -154,7 +154,11 @@ const handleNotificationPress = async (notification) => {
           return;
         }
         
-        router.push(`/lesson-details?id=${notification.metadata.targetLessonId}`);
+        // Open the lesson in the modal instead of navigating to non-existent page
+        setSelectedLesson(lesson);
+        setModalVisible(true);
+        checkEnrollmentStatus(lesson.id);
+        
       } catch (lessonError) {
         console.error("❌ Error fetching lesson:", lessonError);
         Alert.alert("Error", "This lesson is no longer available.");
