@@ -87,6 +87,31 @@ const Lesson = sequelize.define('Lesson', {
     endDate: {
         type: DataTypes.DATE,
         allowNull: true,
+    },
+        notificationTemplate: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        defaultValue: null,
+    },
+    notificationTemplateSubmitted: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
+    notificationTemplateSubmittedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    progressionNotificationsSent: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
+    notificationTemplateSubmittedBy: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
     }
 }, {
     tableName: 'lessons',
