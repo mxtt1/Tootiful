@@ -13,11 +13,18 @@ class NotificationService {
       // Find lessons that ended yesterday (give 1 day buffer)
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayDateString = yesterday.toISOString().split('T')[0];
+      yesterday.setHours(0, 0, 0, 0);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
       
+      console.log('📅 Looking for lessons that ended between:', yesterday, 'and', today);
+        
       const endedLessons = await Lesson.findAll({
         where: {
-          endDate: yesterdayDateString,
+          endDate: {
+            [Op.between]: [yesterday, today] // Lessons that ended anytime yesterday
+          },
           isActive: true,
           progressionNotificationsSent: false,
           notificationTemplateSubmitted: true // ✅ Only process lessons with submitted templates
