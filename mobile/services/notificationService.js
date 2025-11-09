@@ -13,16 +13,12 @@ class NotificationService {
       let notifications = [];
       
       if (Array.isArray(response.data)) {
-        // Case 1: Direct array response
         notifications = response.data;
       } else if (response.data?.notifications) {
-        // Case 2: Nested in notifications property
         notifications = response.data.notifications;
       } else if (response.data?.data) {
-        // Case 3: Nested in data property
         notifications = response.data.data;
       } else if (Array.isArray(response)) {
-        // Case 4: Response is directly the array
         notifications = response;
       }
       
@@ -30,7 +26,18 @@ class NotificationService {
       return notifications;
     } catch (error) {
       console.error('❌ Error fetching notifications:', error);
+      
+      // ✅ PROPER ERROR HANDLING - Check if it's a network error
+      if (!error.response) {
+        console.error('🚨 Network error - no response received');
+        // Return empty array for network errors
+        return [];
+      }
+      
       console.log('❌ Error details:', error.response?.data);
+      console.log('❌ Error status:', error.response?.status);
+      
+      // For server errors, still return empty array but log properly
       return [];
     }
   }
@@ -40,18 +47,14 @@ class NotificationService {
       const response = await apiClient.get('/notifications/stats');
       console.log('📊 Full stats response:', response);
       
-      // ✅ Handle different backend response structures
       let stats = { total: 0, unread: 0 };
       
       if (response.data) {
         if (response.data.total !== undefined) {
-          // Case 1: Direct stats object
           stats = response.data;
         } else if (response.data.stats) {
-          // Case 2: Nested in stats property
           stats = response.data.stats;
         } else if (response.data.data) {
-          // Case 3: Nested in data property
           stats = response.data.data;
         }
       }
@@ -60,7 +63,16 @@ class NotificationService {
       return stats;
     } catch (error) {
       console.error('❌ Error fetching notification stats:', error);
+      
+      // ✅ PROPER ERROR HANDLING
+      if (!error.response) {
+        console.error('🚨 Network error - no response received');
+        return { total: 0, unread: 0 };
+      }
+      
       console.log('❌ Error details:', error.response?.data);
+      console.log('❌ Error status:', error.response?.status);
+      
       return { total: 0, unread: 0 };
     }
   }
@@ -72,7 +84,16 @@ class NotificationService {
       return response.data || response;
     } catch (error) {
       console.error('❌ Error marking notification as read:', error);
+      
+      // ✅ PROPER ERROR HANDLING
+      if (!error.response) {
+        console.error('🚨 Network error - no response received');
+        throw new Error('Network error: Could not mark notification as read');
+      }
+      
       console.log('❌ Error details:', error.response?.data);
+      console.log('❌ Error status:', error.response?.status);
+      
       throw error;
     }
   }
@@ -84,7 +105,16 @@ class NotificationService {
       return response.data || response;
     } catch (error) {
       console.error('❌ Error marking all as read:', error);
+      
+      // ✅ PROPER ERROR HANDLING
+      if (!error.response) {
+        console.error('🚨 Network error - no response received');
+        throw new Error('Network error: Could not mark all as read');
+      }
+      
       console.log('❌ Error details:', error.response?.data);
+      console.log('❌ Error status:', error.response?.status);
+      
       throw error;
     }
   }
