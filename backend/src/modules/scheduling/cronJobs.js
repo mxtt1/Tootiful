@@ -4,7 +4,7 @@ import NotificationService from './services/NotificationService.js';
 const notificationService = new NotificationService();
 
 // Run every day at 9:00 AM
-cron.schedule('0 9 * * *', async () => {
+cron.schedule('*/5 * * * *', async () => {
   console.log('🕘 Running daily automatic grade progression notifications...');
   try {
     const sentCount = await notificationService.sendAutomaticGradeProgressionNotifications();

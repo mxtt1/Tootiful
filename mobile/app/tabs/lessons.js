@@ -66,6 +66,7 @@ export default function LessonsScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchLessons();
+      fetchNotifications();
     }, [])
   );
 
@@ -104,18 +105,15 @@ export default function LessonsScreen() {
       setLoadingNotifications(true);
       console.log('🔔 DEBUG: Starting to fetch notifications...');
       
-      const response = await notificationService.getUserNotifications();
-      console.log('🔔 DEBUG: Raw notifications response:', response);
-      
-      const notificationsData = response.data || [];
+      // These now return the direct data (array and object)
+      const notificationsData = await notificationService.getUserNotifications();
       console.log('🔔 DEBUG: Notifications data:', notificationsData);
       
+      const statsData = await notificationService.getNotificationStats();
+      console.log('🔔 DEBUG: Stats data:', statsData);
+      
       setNotifications(notificationsData);
-      
-      const stats = await notificationService.getNotificationStats();
-      console.log('🔔 DEBUG: Stats data:', stats);
-      
-      setNotificationStats(stats.data || { total: 0, unread: 0 });
+      setNotificationStats(statsData);
       
     } catch (error) {
       console.error('❌ DEBUG: Error fetching notifications:', error);
@@ -124,46 +122,59 @@ export default function LessonsScreen() {
         response: error.response,
         status: error.response?.status
       });
+      
+      // Set empty states on error
+      setNotifications([]);
+      setNotificationStats({ total: 0, unread: 0 });
     } finally {
       setLoadingNotifications(false);
     }
   };
 
   // Handle notification press
-  const handleNotificationPress = async (notification) => {
-    try {
-      // Mark as read
-      await notificationService.markAsRead(notification.id);
+const handleNotificationPress = async (notification) => {
+  try {
+    // Mark as read
+    await notificationService.markAsRead(notification.id);
+    
+    // Refresh notifications
+    await fetchNotifications();
+    
+    // Navigate to lesson if target exists
+    if (notification.metadata?.targetLessonId) {
+      setNotificationsModalVisible(false);
       
-      // Refresh notifications
-      fetchNotifications();
-      
-      // Navigate to lesson if target exists
-      if (notification.metadata?.targetLessonId) {
-        setNotificationsModalVisible(false);
-        
+      try {
         // Check capacity before navigating
-        const lesson = await lessonService.getLessonById(notification.metadata.targetLessonId);
+        const lessonResponse = await lessonService.getLessonById(notification.metadata.targetLessonId);
+        const lesson = lessonResponse.data || lessonResponse;
+        
         if (lesson.currentCap >= lesson.totalCap) {
           Alert.alert("Lesson Full", "This lesson is at full capacity. Please check back later.");
           return;
         }
         
         router.push(`/lesson-details?id=${notification.metadata.targetLessonId}`);
+      } catch (lessonError) {
+        console.error("❌ Error fetching lesson:", lessonError);
+        Alert.alert("Error", "This lesson is no longer available.");
       }
-    } catch (error) {
-      console.error("❌ Error handling notification:", error);
-      Alert.alert("Error", "Failed to open lesson");
     }
-  };
+  } catch (error) {
+    console.error("❌ Error handling notification:", error);
+    Alert.alert("Error", "Failed to open notification");
+  }
+};
 
   // Mark all as read
   const handleMarkAllAsRead = async () => {
     try {
       await notificationService.markAllAsRead();
-      fetchNotifications();
+      // Refresh to get updated read status
+      await fetchNotifications();
     } catch (error) {
       console.error("❌ Error marking all as read:", error);
+      Alert.alert("Error", "Failed to mark all as read");
     }
   };
 
@@ -870,7 +881,15 @@ export default function LessonsScreen() {
                 </View>
               </View>
 
-              <ScrollView style={styles.modalBody}>
+              <ScrollView 
+                style={styles.modalBody}
+                refreshControl={
+                  <RefreshControl 
+                    refreshing={loadingNotifications} 
+                    onRefresh={fetchNotifications} 
+                  />
+                }
+              >
                 {loadingNotifications ? (
                   <View style={styles.loadingContainer}>
                     <ActivityIndicator color="#8B5CF6" />

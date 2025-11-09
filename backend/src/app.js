@@ -15,6 +15,7 @@ import adminAnalyticsRoutes from "./modules/analytics/admin.analytics.routes.js"
 import agencyAnalyticsRoutes from "./modules/analytics/agency.analytics.routes.js";
 import paperRoutes from "./modules/papers/paper.routes.js";
 import notificationRoutes from "./modules/scheduling/notification.routes.js";
+import "./modules/scheduling/cronJobs.js"; 
 import { errorHandler } from "./middleware/errorHandler.js";
 import "./models/index.js";
 
