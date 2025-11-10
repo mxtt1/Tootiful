@@ -22,7 +22,7 @@ import {
     Textarea,
 } from "@mantine/core";
 import { TimeInput } from '@mantine/dates';
-import { IconEdit, IconTrash, IconSearch, IconPlus, IconClock, IconUser } from "@tabler/icons-react";
+import { IconEdit, IconTrash, IconSearch, IconPlus, IconUser, IconBell, IconHistory } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useAuth } from "../../auth/AuthProvider";
 
@@ -73,6 +73,35 @@ export default function ManageLesson() {
         notes: ""
     });
 
+    const [managingTemplate, setManagingTemplate] = useState(false);
+    const [selectedLessonForTemplate, setSelectedLessonForTemplate] = useState(null);
+    const [availableNextLessons, setAvailableNextLessons] = useState([]);
+    const [selectedLessonIds, setSelectedLessonIds] = useState([]);
+    const [notificationMessage, setNotificationMessage] = useState("");
+    const [existingTemplate, setExistingTemplate] = useState(null);
+    const [savingTemplate, setSavingTemplate] = useState(false);
+    
+    // ADD THESE MISSING STATES:
+    const [creatingFromNotification, setCreatingFromNotification] = useState(false);
+    const [prefilledSubject, setPrefilledSubject] = useState(null);
+    const [nextGradeInfo, setNextGradeInfo] = useState(null);
+    const [messageError, setMessageError] = useState("");
+    const [initialLoading, setInitialLoading] = useState(true);
+    
+    // ADD NOTIFICATION MODAL STATES:
+    const [notificationModalOpen, setNotificationModalOpen] = useState(false);
+    const [selectedLessonForNotification, setSelectedLessonForNotification] = useState(null);
+    const [checkingTemplate, setCheckingTemplate] = useState(false);
+    const [templateExists, setTemplateExists] = useState(false);
+    const [showCreateLessonOption, setShowCreateLessonOption] = useState(false);
+    const [customizingMessage, setCustomizingMessage] = useState(false);
+    const [sendingNotification, setSendingNotification] = useState(false);
+    
+    // ADD PAST NOTIFICATIONS STATES:
+    const [pastNotificationsModalOpen, setPastNotificationsModalOpen] = useState(false);
+    const [loadingPastNotifications, setLoadingPastNotifications] = useState(false);
+    const [pastNotifications, setPastNotifications] = useState({ template: null, batches: [] });
+
     // Form data - simplified for testing
     const [formData, setFormData] = useState({
         title: "",
@@ -100,7 +129,6 @@ export default function ManageLesson() {
     const [tutorConflicts, setTutorConflicts] = useState([]);
     const [checkingAvailability, setCheckingAvailability] = useState(false);
 
-
     //Form Data error:
     // Add validation state after your existing state declarations
     const [attendanceFormErrors, setAttendanceFormErrors] = useState({});
@@ -126,7 +154,7 @@ export default function ManageLesson() {
 
     useEffect(() => {
         filterLessons();
-    }, [searchQuery, statusFilter, allLessons]);
+    }, [searchQuery, statusFilter]);
 
     useEffect(() => {
         const fetchAllAgencyTutors = async () => {
@@ -209,7 +237,16 @@ export default function ManageLesson() {
 
             const response = await apiClient.get(`/lessons/agency/${agencyId}`);
 
-            const lessonsData = response.data || response || [];
+            // Handle different response structures
+            let lessonsData = [];
+            if (Array.isArray(response.data)) {
+                lessonsData = response.data;
+            } else if (response.data?.data && Array.isArray(response.data.data)) {
+                lessonsData = response.data.data;
+            } else if (Array.isArray(response)) {
+                lessonsData = response;
+            }
+
             const totalCount = response.data?.total || lessonsData.length;
 
             setLessons(lessonsData);
@@ -217,10 +254,21 @@ export default function ManageLesson() {
             setTotalPages(Math.max(1, Math.ceil(totalCount / limit)));
         } catch (err) {
             console.error("Fetch lessons error:", err);
-            setError("Failed to load lessons");
+            const errorMessage = err.response?.data?.message || "Failed to load lessons";
+            setError(errorMessage);
         } finally {
             setLoading(false);
+            setInitialLoading(false);
         }
+    };
+
+    const validateNotificationMessage = (message) => {
+        if (message.length > 500) {
+            setMessageError("Message must be less than 500 characters");
+            return false;
+        }
+        setMessageError("");
+        return true;
     };
 
     const fetchTutorsBySubject = async (subjectId, shouldClearTutor = true) => {
@@ -378,25 +426,31 @@ export default function ManageLesson() {
         }
     };
 
-    const resetFormData = () => {
-        setFormData({
-            title: "",
-            description: "",
-            subjectId: "",
-            locationId: "", // Add this
-            dayOfWeek: "",
-            startTime: "",
-            endTime: "",
-            studentRate: "",
-            totalCap: "",
-            tutorId: "",
-            isActive: true,
-            lessonType: "",
-        });
-        setFormErrors({});
-        setTutorConflicts([]); // ADD: Clear conflicts
-        setCheckingAvailability(false); // ADD: Reset checking state
-    };
+const resetFormData = () => {
+    setFormData({
+        title: "",
+        description: "",
+        subjectId: "",
+        locationId: "",
+        dayOfWeek: "",
+        startTime: "",
+        endTime: "",
+        studentRate: "",
+        tutorRate: "",
+        totalCap: "",
+        tutorId: "",
+        isActive: true,
+        lessonType: "",
+        startDate: "",
+        endDate: "",
+    });
+    setFormErrors({});
+    setTutorConflicts([]);
+    setCheckingAvailability(false);
+    setCreatingFromNotification(false); // Reset this too
+    setPrefilledSubject(null);
+    setNextGradeInfo(null);
+};
 
     const validateForm = () => {
         const errors = {};
@@ -446,8 +500,83 @@ export default function ManageLesson() {
 
     const handleCreateLesson = () => {
         resetFormData();
+        
         setCreateModalOpen(true);
     };
+
+    // Update the button handler:
+    const handleManageTemplate = async (lesson) => {
+    setSelectedLessonForTemplate(lesson);
+    setManagingTemplate(true);
+    
+    try {
+        // Get next grade options
+        const optionsResponse = await apiClient.get(`/notifications/${lesson.id}/next-grade-options`);
+        const optionsData = optionsResponse.data || optionsResponse;
+        
+        setAvailableNextLessons(optionsData.availableNextGradeLessons || []);
+        setSelectedLessonIds(optionsData.availableNextGradeLessons?.map(l => l.id) || []);
+        
+        // Check for existing template
+        const templateResponse = await apiClient.get(`/notifications/lesson/${lesson.id}/template`);
+        const templateData = templateResponse.data || templateResponse;
+        
+        if (templateData.templateExists && templateData.template) {
+        setExistingTemplate(templateData.template);
+        setSelectedLessonIds(templateData.template.selectedLessonIds || []);
+        setNotificationMessage(templateData.template.customMessage || "");
+        } else {
+        setExistingTemplate(null);
+        setNotificationMessage("");
+        }
+    } catch (error) {
+        console.error("Error loading template options:", error);
+        notifications.show({
+        title: "Error",
+        message: "Failed to load template options",
+        color: "red",
+        });
+    }
+    };
+
+    // Save template (only once)
+    const handleSaveTemplate = async () => {
+    if (!selectedLessonForTemplate) return;
+
+    setSavingTemplate(true);
+    try {
+        const payload = {
+        selectedLessonIds: selectedLessonIds,
+        customMessage: notificationMessage || null
+        };
+
+        await apiClient.post(`/notifications/lesson/${selectedLessonForTemplate.id}/template`, payload);
+        
+        notifications.show({
+        title: "Template Submitted!",
+        message: "Notification template has been saved. Notifications will be sent automatically when the lesson ends.",
+        color: "green",
+        });
+
+        // Refresh lessons to update the UI
+        fetchLessons();
+        
+        setManagingTemplate(false);
+        setSelectedLessonForTemplate(null);
+    } catch (error) {
+        console.error("Error saving template:", error);
+        const errorMessage = error.response?.data?.message || "Failed to save template";
+        
+        notifications.show({
+        title: "Error",
+        message: errorMessage,
+        color: "red",
+        });
+    } finally {
+        setSavingTemplate(false);
+    }
+    };
+    
 
     const handleViewAttendanceDates = async (lesson) => {
         console.log("🔍 Checking lesson:", lesson.title, "currentCap:", lesson.currentCap);
@@ -650,60 +779,72 @@ export default function ManageLesson() {
     };
 
 
-    const handleSubmit = async () => {
-        if (!validateForm()) return;
+const handleSubmit = async () => {
+    if (!validateForm()) return;
 
-        setSaving(true);
-        try {
-            const payload = {
-                ...formData,
-                // Fix: Use formData instead of undefined 'lesson' variable
-                startTime: formData.startTime,  // This should already be in "HH:mm:ss" format
-                endTime: formData.endTime,      // This should already be in "HH:mm:ss" format
-                studentRate: parseFloat(formData.studentRate),
-                tutorRate: parseFloat(formData.tutorRate),
-                totalCap: parseInt(formData.totalCap),
-                // Add some temporary values for required fields
-                locationId: formData.locationId,
-                agencyId: user.agencyId || user?.id,
-                tutorId: formData.tutorId || null, // allow null for inactive lessons
-                // lessonType: formData.lessonType || "Sem 1",
-            };
+    setSaving(true);
+    setError(null);
+    try {
+        const payload = {
+            ...formData,
+            startTime: formData.startTime,  
+            endTime: formData.endTime,    
+            studentRate: parseFloat(formData.studentRate),
+            tutorRate: parseFloat(formData.tutorRate),
+            totalCap: parseInt(formData.totalCap),
+            locationId: formData.locationId,
+            agencyId: user.agencyId || user?.id,
+            tutorId: formData.tutorId || null,
+        };
 
-            console.log("Submitting payload:", payload);
+        console.log("Submitting payload:", payload);
 
-            if (editingLesson) {
-                await apiClient.patch(`/lessons/${editingLesson.id}`, payload);
+        if (editingLesson) {
+            await apiClient.patch(`/lessons/${editingLesson.id}`, payload);
+            notifications.show({
+                title: "Success",
+                message: "Lesson updated successfully",
+                color: "green",
+            });
+            setEditModalOpen(false); // Only close on success
+            setEditingLesson(null);
+        } else {
+            await apiClient.post('/lessons', payload);
+            
+            if (creatingFromNotification) {
                 notifications.show({
-                    title: "Success",
-                    message: "Lesson updated successfully",
+                    title: "🎉 Next Grade Lesson Created!",
+                    message: `Successfully created ${prefilledSubject?.name} ${prefilledSubject?.gradeLevel} lesson. You can now send progression notifications to students.`,
                     color: "green",
                 });
-                setEditModalOpen(false);
+                setCreatingFromNotification(false);
+                setPrefilledSubject(null);
+                setNextGradeInfo(null);
             } else {
-                await apiClient.post('/lessons', payload);
                 notifications.show({
                     title: "Success",
                     message: "Lesson created successfully",
                     color: "green",
                 });
-                setCreateModalOpen(false);
             }
-
-            fetchLessons();
-            resetFormData();
-            setEditingLesson(null);
-        } catch (err) {
-            console.error("Submit error:", err);
-            notifications.show({
-                title: "Error",
-                message: err.response?.data?.message || "Failed to save lesson",
-                color: "red",
-            });
-        } finally {
-            setSaving(false);
+            setCreateModalOpen(false); // Only close on success
         }
-    };
+
+        // Only refresh and reset on success
+        fetchLessons();
+        resetFormData();
+        
+    } catch (err) {
+        console.error("Submit error:", err);
+        notifications.show({
+            title: "Error",
+            message: err.response?.data?.message || "Failed to save lesson",
+            color: "red",
+        });
+    } finally {
+        setSaving(false);
+    }
+};
 
     const handleDeleteLesson = (lesson) => {
         setLessonToDelete(lesson);
@@ -736,6 +877,233 @@ export default function ManageLesson() {
             setDeleting(false);
         }
     };
+const handleSendToNewStudents = async () => {
+    if (!selectedLessonForNotification) return;
+
+    setSendingNotification(true);
+    try {
+        console.log("Sending to new students for lesson:", selectedLessonForNotification.id);
+        
+        const response = await apiClient.post(
+            `/notifications/send-to-new-students/${selectedLessonForNotification.id}`
+        );
+
+        const result = response.data || response;
+        
+        let successMessage = `Notifications sent to ${result.notifiedStudents} new students`;
+        
+        if (result.failedStudents > 0) {
+            successMessage += ` (${result.failedStudents} failed)`;
+        }
+        
+        notifications.show({
+            title: "Notifications Sent!",
+            message: successMessage,
+            color: "green",
+        });
+
+        // Close modal and reset
+        setNotificationModalOpen(false);
+        setSelectedLessonForNotification(null);
+        setAvailableNextLessons([]);
+        setSelectedLessonIds([]);
+        setNotificationMessage("");
+        setCustomizingMessage(false);
+        setTemplateExists(true); // Template should exist now
+
+    } catch (error) {
+        console.error("Error sending to new students:", error);
+        
+        const errorMessage = error.response?.data?.message || "Failed to send notifications";
+        
+        notifications.show({
+            title: "Error",
+            message: errorMessage,
+            color: "red",
+        });
+    } finally {
+        setSendingNotification(false);
+    }
+};
+
+const handleSendNotification = async (lesson) => {
+    console.log("🔔 Frontend: handleSendNotification called for lesson:", lesson.id, lesson.title);
+    
+    if (lesson.currentCap === 0) {
+        console.log("❌ Frontend: No enrolled students");
+        notifications.show({
+            title: "No Students",
+            message: "This lesson has no enrolled students to notify",
+            color: "yellow",
+        });
+        return;
+    }
+
+    console.log("🔔 Frontend: Lesson has students, checking template...");
+    setSelectedLessonForNotification(lesson);
+    setCheckingTemplate(true);
+
+    try {
+        // Check if template exists first
+        const templateResponse = await apiClient.get(`/notifications/lesson/${lesson.id}/template-exists`);
+        const templateData = templateResponse.data || {};
+        
+        console.log("🔔 Frontend: Template check result:", templateData);
+        setTemplateExists(templateData.templateExists);
+        
+        // Get next grade options with proper response handling
+        console.log("🔔 Frontend: Getting next grade options...");
+        const response = await apiClient.get(`/notifications/${lesson.id}/next-grade-options`);
+        
+        // Handle both response formats (data property or direct)
+        const responseData = response.data || response;
+        console.log("🔔 Frontend: response (properly handled):", responseData);
+        
+        const availableLessons = responseData.availableNextGradeLessons || [];
+        const gradeInfo = responseData.nextGradeInfo;
+        
+        console.log("🔔 Frontend: EXTRACTED - Available next grade lessons:", availableLessons);
+        
+        // Always open modal, just with different content
+        setAvailableNextLessons(availableLessons);
+        setSelectedLessonIds(availableLessons.map(lesson => lesson.id));
+        
+        if (gradeInfo) {
+            setNextGradeInfo(gradeInfo);
+        }
+        
+        const shouldShowCreateOption = availableLessons.length === 0;
+        console.log("🔔 Frontend: Should show create option?", shouldShowCreateOption);
+        setShowCreateLessonOption(shouldShowCreateOption);
+        setNotificationModalOpen(true);
+
+        console.log("🔔 Frontend: Modal state after setting:", {
+            templateExists: templateData.templateExists,
+            showCreateLessonOption: shouldShowCreateOption,
+            notificationModalOpen: true
+        });
+
+    } catch (error) {
+        console.error("🔔 Frontend: Error checking template or next grade options:", error);
+        
+        const errorMessage = error.response?.data?.message || "Failed to load notification options";
+        
+        // Even on error, show modal with create option
+        setAvailableNextLessons([]);
+        setSelectedLessonIds([]);
+        setShowCreateLessonOption(true);
+        setNotificationModalOpen(true);
+        
+        notifications.show({
+            title: "Info",
+            message: errorMessage,
+            color: "blue",
+        });
+    } finally {
+        setCheckingTemplate(false);
+    }
+};
+    const handleViewPastNotifications = async (lesson) => {
+        setSelectedLessonForNotification(lesson);
+        setLoadingPastNotifications(true);
+        setPastNotificationsModalOpen(true);
+
+        try {
+            console.log("📋 Fetching past notifications for lesson:", lesson.id);
+            
+            const response = await apiClient.get(`/notifications/lesson/${lesson.id}/sent-notifications`);
+            console.log("📋 Backend response:", response);
+            
+            const responseData = response.data || response;
+            console.log(`📊 Found template:`, responseData.template);
+            console.log(`📊 Found batches:`, responseData.batches);
+            
+            setPastNotifications(responseData);
+            
+        } catch (error) {
+            console.error("❌ Error fetching past notifications:", error);
+            console.log("❌ Error details:", error.response?.data);
+            notifications.show({
+                title: "Error",
+                message: "Failed to load past notifications",
+                color: "red",
+            });
+            setPastNotifications({ template: null, batches: [] });
+        } finally {
+            setLoadingPastNotifications(false);
+        }
+    };
+
+const handleConfirmSendNotification = async () => {
+    if (!selectedLessonForNotification) return;
+
+    // Validate custom message length
+    if (customizingMessage && notificationMessage.length > 500) {
+        notifications.show({
+            title: "Message Too Long",
+            message: "Custom message must be less than 500 characters",
+            color: "red",
+        });
+        return;
+    }
+
+    setSendingNotification(true);
+    try {
+        console.log("Sending notifications for lesson:", selectedLessonForNotification.id);
+        
+        const payload = {
+            selectedLessonIds: selectedLessonIds || [], // ✅ Ensure array
+            customMessage: customizingMessage ? notificationMessage : null
+        };
+
+        console.log("🔔 Frontend: Sending payload:", payload);
+
+        const response = await apiClient.post(
+            `/notifications/grade-progression/${selectedLessonForNotification.id}`,
+            payload
+        );
+
+        const result = response.data || response;
+        
+        // Handle different success scenarios
+        let successMessage = `Grade progression notifications sent to ${result.notifiedStudents} students`;
+        
+        if (result.failedStudents > 0) {
+            successMessage += ` (${result.failedStudents} failed)`;
+        }
+        
+        if (result.usedCustomMessage) {
+            successMessage += " with custom message";
+        }
+        
+        notifications.show({
+            title: "Notifications Sent!",
+            message: successMessage,
+            color: "green",
+        });
+
+        // Close modal and reset
+        setNotificationModalOpen(false);
+        setSelectedLessonForNotification(null);
+        setAvailableNextLessons([]);
+        setSelectedLessonIds([]);
+        setNotificationMessage("");
+        setCustomizingMessage(false);
+
+    } catch (error) {
+        console.error("Error sending notifications:", error);
+        
+        const errorMessage = error.response?.data?.message || "Failed to send notifications";
+        
+        notifications.show({
+            title: "Error",
+            message: errorMessage,
+            color: "red",
+        });
+    } finally {
+        setSendingNotification(false);
+    }
+};
 
     const getStatusColor = (isActive) => {
         return isActive ? "green" : "gray";
@@ -873,12 +1241,12 @@ export default function ManageLesson() {
                                     <Table.Th>Type</Table.Th>
                                     <Table.Th>Tutor</Table.Th>
                                     <Table.Th>Capacity</Table.Th>
+                                    <Table.Th>Notifications</Table.Th>
                                     <Table.Th>Student Rate</Table.Th>
                                     <Table.Th>Tutor Rate</Table.Th>
                                     <Table.Th>Start Date</Table.Th>
                                     <Table.Th>End Date</Table.Th>
                                     <Table.Th>Status</Table.Th>
-                                    <Table.Th>Actions</Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
@@ -942,6 +1310,32 @@ export default function ManageLesson() {
                                                 >
                                                     <IconEdit size={16} />
                                                 </ActionIcon>
+                                                        {/* ADD NOTIFICATION BUTTON */}
+                                                        <ActionIcon
+                                                        color={lesson.notificationTemplateSubmitted ? "green" : "blue"}
+                                                        variant="light"
+                                                        onClick={() => handleManageTemplate(lesson)}
+                                                        disabled={lesson.currentCap === 0}
+                                                        title={
+                                                            lesson.notificationTemplateSubmitted 
+                                                            ? "Template already submitted" 
+                                                            : "Manage notification template"
+                                                        }
+                                                        >
+                                                        <IconBell size={16} />
+                                                        {lesson.notificationTemplateSubmitted && (
+                                                            <div style={{
+                                                            position: 'absolute',
+                                                            top: -2,
+                                                            right: -2,
+                                                            width: 8,
+                                                            height: 8,
+                                                            backgroundColor: 'green',
+                                                            borderRadius: '50%'
+                                                            }} />
+                                                        )}
+                                                        </ActionIcon>
+                                                      
                                                 <ActionIcon
                                                     color="red"
                                                     variant="light"
@@ -982,7 +1376,11 @@ export default function ManageLesson() {
                     resetFormData();
                     setEditingLesson(null);
                 }}
-                title={editingLesson ? "Edit Lesson" : "Create Lesson"}
+                title={
+                    creatingFromNotification 
+                        ? `Create Next Grade Lesson (${nextGradeInfo?.currentGrade} → ${nextGradeInfo?.nextGrade})`
+                        : editingLesson ? "Edit Lesson" : "Create Lesson"
+                }
                 size="lg"
             >
                 <Stack spacing="md">
@@ -1097,16 +1495,52 @@ export default function ManageLesson() {
 
                         <Grid.Col span={12}>
                             <Select
-                                label="Subject"
-                                placeholder="Select subject"
+                                label={
+                                    creatingFromNotification 
+                                        ? `Subject (Grade Progression: ${nextGradeInfo?.currentGrade} → ${nextGradeInfo?.nextGrade})`
+                                        : "Subject"
+                                }
+                                placeholder={
+                                    creatingFromNotification 
+                                        ? "Subject pre-selected for grade progression"
+                                        : "Select subject"
+                                }
                                 data={subjectOptions}
                                 value={formData.subjectId}
-                                onChange={(value) => setFormData({ ...formData, subjectId: value })}
+                                onChange={(value) => {
+                                    if (!creatingFromNotification) {
+                                        setFormData({ ...formData, subjectId: value });
+                                    }
+                                }}
                                 error={formErrors.subjectId}
                                 required
                                 searchable
-                                disabled={restrictedEdit}
+                                disabled={restrictedEdit || creatingFromNotification}
+                                styles={{
+                                    input: creatingFromNotification ? { 
+                                        backgroundColor: '#f0f9ff',
+                                        borderColor: '#0ea5e9',
+                                        fontWeight: 600
+                                    } : {}
+                                }}
+                                description={
+                                    creatingFromNotification 
+                                        ? "Subject is locked to maintain grade progression consistency"
+                                        : "Select the subject for this lesson"
+                                }
                             />
+                            {creatingFromNotification && (
+                                <Alert color="blue" mt="xs" title="Grade Progression Lesson" >
+                                    <Text size="sm">
+                                        This lesson is being created as the next level for students progressing from{" "}
+                                        <strong>{nextGradeInfo?.currentSubject} {nextGradeInfo?.currentGrade}</strong> to{" "}
+                                        <strong>{nextGradeInfo?.currentSubject} {nextGradeInfo?.nextGrade}</strong>.
+                                    </Text>
+                                    <Text size="sm" mt="xs" color="red">
+                                        <strong>Subject cannot be changed</strong> to ensure students receive notifications for the correct subject progression.
+                                    </Text>
+                                </Alert>
+                            )}
                         </Grid.Col>
 
                         <Grid.Col span={4}>
@@ -1125,17 +1559,13 @@ export default function ManageLesson() {
                         {/* Update the TimeInput handlers in the modal section, update: save it as a string format at the end */}
                         <Grid.Col span={4}>
                             <TextInput
-                                label="Start Time"
-                                type="time"
-                                value={formData.startTime}
-                                onChange={(e) => {
-                                    const value = e.target.value ? `${e.target.value}:00` : "";
-                                    console.log("Start time selected:", value);
-                                    setFormData((prev) => ({ ...prev, startTime: value }));
-                                }}
-                                error={formErrors.startTime}
-                                required
-                                disabled={restrictedEdit}
+                            label="Start Time"
+                            type="time"
+                            value={formData.startTime}
+                            onChange={(e) => {
+                                const value = e.target.value ? `${e.target.value}:00` : ""; // convert to "HH:MM:00"
+                                setFormData((prev) => ({ ...prev, startTime: value }));
+                            }}
                             />
                         </Grid.Col>
 
@@ -1410,126 +1840,718 @@ export default function ManageLesson() {
                         </Button>
                     </Group>
                 </Stack>
-            </Modal>
-            {/* ✅ NEW: Simple Attendance Dates Modal */}
-            <Modal
-                opened={attendanceDetailModalOpen}
-                onClose={() => {
-                    setAttendanceDetailModalOpen(false);
-                    setSelectedAttendance(null);
-                    setAttendanceFormData({ tutorId: "", isAttended: false, notes: "" });
-                    setAttendanceTutors([]);
-                }}
-                title="Edit Attendance Details"
-                size="md"
-            >
-                <Stack spacing="md">
-                    {selectedAttendance && (
-                        <Card withBorder padding="sm">
-                            <Group justify="space-between" mb="xs">
-                                <div>
-                                    <Text size="lg" fw={600}>
-                                        📅 {new Date(selectedAttendance.date).toLocaleDateString('en-US', {
-                                            weekday: 'long',
-                                            year: 'numeric',
-                                            month: 'long',
-                                            day: 'numeric'
-                                        })}
-                                    </Text>
-                                    <Text size="sm" c="dimmed">
-                                        📚 {selectedLessonAttendance?.title}
-                                    </Text>
-                                </div>
-                                <Badge
-                                    color={selectedAttendance.isPaid ? "green" : "orange"}
-                                    size="sm"
-                                >
-                                    {selectedAttendance.isPaid ? "Paid" : "Unpaid"}
-                                </Badge>
-                            </Group>
+                </Modal>
+                {/* ✅ NEW: Simple Attendance Dates Modal */}
+                <Modal
+                    opened={attendanceDetailModalOpen}
+                    onClose={() => {
+                        setAttendanceDetailModalOpen(false);
+                        setSelectedAttendance(null);
+                        setAttendanceFormData({ tutorId: "", isAttended: false, notes: "" });
+                        setAttendanceTutors([]);
+                    }}
+                    title="Edit Attendance Details"
+                    size="md"
+                >
+                    <Stack spacing="md">
+                        {selectedAttendance && (
+                            <Card withBorder padding="sm">
+                                <Group justify="space-between" mb="xs">
+                                    <div>
+                                        <Text size="lg" fw={600}>
+                                            📅 {new Date(selectedAttendance.date).toLocaleDateString('en-US', {
+                                                weekday: 'long',
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
+                                            })}
+                                        </Text>
+                                        <Text size="sm" c="dimmed">
+                                            📚 {selectedLessonAttendance?.title}
+                                        </Text>
+                                    </div>
+                                    <Badge
+                                        color={selectedAttendance.isPaid ? "green" : "orange"}
+                                        size="sm"
+                                    >
+                                        {selectedAttendance.isPaid ? "Paid" : "Unpaid"}
+                                    </Badge>
+                                </Group>
 
-                            <Group spacing="md">
-                                <Text size="sm">
-                                    <strong>Session ID:</strong> {String(selectedAttendance.id).slice(0, 8)}...
-                                </Text>
-                                <Text size="sm">
-                                    <strong>Rate:</strong> ${selectedAttendance.tutorRate || 0}
-                                </Text>
-                            </Group>
-                        </Card>
-                    )}
+                                <Group spacing="md">
+                                    <Text size="sm">
+                                        <strong>Session ID:</strong> {String(selectedAttendance.id).slice(0, 8)}...
+                                    </Text>
+                                    <Text size="sm">
+                                        <strong>Rate:</strong> ${selectedAttendance.tutorRate || 0}
+                                    </Text>
+                                </Group>
+                            </Card>
+                        )}
 
-                    <div>
-                        <Text size="md" fw={500} mb="sm">
-                            📝 Edit Session Details:
+                        <div>
+                            <Text size="md" fw={500} mb="sm">
+                                📝 Edit Session Details:
+                            </Text>
+
+                            <Stack spacing="md">
+                                <Select
+                                    label="Assigned Tutor"
+                                    placeholder="Select tutor for this session"
+                                    data={attendanceTutors.map(tutor => ({
+                                        value: tutor.id,
+                                        label: `${tutor.firstName} ${tutor.lastName}`
+                                    }))}
+                                    value={attendanceFormData.tutorId}
+                                    onChange={(value) => setAttendanceFormData(prev => ({
+                                        ...prev,
+                                        tutorId: value
+                                    }))}
+                                    searchable
+                                    clearable={false}
+                                    description="Change the tutor for this specific session"
+                                    error={attendanceFormErrors.tutorId}
+                                    required
+                                />
+                            </Stack>
+                        </div>
+
+                        {/* ✅ Show warning if changing tutor */}
+                        {selectedAttendance && attendanceFormData.tutorId !== selectedAttendance.tutorId && (
+                            <Alert color="yellow" title="⚠️ Tutor Change Detected">
+                                <Text size="sm">
+                                    You are changing the tutor for this session from{" "}
+                                    <strong>{selectedAttendance.tutorName || "Unknown"}</strong> to{" "}
+                                    <strong>
+                                        {attendanceFormData.tutorId
+                                            ? attendanceTutors.find(t => t.id === attendanceFormData.tutorId)?.firstName + " " +
+                                            attendanceTutors.find(t => t.id === attendanceFormData.tutorId)?.lastName
+                                            : "No tutor assigned"
+                                        }
+                                    </strong>.
+                                </Text>
+                                <Text size="sm" mt="xs">
+                                    This will affect payment calculations for this specific session.
+                                </Text>
+                            </Alert>
+                        )}
+
+                        <Group justify="flex-end" mt="lg">
+                            <Button
+                                variant="subtle"
+                                onClick={() => {
+                                    setAttendanceDetailModalOpen(false);
+                                    setSelectedAttendance(null);
+                                    setAttendanceFormData({ tutorId: "", isAttended: false, notes: "" });
+                                    setAttendanceTutors([]);
+                                }}
+                                disabled={updatingAttendance}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                color="blue"
+                                onClick={handleUpdateAttendance}
+                                loading={updatingAttendance}
+                                leftSection={<IconEdit size={16} />}
+                            >
+                                Update Attendance
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Modal>
+
+<Modal
+    opened={notificationModalOpen}
+    onClose={() => {
+        setNotificationModalOpen(false);
+        setSelectedLessonForNotification(null);
+        setAvailableNextLessons([]);
+        setSelectedLessonIds([]);
+        setShowCreateLessonOption(false);
+        setNotificationMessage("");
+        setCustomizingMessage(false);
+    }}
+    title={
+        templateExists 
+            ? "Send to New Students" 
+            : showCreateLessonOption 
+                ? "Create Next Grade Lesson" 
+                : "Send Grade Progression Notifications"
+    }
+    size="lg"
+>
+    <Stack spacing="md">
+        {selectedLessonForNotification && (
+            <Card withBorder padding="sm">
+                <Text size="lg" fw={600} mb="xs">
+                    Current Lesson: {selectedLessonForNotification.title}
+                </Text>
+                <Text size="sm" c="dimmed">
+                    {getSubjectName(selectedLessonForNotification.subjectId)}
+                </Text>
+                <Text size="sm" c="dimmed">
+                    👥 {selectedLessonForNotification.currentCap} enrolled students
+                </Text>
+                {templateExists && (
+                    <Badge color="green" variant="light">
+                        Using existing template
+                    </Badge>
+                )}
+            </Card>
+        )}
+
+        {showCreateLessonOption ? (
+            <div>
+                <Alert color="blue" title="No Next Grade Lessons Available">
+                    <Text size="sm" mb="md">
+                        No next grade lessons found for this subject.
+                        You need to create a new lesson first before sending progression notifications.
+                    </Text>
+                </Alert>
+
+                <Group justify="center" mt="lg">
+                    <Button 
+                        color="blue" 
+                        onClick={async () => {
+                            try {
+                                // Get the current lesson's subject details
+                                const currentSubject = subjects.find(s => s.id === selectedLessonForNotification.subjectId);
+                                if (!currentSubject) {
+                                    notifications.show({
+                                        title: "Error",
+                                        message: "Could not find current subject details",
+                                        color: "red",
+                                    });
+                                    return;
+                                }
+
+                                // Use stored nextGradeInfo or fetch fresh data
+                                let nextGradeData = nextGradeInfo;
+                                
+                                if (!nextGradeData) {
+                                    const response = await apiClient.get(`/notifications/${selectedLessonForNotification.id}/next-grade-options`);
+                                    nextGradeData = response.data?.nextGradeInfo;
+                                }
+
+                                if (!nextGradeData) {
+                                    notifications.show({
+                                        title: "Error",
+                                        message: "Could not determine next grade level",
+                                        color: "red",
+                                    });
+                                    return;
+                                }
+
+                                // Find the next grade subject
+                                const nextGradeSubject = subjects.find(s => 
+                                    s.name === nextGradeData.subjectName && 
+                                    s.gradeLevel === nextGradeData.nextGrade
+                                );
+
+                                if (nextGradeSubject) {
+                                    setPrefilledSubject(nextGradeSubject);
+                                    setNextGradeInfo({
+                                        currentSubject: nextGradeData.subjectName,
+                                        currentGrade: nextGradeData.currentGrade,
+                                        nextGrade: nextGradeData.nextGrade
+                                    });
+                                    setCreatingFromNotification(true);
+                                    setNotificationModalOpen(false);
+                                    
+                                    // Reset form first, then set pre-filled data
+                                    resetFormData();
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        subjectId: nextGradeSubject.id,
+                                        title: `${nextGradeSubject.name} ${nextGradeSubject.gradeLevel} - Next Level`,
+                                    }));
+                                    
+                                    setCreateModalOpen(true);
+                                } else {
+                                    notifications.show({
+                                        title: "Info",
+                                        message: `Next grade subject "${nextGradeData.subjectName} ${nextGradeData.nextGrade}" not found in available subjects. Please create it first.`,
+                                        color: "blue",
+                                    });
+                                }
+                            } catch (error) {
+                                console.error("Error preparing next grade lesson:", error);
+                                const errorMessage = error.response?.data?.message || "Failed to prepare next grade lesson creation";
+                                notifications.show({
+                                    title: "Error",
+                                    message: errorMessage,
+                                    color: "red",
+                                });
+                            }
+                        }}
+                    >
+                        Create Next Grade Lesson
+                    </Button>
+                </Group>
+            </div>
+        ) : (
+            <div>
+                {/* Show different content based on template status */}
+                {templateExists ? (
+                    <Alert color="blue" title="📋 Send to New Students">
+                        <Text size="sm">
+                            A notification template already exists for this lesson. 
+                            This will send notifications only to students who haven't received them yet.
                         </Text>
+                    </Alert>
+                ) : (
+                    <>
+                        <Text size="md" fw={500} mb="sm">
+                            Available Next Grade Lessons:
+                        </Text>
+                        
+                        {availableNextLessons.length === 0 ? (
+                            <Alert color="yellow" title="No Lessons Available">
+                                No next grade lessons found. Students will be notified but won't see specific lesson options.
+                            </Alert>
+                        ) : (
+                            <Card withBorder padding="sm" style={{ maxHeight: "400px", overflowY: "auto" }}>
+                                <Stack spacing="xs">
+                                    {availableNextLessons.map((lesson) => (
+                                        <div
+                                            key={lesson.id}
+                                            style={{
+                                                padding: "12px",
+                                                borderRadius: "6px",
+                                                border: selectedLessonIds.includes(lesson.id) 
+                                                    ? "2px solid #228be6" 
+                                                    : "1px solid #e9ecef",
+                                                backgroundColor: selectedLessonIds.includes(lesson.id) 
+                                                    ? "#e7f5ff" 
+                                                    : "#f8f9fa",
+                                                cursor: "pointer",
+                                                transition: "all 0.2s"
+                                            }}
+                                            onClick={() => {
+                                                setSelectedLessonIds(prev => 
+                                                    prev.includes(lesson.id)
+                                                        ? prev.filter(id => id !== lesson.id)
+                                                        : [...prev, lesson.id]
+                                                );
+                                            }}
+                                        >
+                                            <Group justify="space-between">
+                                                <div style={{ flex: 1 }}>
+                                                    <Text size="sm" fw={600}>
+                                                        {lesson.title}
+                                                    </Text>
+                                                    <Text size="xs" c="dimmed">
+                                                        {lesson.location} | {lesson.tutor}
+                                                    </Text>
+                                                    <Text size="xs" c="dimmed">
+                                                        {lesson.dayOfWeek} | {lesson.timeSlot}
+                                                    </Text>
+                                                    <Text size="xs" c="green">
+                                                        {lesson.availableSpots} spots available
+                                                    </Text>
+                                                </div>
+                                                <div>
+                                                    {selectedLessonIds.includes(lesson.id) && (
+                                                        <Badge color="blue" size="sm">
+                                                            Selected
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </Group>
+                                        </div>
+                                    ))}
+                                </Stack>
+                            </Card>
+                        )}
 
-                        <Stack spacing="md">
-                            <Select
-                                label="Assigned Tutor"
-                                placeholder="Select tutor for this session"
-                                data={attendanceTutors.map(tutor => ({
-                                    value: tutor.id,
-                                    label: `${tutor.firstName} ${tutor.lastName}`
-                                }))}
-                                value={attendanceFormData.tutorId}
-                                onChange={(value) => setAttendanceFormData(prev => ({
-                                    ...prev,
-                                    tutorId: value
-                                }))}
-                                searchable
-                                clearable={false}
-                                description="Change the tutor for this specific session"
-                                error={attendanceFormErrors.tutorId}
-                                required
-                            />
-                        </Stack>
-                    </div>
+                        {/* Show message section only when creating new template */}
+                        {!templateExists && (
+                            <Card withBorder mt="md" padding="md">
+                                <Group justify="space-between" mb="sm">
+                                    <Text size="md" fw={500}>
+                                        Notification Message
+                                    </Text>
+                                    <Button 
+                                        variant="light" 
+                                        size="xs"
+                                        onClick={() => setCustomizingMessage(!customizingMessage)}
+                                    >
+                                        {customizingMessage ? "Use Default" : "Customize Message"}
+                                    </Button>
+                                </Group>
 
-                    {/* ✅ Show warning if changing tutor */}
-                    {selectedAttendance && attendanceFormData.tutorId !== selectedAttendance.tutorId && (
-                        <Alert color="yellow" title="⚠️ Tutor Change Detected">
-                            <Text size="sm">
-                                You are changing the tutor for this session from{" "}
-                                <strong>{selectedAttendance.tutorName || "Unknown"}</strong> to{" "}
-                                <strong>
-                                    {attendanceFormData.tutorId
-                                        ? attendanceTutors.find(t => t.id === attendanceFormData.tutorId)?.firstName + " " +
-                                        attendanceTutors.find(t => t.id === attendanceFormData.tutorId)?.lastName
-                                        : "No tutor assigned"
-                                    }
-                                </strong>.
-                            </Text>
-                            <Text size="sm" mt="xs">
-                                This will affect payment calculations for this specific session.
-                            </Text>
-                        </Alert>
+                                {customizingMessage ? (
+                                    <Stack spacing="sm">
+                                        <Textarea
+                                            label="Custom Message"
+                                            placeholder="Enter your personalized message for students..."
+                                            value={notificationMessage}
+                                            onChange={(e) => {
+                                                setNotificationMessage(e.target.value);
+                                                validateNotificationMessage(e.target.value);
+                                            }}
+                                            rows={4}
+                                            description="You can personalize the message that students will receive"
+                                            error={messageError}
+                                        />
+                                        <Alert color="blue" size="sm">
+                                            <Text size="xs">
+                                                <strong>Note:</strong> This will create a permanent template for this lesson.
+                                            </Text>
+                                        </Alert>
+                                    </Stack>
+                                ) : (
+                                    <Alert color="gray" size="sm">
+                                        <Text size="sm">
+                                            <strong>Default Message:</strong><br />
+                                            "Congratulations on completing your current level! You're ready to progress to the next grade. 
+                                            We have new lessons available for you to continue your learning journey."
+                                        </Text>
+                                        <Text size="xs" mt="xs">
+                                            This will create a permanent template for this lesson.
+                                        </Text>
+                                    </Alert>
+                                )}
+                            </Card>
+                        )}
+                    </>
+                )}
+
+                <Alert color="blue" title="How it works">
+                    <Text size="sm">
+                        {templateExists 
+                            ? "This will notify only new students who haven't received the progression notification yet."
+                            : "This will create a notification template and notify all enrolled students."
+                        }
+                    </Text>
+                </Alert>
+
+                <Group justify="space-between" mt="md">
+                    {/* Only show "Select All" when creating new template */}
+                    {!templateExists && availableNextLessons.length > 0 && (
+                        <Button
+                            variant="light"
+                            onClick={() => {
+                                setSelectedLessonIds(availableNextLessons.map(lesson => lesson.id));
+                            }}
+                        >
+                            Select All
+                        </Button>
                     )}
-
-                    <Group justify="flex-end" mt="lg">
+                    
+                    <Group>
                         <Button
                             variant="subtle"
                             onClick={() => {
-                                setAttendanceDetailModalOpen(false);
-                                setSelectedAttendance(null);
-                                setAttendanceFormData({ tutorId: "", isAttended: false, notes: "" });
-                                setAttendanceTutors([]);
+                                setNotificationModalOpen(false);
+                                setSelectedLessonForNotification(null);
+                                setAvailableNextLessons([]);
+                                setSelectedLessonIds([]);
+                                setShowCreateLessonOption(false);
+                                setNotificationMessage("");
+                                setCustomizingMessage(false);
                             }}
-                            disabled={updatingAttendance}
+                            disabled={sendingNotification}
                         >
                             Cancel
                         </Button>
-                        <Button
-                            color="blue"
-                            onClick={handleUpdateAttendance}
-                            loading={updatingAttendance}
-                            leftSection={<IconEdit size={16} />}
+                        <Button 
+                            onClick={templateExists ? handleSendToNewStudents : handleConfirmSendNotification}
+                            loading={sendingNotification}
+                            disabled={
+                                templateExists 
+                                    ? false // "Send to New Students" doesn't need lesson selection
+                                    : availableNextLessons.length === 0 || selectedLessonIds.length === 0
+                            }
+                            color="green"
                         >
-                            Update Attendance
+                            {sendingNotification 
+                                ? "Sending..." 
+                                : templateExists 
+                                    ? `Send to New Students` 
+                                    : `Send to ${selectedLessonForNotification?.currentCap || 0} Students`
+                            }
                         </Button>
                     </Group>
-                </Stack>
-            </Modal>
+                </Group>
+            </div>
+        )}
+    </Stack>
+</Modal>
+    {/* Past Notifications Modal */}
+<Modal
+    opened={pastNotificationsModalOpen}
+    onClose={() => {
+        setPastNotificationsModalOpen(false);
+        setPastNotifications([]);
+        setSelectedLessonForNotification(null);
+    }}
+    title="Past Notifications"
+    size="lg"
+>
+    <Stack spacing="md">
+        {selectedLessonForNotification && (
+            <Card withBorder padding="sm">
+                <Text size="lg" fw={600} mb="xs">
+                    {selectedLessonForNotification.title}
+                </Text>
+                <Text size="sm" c="dimmed">
+                    {getSubjectName(selectedLessonForNotification.subjectId)}
+                </Text>
+                <Text size="sm" c="dimmed">
+                    👥 {selectedLessonForNotification.currentCap} enrolled students
+                </Text>
+            </Card>
+        )}
+
+        <div>
+            <Text size="md" fw={500} mb="sm">
+                📨 Notification History:
+            </Text>
+
+            {loadingPastNotifications ? (
+                <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
+                    <Loader size="sm" />
+                </div>
+            ) : pastNotifications.template ? (
+                <Card withBorder padding="sm" style={{ maxHeight: "400px", overflowY: "auto" }}>
+                    <Stack spacing="md">
+                        {/* Template Info */}
+                        <Card withBorder padding="md">
+                            <Text size="md" fw={600} mb="xs">📋 Notification Template</Text>
+                            <Text size="sm" fw={500}>{pastNotifications.template.title}</Text>
+                            <Text size="sm" c="dimmed">{pastNotifications.template.message}</Text>
+                            <Text size="xs" c="dimmed" mt="xs">
+                                Created: {new Date(pastNotifications.template.createdAt).toLocaleDateString()}
+                            </Text>
+                        </Card>
+                        
+                        {/* Students List */}
+                        {pastNotifications.batches.map((batch, index) => (
+                            <Card key={batch.id || index} withBorder padding="md">
+                                <Group justify="space-between" mb="xs">
+                                    <Text size="sm" fw={600}>
+                                        Notified Students ({batch.sentToCount})
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        {new Date(batch.sentAt).toLocaleDateString()}
+                                    </Text>
+                                </Group>
+                                
+                                <Stack spacing="xs">
+                                    {batch.students.map((student, studentIndex) => (
+                                        <Group key={student.id || studentIndex} justify="space-between">
+                                            <div>
+                                                <Text size="sm">{student.name}</Text>
+                                                <Text size="xs" c="dimmed">{student.email}</Text>
+                                            </div>
+                                            <Text size="xs" c="dimmed">
+                                                {new Date(student.sentAt).toLocaleDateString()}
+                                            </Text>
+                                        </Group>
+                                    ))}
+                                </Stack>
+                            </Card>
+                        ))}
+                    </Stack>
+                </Card>
+            ) : (
+                <Alert color="yellow" title="No Template Found">
+                    No notification template has been created for this lesson yet.
+                </Alert>
+            )}
+        </div>
+
+        <Group justify="flex-end" mt="md">
+            <Button
+                variant="subtle"
+                onClick={() => {
+                    setPastNotificationsModalOpen(false);
+                    setPastNotifications([]);
+                    setSelectedLessonForNotification(null);
+                }}
+            >
+                Close
+            </Button>
+        </Group>
+    </Stack>
+</Modal>
+
+{/* Template Management Modal */}
+<Modal
+    opened={managingTemplate}
+    onClose={() => {
+        setManagingTemplate(false);
+        setSelectedLessonForTemplate(null);
+        setAvailableNextLessons([]);
+        setSelectedLessonIds([]);
+        setNotificationMessage("");
+        setExistingTemplate(null);
+    }}
+    title="Manage Notification Template"
+    size="lg"
+>
+    <Stack spacing="md">
+        {selectedLessonForTemplate && (
+            <Card withBorder padding="sm">
+                <Text size="lg" fw={600} mb="xs">
+                    {selectedLessonForTemplate.title}
+                </Text>
+                <Text size="sm" c="dimmed">
+                    {getSubjectName(selectedLessonForTemplate.subjectId)}
+                </Text>
+                <Text size="sm" c="dimmed">
+                    👥 {selectedLessonForTemplate.currentCap} enrolled students
+                </Text>
+                {existingTemplate && (
+                    <Badge color="green" variant="light">
+                        Template exists
+                    </Badge>
+                )}
+            </Card>
+        )}
+
+        <div>
+            <Text size="md" fw={500} mb="sm">
+                Available Next Grade Lessons:
+            </Text>
+            
+            {availableNextLessons.length === 0 ? (
+                <Alert color="yellow" title="No Lessons Available">
+                    No next grade lessons found. Students will be notified but won't see specific lesson options.
+                </Alert>
+            ) : (
+                <Card withBorder padding="sm" style={{ maxHeight: "400px", overflowY: "auto" }}>
+                    <Stack spacing="xs">
+                        {availableNextLessons.map((lesson) => (
+                            <div
+                                key={lesson.id}
+                                style={{
+                                    padding: "12px",
+                                    borderRadius: "6px",
+                                    border: selectedLessonIds.includes(lesson.id) 
+                                        ? "2px solid #228be6" 
+                                        : "1px solid #e9ecef",
+                                    backgroundColor: selectedLessonIds.includes(lesson.id) 
+                                        ? "#e7f5ff" 
+                                        : "#f8f9fa",
+                                    cursor: "pointer",
+                                    transition: "all 0.2s"
+                                }}
+                                onClick={() => {
+                                    setSelectedLessonIds(prev => 
+                                        prev.includes(lesson.id)
+                                            ? prev.filter(id => id !== lesson.id)
+                                            : [...prev, lesson.id]
+                                    );
+                                }}
+                            >
+                                <Group justify="space-between">
+                                    <div style={{ flex: 1 }}>
+                                        <Text size="sm" fw={600}>
+                                            {lesson.title}
+                                        </Text>
+                                        <Text size="xs" c="dimmed">
+                                            {lesson.location} | {lesson.tutor}
+                                        </Text>
+                                        <Text size="xs" c="dimmed">
+                                            {lesson.dayOfWeek} | {lesson.timeSlot}
+                                        </Text>
+                                        <Text size="xs" c="green">
+                                            {lesson.availableSpots} spots available
+                                        </Text>
+                                    </div>
+                                    <div>
+                                        {selectedLessonIds.includes(lesson.id) && (
+                                            <Badge color="blue" size="sm">
+                                                Selected
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </Group>
+                            </div>
+                        ))}
+                    </Stack>
+                </Card>
+            )}
+        </div>
+
+        <Card withBorder padding="md">
+            <Group justify="space-between" mb="sm">
+                <Text size="md" fw={500}>
+                    Notification Message
+                </Text>
+            </Group>
+
+            <Stack spacing="sm">
+                <Textarea
+                    label="Custom Message"
+                    placeholder="Enter your personalized message for students..."
+                    value={notificationMessage}
+                    onChange={(e) => {
+                        setNotificationMessage(e.target.value);
+                        validateNotificationMessage(e.target.value);
+                    }}
+                    rows={4}
+                    description="You can personalize the message that students will receive"
+                    error={messageError}
+                />
+                <Alert color="blue" size="sm">
+                    <Text size="xs">
+                        <strong>Note:</strong> This will create a permanent template for this lesson. 
+                        Notifications will be sent automatically when the lesson ends.
+                    </Text>
+                </Alert>
+            </Stack>
+        </Card>
+
+        <Alert color="blue" title="How it works">
+            <Text size="sm">
+                This will create a notification template that will be used to automatically send 
+                grade progression notifications to students when this lesson ends.
+            </Text>
+        </Alert>
+
+        <Group justify="space-between" mt="md">
+            {availableNextLessons.length > 0 && (
+                <Button
+                    variant="light"
+                    onClick={() => {
+                        setSelectedLessonIds(availableNextLessons.map(lesson => lesson.id));
+                    }}
+                >
+                    Select All
+                </Button>
+            )}
+            
+            <Group>
+                <Button
+                    variant="subtle"
+                    onClick={() => {
+                        setManagingTemplate(false);
+                        setSelectedLessonForTemplate(null);
+                        setAvailableNextLessons([]);
+                        setSelectedLessonIds([]);
+                        setNotificationMessage("");
+                        setExistingTemplate(null);
+                    }}
+                    disabled={savingTemplate}
+                >
+                    Cancel
+                </Button>
+                <Button 
+                    onClick={handleSaveTemplate}
+                    loading={savingTemplate}
+                    disabled={availableNextLessons.length === 0 || selectedLessonIds.length === 0}
+                    color="green"
+                >
+                    {savingTemplate ? "Saving..." : "Save Template"}
+                </Button>
+            </Group>
+        </Group>
+    </Stack>
+</Modal>
         </Container>
     );
 }

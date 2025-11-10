@@ -65,6 +65,11 @@ const Notification = sequelize.define('Notification', {
         allowNull: true,
         comment: 'For scheduled notifications (like lesson reminders)'
     },
+        sourceTemplateId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        comment: 'References the lesson that contained the template used to create this notification'
+    }
 }, {
     tableName: 'notifications',
     timestamps: true,
@@ -72,8 +77,8 @@ const Notification = sequelize.define('Notification', {
         { fields: ['userId', 'isRead'] },
         { fields: ['userId', 'type'] },
         { fields: ['scheduledFor'] },
-        { fields: ['createdAt'] }
+        { fields: ['createdAt'] },
+        { fields: ['sourceTemplateId'] } // ✅ ADD THIS INDEX
     ]
 });
-
 export default Notification;

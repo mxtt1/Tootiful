@@ -10,11 +10,13 @@ const notificationService = new NotificationService();
 // GET /api/notifications - Get user's notifications
 router.get('/', authenticateToken, asyncHandler(notificationService.handleGetUserNotifications.bind(notificationService)));
 
-// GET /api/notifications/stats - Get notification statistics (unread count, etc.)
+// GET /api/notifications/stats - Get notification statistics
 router.get('/stats', authenticateToken, asyncHandler(notificationService.handleGetNotificationStats.bind(notificationService)));
 
-// POST /api/notifications/grade-progression/:lessonId - Send grade progression notifications for a lesson
-router.post('/grade-progression/:lessonId', authenticateToken, asyncHandler(notificationService.handleSendGradeProgressionNotifications.bind(notificationService)));
+// Template management routes
+router.get('/:lessonId/next-grade-options', authenticateToken, asyncHandler(notificationService.handleGetNextGradeOptions.bind(notificationService)));
+router.get('/lesson/:lessonId/template', authenticateToken, asyncHandler(notificationService.handleGetNotificationTemplate.bind(notificationService)));
+router.post('/lesson/:lessonId/template', authenticateToken, asyncHandler(notificationService.handleSaveNotificationTemplate.bind(notificationService)));
 
 // PATCH /api/notifications/:id/read - Mark single notification as read
 router.patch('/:id/read', authenticateToken, asyncHandler(notificationService.handleMarkAsRead.bind(notificationService)));

@@ -343,4 +343,74 @@ export const lessonsStyles = StyleSheet.create({
     color: "#8B5CF6",
     fontWeight: "600",
   },
+  notificationBell: {
+    position: 'relative',
+    padding: 8,
+  },
+
+  notificationBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  notificationBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+
+  notificationItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+
+  unreadNotification: {
+    backgroundColor: '#f8f9ff',
+  },
+
+  notificationContent: {
+    flex: 1,
+  },
+
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+
+  notificationMessage: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+
+  notificationTime: {
+    fontSize: 12,
+    color: '#999',
+  },
+
+  notificationAction: {
+    fontSize: 12,
+    color: '#8B5CF6',
+    marginTop: 4,
+  },
+
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#8B5CF6',
+    marginLeft: 8,
+    marginTop: 4,
+  },
 });

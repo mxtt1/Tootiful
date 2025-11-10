@@ -14,6 +14,8 @@ import paymentRoutes from "./modules/payment/payment.routes.js";
 import adminAnalyticsRoutes from "./modules/analytics/admin.analytics.routes.js";
 import agencyAnalyticsRoutes from "./modules/analytics/agency.analytics.routes.js";
 import paperRoutes from "./modules/papers/paper.routes.js";
+import notificationRoutes from "./modules/scheduling/notification.routes.js";
+import "./modules/scheduling/cronJobs.js"; 
 import { errorHandler } from "./middleware/errorHandler.js";
 import "./models/index.js";
 
@@ -73,6 +75,7 @@ app.use("/api/payments", paymentRoutes); //student payment routes
 app.use("/api/analytics", agencyAnalyticsRoutes); // Agency analytics
 app.use("/api/analytics", adminAnalyticsRoutes);  // Admin analytics 
 app.use("/api/papers", paperRoutes); // Generated papers
+app.use("/api/notifications", notificationRoutes);
 
 // Global Error Handler Middleware
 app.use(errorHandler);

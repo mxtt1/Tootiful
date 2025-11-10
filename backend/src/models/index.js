@@ -59,6 +59,10 @@ GeneratedPaper.belongsTo(User, { foreignKey: 'tutorId', as: 'tutor' });
 Subject.hasMany(GeneratedPaper, { foreignKey: 'subjectId', as: 'generatedPapers' });
 GeneratedPaper.belongsTo(Subject, { foreignKey: 'subjectId', as: 'subject' });
 
+// Notification source template relationship
+Notification.belongsTo(Lesson, { foreignKey: 'sourceTemplateId', as: 'sourceTemplate' });
+Lesson.hasMany(Notification, { foreignKey: 'sourceTemplateId', as: 'generatedNotifications' });
+
 import Sequelize, { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
 
