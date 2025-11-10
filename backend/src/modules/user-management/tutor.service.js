@@ -1063,6 +1063,9 @@ export default class TutorService {
         throw new Error("Lesson not found");
       }
 
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+
       const [students, attendanceOverview] = await Promise.all([
         User.findAll({
           where: {
@@ -1074,6 +1077,8 @@ export default class TutorService {
               as: "enrollments",
               where: {
                 lessonId: lessonId,
+                startDate: { [Op.lte]: today },
+                endDate: { [Op.gte]: today },
               },
               attributes: ["startDate", "endDate"],
               required: true,
