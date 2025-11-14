@@ -399,6 +399,9 @@ export default function TutorProfileScreen() {
                 <Text style={styles.sectionLink}>View breakdown</Text>
               </TouchableOpacity>
             </View>
+            <Text style={styles.sectionSubtitle}>
+              {paymentSummary.currentMonthLabel || "This month"}
+            </Text>
             <View style={styles.paymentSummaryRow}>
               <View style={[styles.paymentCard, styles.paymentCardPaid]}>
                 <Text style={styles.paymentCardLabel}>Total Paid</Text>

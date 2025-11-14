@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { myProfileStyles as styles } from "../styles/myProfileStyles";
 import apiClient from "../../services/apiClient";
+import { Picker } from "@react-native-picker/picker";
 
 // same -> better format for $$
 const formatCurrency = (value) => {
@@ -40,12 +41,30 @@ const formatDateLabel = (value) => {
   });
 };
 
+const getMonthKey = (value) => {
+  if (!value) {
+    return "unknown";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "unknown";
+  }
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
+
 // table for status styles
 const PAYMENT_STATUS_STYLES = {
   Paid: {
     container: "paymentStatusPaid",
     text: "paymentStatusTextPaid",
     label: "Paid",
+  },
+  Pending: {
+    container: "paymentStatusPending",
+    text: "paymentStatusTextPending",
+    label: "Pending",
   },
   "Not Paid": {
     container: "paymentStatusPending",
@@ -64,6 +83,7 @@ export default function PaymentSummaryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [summary, setSummary] = useState(null);
+  const [selectedMonthKey, setSelectedMonthKey] = useState("all");
 
   // Handles both raw and Axios-wrapped responses returned by the apiClient
   const resolvePayload = (response) => {
@@ -104,6 +124,12 @@ export default function PaymentSummaryScreen() {
     fetchSummary();
   }, [fetchSummary]);
 
+  useEffect(() => {
+    if (summary?.currentMonthKey) {
+      setSelectedMonthKey(summary.currentMonthKey);
+    }
+  }, [summary?.currentMonthKey]);
+
   useFocusEffect(
     // Refresh whenever the screen regains focus so tutors see up-to-date totals.
     useCallback(() => {
@@ -129,10 +155,45 @@ export default function PaymentSummaryScreen() {
     }
   };
 
-  // need set safe defaults to avoid rendering errors
+  const monthSummaries = Array.isArray(summary?.monthSummaries)
+    ? summary.monthSummaries
+    : [];
+
+  const monthOptions = useMemo(() => {
+    const options = monthSummaries.map((item) => ({
+      key: item.key,
+      label: item.label,
+    }));
+    const uniqueKeys = new Set();
+    const deduped = options.filter((option) => {
+      if (uniqueKeys.has(option.key)) {
+        return false;
+      }
+      uniqueKeys.add(option.key);
+      return true;
+    });
+    return [{ key: "all", label: "View all" }, ...deduped];
+  }, [monthSummaries]);
+
   const breakdown = Array.isArray(summary?.breakdown) ? summary.breakdown : [];
+  const filteredBreakdown = useMemo(() => {
+    if (selectedMonthKey === "all") {
+      return breakdown;
+    }
+    return breakdown.filter(
+      (item) => getMonthKey(item.attendanceDate) === selectedMonthKey
+    );
+  }, [breakdown, selectedMonthKey]);
+
+  const selectedMonthLabel = useMemo(() => {
+    const match = monthOptions.find((option) => option.key === selectedMonthKey);
+    return match?.label ?? "View all";
+  }, [monthOptions, selectedMonthKey]);
+
   const totalPaid = formatCurrency(summary?.totalPaid ?? 0);
   const totalPending = formatCurrency(summary?.totalPending ?? 0);
+  const overviewCount =
+    (summary?.paidCount ?? 0) + (summary?.pendingCount ?? 0);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -158,11 +219,15 @@ export default function PaymentSummaryScreen() {
         {/* Overview Cards */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Overview</Text>
+            <Text style={styles.sectionTitle}>Payment Overview</Text>
             <Text style={styles.sectionSubtitle}>
-              {summary?.paymentsCount ?? 0} payments tracked
+              {summary?.currentMonthLabel || "This month"}
             </Text>
           </View>
+          <Text style={styles.sectionHelperText}>
+            {overviewCount} payment{overviewCount === 1 ? "" : "s"} recorded this
+            month
+          </Text>
           <View style={styles.paymentSummaryRow}>
             <View style={[styles.paymentCard, styles.paymentCardPaid]}>
               <Text style={styles.paymentCardLabel}>Total Paid</Text>
@@ -185,18 +250,44 @@ export default function PaymentSummaryScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Breakdown</Text>
-            {error && (
-              <TouchableOpacity onPress={showErrorAlert}>
-                <Text style={styles.errorLink}>View error</Text>
-              </TouchableOpacity>
-            )}
+            <View style={styles.sectionHeaderActions}>
+              {error && (
+                <TouchableOpacity onPress={showErrorAlert}>
+                  <Text style={styles.errorLink}>View error</Text>
+                </TouchableOpacity>
+              )}
+              <View style={styles.monthFilterContainer}>
+                <Text style={styles.monthFilterValue}>{selectedMonthLabel}</Text>
+                <Ionicons
+                  name="chevron-down"
+                  size={16}
+                  style={styles.monthFilterIcon}
+                />
+                <Picker
+                  selectedValue={selectedMonthKey}
+                  onValueChange={(value) =>
+                    setSelectedMonthKey(value || "all")
+                  }
+                  mode="dropdown"
+                  style={styles.monthPickerNative}
+                >
+                  {monthOptions.map((option) => (
+                    <Picker.Item
+                      key={option.key}
+                      label={option.label}
+                      value={option.key}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
           </View>
 
           {loading ? (
             <View style={styles.centeredState}>
               <ActivityIndicator size="large" color="#8B5CF6" />
             </View>
-          ) : breakdown.length === 0 ? (
+          ) : filteredBreakdown.length === 0 ? (
             <View style={styles.lessonEmptyContainer}>
               <Ionicons
                 name="card-outline"
@@ -204,17 +295,23 @@ export default function PaymentSummaryScreen() {
                 color="#9CA3AF"
                 style={styles.lessonEmptyIcon}
               />
-              <Text style={styles.lessonEmptyTitle}>No payment records yet</Text>
+              <Text style={styles.lessonEmptyTitle}>
+                {selectedMonthKey === "all"
+                  ? "No payment records yet"
+                  : "No payments for this month"}
+              </Text>
               <Text style={styles.lessonEmptySubtitle}>
-                Payments will appear here once they are processed by the agency.
+                {selectedMonthKey === "all"
+                  ? "Payments will appear here once they are processed by the agency."
+                  : "Try selecting another month or choose View all to see every payout."}
               </Text>
             </View>
           ) : (
             <View style={styles.paymentList}>
-              {breakdown.map((payment) => {
+              {filteredBreakdown.map((payment) => {
                 const statusStyle =
                   PAYMENT_STATUS_STYLES[payment.paymentStatus] ??
-                  PAYMENT_STATUS_STYLES["Not Paid"];
+                  PAYMENT_STATUS_STYLES.Pending;
                 const attendanceStatusLabel =
                   payment.isAttendanceMarked === true ? "Attended" : "Pending";
                 const lessonRateAmount =

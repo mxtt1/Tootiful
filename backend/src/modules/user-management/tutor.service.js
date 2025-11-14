@@ -15,6 +15,57 @@ import { createAndEmailVerificationLink } from "./emailVerification.service.js";
 import generator from "generate-password";
 
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;
+const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+const parseDateValue = (value) => {
+  if (value instanceof Date) {
+    return value;
+  }
+  const parsed = value ? new Date(value) : null;
+  return parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
+};
+
+const getMonthKeyFromDate = (value) => {
+  const date = parseDateValue(value);
+  if (!date) {
+    return "unknown";
+  }
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
+
+const getMonthLabelFromDate = (value) => {
+  const date = parseDateValue(value);
+  if (!date) {
+    return "Unknown";
+  }
+  const monthName = MONTH_NAMES[date.getUTCMonth()] ?? "Unknown";
+  return `${monthName} ${date.getUTCFullYear()}`;
+};
+
+const roundCurrency = (value) => {
+  const numeric =
+    typeof value === "number" ? value : Number.parseFloat(value);
+  if (Number.isNaN(numeric)) {
+    return 0;
+  }
+  return Number.parseFloat(numeric.toFixed(2));
+};
 
 const formatLocalDateTimeString = (date) => {
   const pad = (value) => String(value).padStart(2, "0");
@@ -27,7 +78,7 @@ const formatLocalDateTimeString = (date) => {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 };
 
-// to set the +1 -1 window for tutor to mark attendance (so they cannot anyhow mark)
+// Tutors get both the upstream one-hour buffer window and the legacy 24-hour window
 const buildMarkingWindow = (dateStr, startTime, endTime) => {
   if (!dateStr || !startTime || !endTime) {
     throw new Error("Missing values");
@@ -41,13 +92,21 @@ const buildMarkingWindow = (dateStr, startTime, endTime) => {
     }
     return dateTime;
   };
-
   const startDateTime = parseDateTime(startTime);
   const endDateTime = parseDateTime(endTime);
 
+  const upstreamWindowStart = new Date(
+    startDateTime.getTime() - ONE_HOUR_IN_MS
+  );
+  const upstreamWindowEnd = new Date(endDateTime.getTime() + ONE_HOUR_IN_MS);
+  const legacyWindowStart = startDateTime;
+  const legacyWindowEnd = new Date(startDateTime.getTime() + ONE_DAY_IN_MS);
+
   return {
-    windowStart: new Date(startDateTime.getTime() - ONE_HOUR_IN_MS),
-    windowEnd: new Date(endDateTime.getTime() + ONE_HOUR_IN_MS),
+    windowStart: upstreamWindowStart,
+    windowEnd: upstreamWindowEnd,
+    legacyWindowStart,
+    legacyWindowEnd,
     startDateTime,
     endDateTime,
   };
@@ -761,12 +820,18 @@ export default class TutorService {
   }
 
   formatAttendanceSession(attendanceRecord, lesson, now = new Date()) {
-    const { windowStart, windowEnd, startDateTime, endDateTime } =
-      buildMarkingWindow(
-        attendanceRecord.date,
-        lesson.startTime,
-        lesson.endTime
-      );
+    const {
+      windowStart,
+      windowEnd,
+      legacyWindowStart,
+      legacyWindowEnd,
+      startDateTime,
+      endDateTime,
+    } = buildMarkingWindow(
+      attendanceRecord.date,
+      lesson.startTime,
+      lesson.endTime
+    );
 
     const status = determineAttendanceStatus(
       attendanceRecord.isAttended,
@@ -774,6 +839,26 @@ export default class TutorService {
       windowStart,
       windowEnd
     );
+    const legacyStatus = determineAttendanceStatus(
+      attendanceRecord.isAttended,
+      now,
+      legacyWindowStart,
+      legacyWindowEnd
+    );
+
+    const upstreamWindow = {
+      start: formatLocalDateTimeString(windowStart),
+      end: formatLocalDateTimeString(windowEnd),
+      scheduledStart: formatLocalDateTimeString(startDateTime),
+      scheduledEnd: formatLocalDateTimeString(endDateTime),
+    };
+
+    const legacyWindow = {
+      start: formatLocalDateTimeString(legacyWindowStart),
+      end: formatLocalDateTimeString(legacyWindowEnd),
+      scheduledStart: formatLocalDateTimeString(startDateTime),
+      scheduledEnd: formatLocalDateTimeString(endDateTime),
+    };
 
     return {
       id: attendanceRecord.id,
@@ -782,13 +867,14 @@ export default class TutorService {
       date: attendanceRecord.date,
       isAttended: attendanceRecord.isAttended,
       status,
-      canMarkNow: status === "pending",
-      markWindow: {
-        start: formatLocalDateTimeString(windowStart),
-        end: formatLocalDateTimeString(windowEnd),
-        scheduledStart: formatLocalDateTimeString(startDateTime),
-        scheduledEnd: formatLocalDateTimeString(endDateTime),
+      legacyStatus,
+      statuses: {
+        upstream: status,
+        legacy: legacyStatus,
       },
+      canMarkNow: status === "pending" || legacyStatus === "pending",
+      markWindow: upstreamWindow,
+      legacyMarkWindow: legacyWindow,
       createdAt: attendanceRecord.createdAt,
       updatedAt: attendanceRecord.updatedAt,
     };
@@ -907,15 +993,24 @@ export default class TutorService {
     }
 
     const now = new Date();
-    const { windowStart, windowEnd } = buildMarkingWindow(
+    const {
+      windowStart,
+      windowEnd,
+      legacyWindowStart,
+      legacyWindowEnd,
+    } = buildMarkingWindow(
       attendanceRecord.date,
       lesson.startTime,
       lesson.endTime
     );
 
-    if (now < windowStart || now > windowEnd) {
+    const withinUpstreamWindow = now >= windowStart && now <= windowEnd;
+    const withinLegacyWindow =
+      now >= legacyWindowStart && now <= legacyWindowEnd;
+
+    if (!withinUpstreamWindow && !withinLegacyWindow) {
       throw new Error(
-        `Attendance must be marked within the allowed window between ${windowStart.toISOString()} and ${windowEnd.toISOString()}`
+        `Attendance must be marked within either the buffer window (${windowStart.toISOString()} - ${windowEnd.toISOString()}) or the legacy 24-hour window (${legacyWindowStart.toISOString()} - ${legacyWindowEnd.toISOString()})`
       );
     }
 
@@ -938,24 +1033,10 @@ export default class TutorService {
   }
 
   async getTutorPaymentSummary(tutorId) {
-    const now = new Date();
-    const monthStart = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
-    );
-    const monthEnd = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)
-    );
-
-    const startDate = monthStart.toISOString().slice(0, 10);
-    const endDate = monthEnd.toISOString().slice(0, 10);
-
     const attendances = await Attendance.findAll({
       where: {
         tutorId,
         isAttended: true,
-        date: {
-          [Op.between]: [startDate, endDate],
-        },
       },
       include: [
         {
@@ -980,6 +1061,26 @@ export default class TutorService {
     let paidCount = 0;
     let pendingCount = 0;
 
+    const monthBuckets = new Map();
+    const ensureMonthBucket = (key, label) => {
+      const bucketKey = key ?? "unknown";
+      if (!monthBuckets.has(bucketKey)) {
+        monthBuckets.set(bucketKey, {
+          key: bucketKey,
+          label: label ?? "Unknown",
+          totalPaid: 0,
+          totalPending: 0,
+          paidCount: 0,
+          pendingCount: 0,
+        });
+      }
+      const bucket = monthBuckets.get(bucketKey);
+      if (label && bucket.label === "Unknown") {
+        bucket.label = label;
+      }
+      return bucket;
+    };
+
     const breakdown = attendances.map((attendance) => {
       const lesson = attendance.lesson;
 
@@ -989,6 +1090,7 @@ export default class TutorService {
 
       const isPaid = attendance?.isPaid === true;
       const paymentStatus = isPaid ? "Paid" : "Not Paid";
+      const legacyPaymentStatus = isPaid ? "Paid" : "Pending";
 
       if (isPaid) {
         totalPaid += safeAmount;
@@ -996,6 +1098,21 @@ export default class TutorService {
       } else {
         totalPending += safeAmount;
         pendingCount += 1;
+      }
+
+      const monthKey = getMonthKeyFromDate(
+        attendance?.date ?? attendance?.createdAt
+      );
+      const monthLabel = getMonthLabelFromDate(
+        attendance?.date ?? attendance?.createdAt
+      );
+      const bucket = ensureMonthBucket(monthKey, monthLabel);
+      if (isPaid) {
+        bucket.totalPaid += safeAmount;
+        bucket.paidCount += 1;
+      } else {
+        bucket.totalPending += safeAmount;
+        bucket.pendingCount += 1;
       }
 
       return {
@@ -1007,6 +1124,7 @@ export default class TutorService {
           ? Number.parseFloat(lesson.tutorRate)
           : null,
         paymentStatus,
+        legacyPaymentStatus,
         paymentAmount: safeAmount,
         paymentDate: isPaid
           ? attendance?.updatedAt ?? attendance?.date ?? null
@@ -1015,16 +1133,79 @@ export default class TutorService {
         isAttendanceMarked: attendance?.isAttended ?? null,
         isPaid,
         recordedAt: attendance?.updatedAt ?? attendance?.createdAt,
+        monthKey,
+        monthLabel,
       };
     });
 
-    return {
-      totalPaid: Number.parseFloat(totalPaid.toFixed(2)),
-      totalPending: Number.parseFloat(totalPending.toFixed(2)),
-      paymentsCount: breakdown.length,
+    const sortMonthSummaries = (a, b) => {
+      const aUnknown = a.key === "unknown";
+      const bUnknown = b.key === "unknown";
+      if (aUnknown && bUnknown) return 0;
+      if (aUnknown) return 1;
+      if (bUnknown) return -1;
+
+      return a.key.localeCompare(b.key);
+    };
+
+    const monthSummaries = Array.from(monthBuckets.values());
+
+    const now = new Date();
+    const currentMonthKey = getMonthKeyFromDate(now);
+    const currentMonthLabel = getMonthLabelFromDate(now);
+
+    if (!monthSummaries.some((summary) => summary.key === currentMonthKey)) {
+      monthSummaries.push({
+        key: currentMonthKey,
+        label: currentMonthLabel,
+        totalPaid: 0,
+        totalPending: 0,
+        paidCount: 0,
+        pendingCount: 0,
+      });
+    }
+
+    monthSummaries.sort(sortMonthSummaries);
+
+    const currentMonthSummary =
+      monthSummaries.find((summary) => summary.key === currentMonthKey) ?? {
+        key: currentMonthKey,
+        label: currentMonthLabel,
+        totalPaid: 0,
+        totalPending: 0,
+        paidCount: 0,
+        pendingCount: 0,
+      };
+
+    const sanitizeEntry = (entry) => {
+      const { monthKey, monthLabel, ...rest } = entry;
+      return rest;
+    };
+
+    const currentMonthBreakdown = breakdown
+      .filter((entry) => entry.monthKey === currentMonthKey)
+      .map(sanitizeEntry);
+    const fullBreakdown = breakdown.map(sanitizeEntry);
+
+    const overallTotals = {
+      totalPaid: roundCurrency(totalPaid),
+      totalPending: roundCurrency(totalPending),
       paidCount,
       pendingCount,
-      breakdown,
+    };
+
+    return {
+      totalPaid: roundCurrency(currentMonthSummary.totalPaid),
+      totalPending: roundCurrency(currentMonthSummary.totalPending),
+      paymentsCount: currentMonthBreakdown.length,
+      paidCount: currentMonthSummary.paidCount,
+      pendingCount: currentMonthSummary.pendingCount,
+      breakdown: currentMonthBreakdown,
+      fullBreakdown,
+      currentMonthKey,
+      currentMonthLabel: currentMonthSummary.label,
+      monthSummaries,
+      overallTotals,
     };
   }
 
@@ -1066,7 +1247,7 @@ export default class TutorService {
       const today = new Date();
       today.setUTCHours(0, 0, 0, 0);
 
-      const [students, attendanceOverview] = await Promise.all([
+      const [studentsRaw, attendanceOverview] = await Promise.all([
         User.findAll({
           where: {
             role: "student",
@@ -1081,7 +1262,19 @@ export default class TutorService {
                 endDate: { [Op.gte]: today },
               },
               attributes: ["startDate", "endDate"],
-              required: true,
+              required: false,
+            },
+            {
+              model: Lesson,
+              as: "studentLessons",
+              where: {
+                id: lessonId,
+              },
+              attributes: ["id"],
+              through: {
+                attributes: ["startDate", "endDate"],
+              },
+              required: false,
             },
           ],
           attributes: [
@@ -1097,6 +1290,12 @@ export default class TutorService {
         this.getLessonAttendanceData(lesson),
       ]);
 
+      const students = studentsRaw.filter(
+        (student) =>
+          (student.enrollments?.length ?? 0) > 0 ||
+          (student.studentLessons?.length ?? 0) > 0
+      );
+
       console.log(`Found ${students.length} students for lesson ${lessonId}`);
 
       return {
@@ -1109,6 +1308,15 @@ export default class TutorService {
           phone: student.phone,
           gender: student.gender,
           gradeLevel: student.gradeLevel,
+          enrollments: (student.enrollments ?? []).map((enrollment) => ({
+            startDate: enrollment.startDate,
+            endDate: enrollment.endDate,
+          })),
+          legacyEnrollments: (student.studentLessons ?? []).map((lesson) => ({
+            lessonId: lesson.id,
+            startDate: lesson.StudentLesson?.startDate ?? null,
+            endDate: lesson.StudentLesson?.endDate ?? null,
+          })),
         })),
         classes: attendanceOverview.classes,
         attendanceSummary: attendanceOverview.summary,

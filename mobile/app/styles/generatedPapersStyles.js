@@ -200,4 +200,59 @@ export const generatedPapersStyles = StyleSheet.create({
     picker: {
         height: 50,
     },
+    topicHelperRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        marginBottom: 12,
+    },
+    topicHelperText: {
+        flexShrink: 1,
+        fontSize: 13,
+        color: "#4B5563",
+    },
+    topicActionButtons: {
+        flexDirection: "row",
+    },
+    topicActionButton: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: "#D1D5DB",
+        backgroundColor: "#F9FAFB",
+        marginLeft: 8,
+    },
+    topicActionText: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: "#4C1D95",
+    },
+    topicOptionsContainer: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+    },
+    topicPill: {
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        backgroundColor: "#FFFFFF",
+        marginRight: 8,
+        marginBottom: 8,
+    },
+    topicPillSelected: {
+        backgroundColor: "#EDE9FE",
+        borderColor: "#8B5CF6",
+    },
+    topicPillText: {
+        fontSize: 13,
+        color: "#374151",
+    },
+    topicPillTextSelected: {
+        color: "#4C1D95",
+        fontWeight: "600",
+    },
 })

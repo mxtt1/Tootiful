@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
     View,
     Text,
@@ -12,6 +12,7 @@ import {
     TextInput,
     ScrollView,
 } from "react-native";
+import { Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from "@react-navigation/native";
@@ -33,6 +34,18 @@ export default function GeneratedPapersScreen() {
     });
     const [subjects, setSubjects] = useState([]);
     const [submitting, setSubmitting] = useState(false);
+    const [availableTopics, setAvailableTopics] = useState([]);
+    const [selectedTopics, setSelectedTopics] = useState([]);
+
+    const getDefaultAiBackendUrl = () => {
+        if (Platform.OS === "android") {
+            return "http://10.0.2.2:5000";
+        }
+        return "http://localhost:5000";
+    };
+
+    const AI_BACKEND_URL =
+        process.env.EXPO_PUBLIC_AI_BACKEND_URL || getDefaultAiBackendUrl();
 
     useEffect(() => {
         // Get user ID from token
@@ -51,11 +64,25 @@ export default function GeneratedPapersScreen() {
         getUserId();
     }, []);
 
+    const fetchAvailableTopics = useCallback(async () => {
+        try {
+            const response = await fetch(`${AI_BACKEND_URL}/available-topics`);
+            if (!response.ok) {
+                throw new Error("Failed to load topics");
+            }
+            const data = await response.json();
+            setAvailableTopics(data?.topics || []);
+        } catch (error) {
+            console.error("Failed to fetch available topics:", error);
+        }
+    }, [AI_BACKEND_URL]);
+
     useEffect(() => {
         if (!userId) return;
 
         fetchPapers();
         fetchSubjects();
+        fetchAvailableTopics();
 
         // Set up notification handler
         const notificationListener = Notifications.addNotificationReceivedListener(notification => {
@@ -83,7 +110,7 @@ export default function GeneratedPapersScreen() {
                 responseListener.remove();
             }
         };
-    }, [userId]);
+    }, [userId, fetchAvailableTopics]);
 
     const fetchPapers = useCallback(async () => {
         if (!userId) return;
@@ -126,8 +153,76 @@ export default function GeneratedPapersScreen() {
         fetchPapers();
     }, [fetchPapers]);
 
+    const selectedSubject = useMemo(
+        () => subjects.find((subject) => subject.id === formData.subjectId),
+        [subjects, formData.subjectId]
+    );
+
+    const showTopicSelector = useMemo(() => {
+        if (!selectedSubject) return false;
+        const subjectName =
+            selectedSubject.name?.toLowerCase() ||
+            selectedSubject.subject?.toLowerCase() ||
+            "";
+        const gradeLevel =
+            selectedSubject.gradeLevel?.toLowerCase() ||
+            selectedSubject.grade?.toLowerCase() ||
+            "";
+        return subjectName.includes("math") && gradeLevel.includes("primary 6");
+    }, [selectedSubject]);
+
+    useEffect(() => {
+        if (!showTopicSelector) {
+            setSelectedTopics([]);
+            setFormData((current) => ({ ...current, topics: "" }));
+            return;
+        }
+
+        if (!availableTopics.length) {
+            return;
+        }
+
+        setSelectedTopics((prev) => {
+            const filtered = prev.filter((topic) => availableTopics.includes(topic));
+            if (filtered.length) {
+                setFormData((current) => ({ ...current, topics: filtered.join(", ") }));
+                return filtered;
+            }
+            setFormData((current) => ({ ...current, topics: availableTopics.join(", ") }));
+            return availableTopics;
+        });
+    }, [showTopicSelector, availableTopics]);
+
+    const toggleTopicSelection = (topic) => {
+        if (!showTopicSelector) return;
+        setSelectedTopics((prev) => {
+            let next;
+            if (prev.includes(topic)) {
+                next = prev.filter((item) => item !== topic);
+            } else {
+                next = [...prev, topic];
+            }
+            setFormData((current) => ({ ...current, topics: next.join(", ") }));
+            return next;
+        });
+    };
+
+    const handleSelectAllTopics = () => {
+        if (!showTopicSelector) return;
+        setSelectedTopics(availableTopics);
+        setFormData((current) => ({ ...current, topics: availableTopics.join(", ") }));
+    };
+
+    const handleClearTopics = () => {
+        if (!showTopicSelector) return;
+        setSelectedTopics([]);
+        setFormData((current) => ({ ...current, topics: "" }));
+    };
+
     const handleGeneratePaper = async () => {
-        if (!formData.subjectId || !formData.topics) {
+        const hasTopics = showTopicSelector ? selectedTopics.length > 0 : Boolean(formData.topics?.trim());
+
+        if (!formData.subjectId || !hasTopics) {
             Alert.alert("Error", "Please fill in all fields");
             return;
         }
@@ -158,8 +253,6 @@ export default function GeneratedPapersScreen() {
             }
 
             // Call the AI backend directly using fetch
-            const AI_BACKEND_URL = process.env.EXPO_PUBLIC_AI_BACKEND_URL || 'http://localhost:5000';
-
             const response = await fetch(`${AI_BACKEND_URL}/generate-paper`, {
                 method: 'POST',
                 headers: {
@@ -167,7 +260,7 @@ export default function GeneratedPapersScreen() {
                 },
                 body: JSON.stringify({
                     subjectId: formData.subjectId,
-                    topics: formData.topics,
+                    topics: showTopicSelector ? selectedTopics : formData.topics,
                     expoPushToken,
                     tutorId: userId,
                 }),
@@ -185,6 +278,7 @@ export default function GeneratedPapersScreen() {
 
             setModalVisible(false);
             setFormData({ subjectId: "", topics: "" });
+            setSelectedTopics([]);
 
             // Optionally refresh the list after a delay
             setTimeout(() => {
@@ -353,14 +447,60 @@ export default function GeneratedPapersScreen() {
 
                         <View style={styles.formGroup}>
                             <Text style={styles.label}>Topics</Text>
-                            <TextInput
-                                style={[styles.input, styles.textArea]}
-                                value={formData.topics}
-                                onChangeText={(text) => setFormData({ ...formData, topics: text })}
-                                placeholder="Enter the topics for the paper (comma-separated)"
-                                multiline
-                                numberOfLines={4}
-                            />
+                            {showTopicSelector ? (
+                                <>
+                                    <View style={styles.topicHelperRow}>
+                                        <Text style={styles.topicHelperText}>
+                                            Select topics for this practice paper ({selectedTopics.length}/{availableTopics.length})
+                                        </Text>
+                                        <View style={styles.topicActionButtons}>
+                                            <TouchableOpacity style={styles.topicActionButton} onPress={handleSelectAllTopics}>
+                                                <Text style={styles.topicActionText}>Select All</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity style={styles.topicActionButton} onPress={handleClearTopics}>
+                                                <Text style={styles.topicActionText}>Clear</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                    {availableTopics.length === 0 ? (
+                                        <Text style={styles.topicHelperText}>Loading topics...</Text>
+                                    ) : (
+                                        <View style={styles.topicOptionsContainer}>
+                                            {availableTopics.map((topic) => {
+                                                const isSelected = selectedTopics.includes(topic);
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={topic}
+                                                        style={[
+                                                            styles.topicPill,
+                                                            isSelected && styles.topicPillSelected,
+                                                        ]}
+                                                        onPress={() => toggleTopicSelection(topic)}
+                                                    >
+                                                        <Text
+                                                            style={[
+                                                                styles.topicPillText,
+                                                                isSelected && styles.topicPillTextSelected,
+                                                            ]}
+                                                        >
+                                                            {topic}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                );
+                                            })}
+                                        </View>
+                                    )}
+                                </>
+                            ) : (
+                                <TextInput
+                                    style={[styles.input, styles.textArea]}
+                                    value={formData.topics}
+                                    onChangeText={(text) => setFormData({ ...formData, topics: text })}
+                                    placeholder="Enter the topics for the paper (comma-separated)"
+                                    multiline
+                                    numberOfLines={4}
+                                />
+                            )}
                         </View>
 
                         <TouchableOpacity

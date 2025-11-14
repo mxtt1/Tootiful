@@ -6,11 +6,25 @@ import StudentPayment from './studentPayment.model.js';
 import TutorPayment from './tutorPayment.model.js';
 import GeneratedPaper from './generatedPaper.model.js';
 
-// StudentLesson direct associations
+// StudentLesson direct associations (upstream)
 StudentLesson.belongsTo(User, { foreignKey: 'studentId', as: 'student' });
 StudentLesson.belongsTo(Lesson, { foreignKey: 'lessonId', as: 'lesson' });
 User.hasMany(StudentLesson, { foreignKey: 'studentId', as: 'enrollments' });
 Lesson.hasMany(StudentLesson, { foreignKey: 'lessonId', as: 'enrollments' });
+
+// StudentLesson many-to-many links retained for legacy consumers
+User.belongsToMany(Lesson, {
+  through: StudentLesson,
+  foreignKey: 'studentId',
+  otherKey: 'lessonId',
+  as: 'studentLessons'
+});
+Lesson.belongsToMany(User, {
+  through: StudentLesson,
+  foreignKey: 'lessonId',
+  otherKey: 'studentId',
+  as: 'students'
+});
 
 // Tutor-Lesson association
 User.hasMany(Lesson, { foreignKey: 'tutorId', as: 'tutorLessons' });
