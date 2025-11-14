@@ -1,0 +1,22 @@
+# LM Studio Configuration
+LM_STUDIO_BASE_URL=http://localhost:1234/v1
+LM_STUDIO_API_KEY=not-needed
+MODEL_NAME=local-model
+
+# Server Configuration
+HOST=0.0.0.0
+PORT=8000
+DEBUG=true
+
+# AI Configuration
+MAX_TOKENS=2048
+TEMPERATURE=0.7
+TOP_P=0.9
+FREQUENCY_PENALTY=0.0
+PRESENCE_PENALTY=0.0
+
+# Application Settings
+APP_NAME=AI Assistant
+APP_VERSION=1.0.0
+LOG_LEVEL=INFO
+
