@@ -30,10 +30,21 @@ const StudentLesson = sequelize.define(
     startDate: {
       type: DataTypes.DATEONLY,
       allowNull: false,
+      validate: {
+        isDate: true,
+      },
     },
     endDate: {
       type: DataTypes.DATEONLY,
       allowNull: false,
+      validate: {
+        isDate: true,
+        isAfterStartDate(value) {
+          if (this.startDate && value <= this.startDate) {
+            throw new Error("End date must be after start date");
+          }
+        },
+      },
     },
   },
   {

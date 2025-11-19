@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { jwtDecode } from "jwt-decode";
 import lessonService from "../../services/lessonService";
+import notificationService from "../../services/notificationService"; // Import the service
 import authService from "../../services/authService";
 import apiClient from "../../services/apiClient";
 import { lessonsStyles as styles } from "../styles/lessonsStyles";
@@ -38,6 +39,12 @@ export default function LessonsScreen() {
   const [availableAgencies, setAvailableAgencies] = useState([]);
   const [availableDays, setAvailableDays] = useState([]);
 
+  // Notifications
+  const [notifications, setNotifications] = useState([]);
+  const [notificationStats, setNotificationStats] = useState({ total: 0, unread: 0 });
+  const [notificationsModalVisible, setNotificationsModalVisible] = useState(false);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+
   // Filter dropdown states
   const [dropdownVisible, setDropdownVisible] = useState({
     subject: false,
@@ -59,6 +66,7 @@ export default function LessonsScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchLessons();
+      fetchNotifications();
     }, [])
   );
 
@@ -88,6 +96,89 @@ export default function LessonsScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  // Load notifications
+  const fetchNotifications = async () => {
+    try {
+      setLoadingNotifications(true);
+      console.log('🔔 DEBUG: Starting to fetch notifications...');
+      
+      // These now return the direct data (array and object)
+      const notificationsData = await notificationService.getUserNotifications();
+      console.log('🔔 DEBUG: Notifications data:', notificationsData);
+      
+      const statsData = await notificationService.getNotificationStats();
+      console.log('🔔 DEBUG: Stats data:', statsData);
+      
+      setNotifications(notificationsData);
+      setNotificationStats(statsData);
+      
+    } catch (error) {
+      console.error('❌ DEBUG: Error fetching notifications:', error);
+      console.log('🔔 DEBUG: Error details:', {
+        message: error.message,
+        response: error.response,
+        status: error.response?.status
+      });
+      
+      // Set empty states on error
+      setNotifications([]);
+      setNotificationStats({ total: 0, unread: 0 });
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+// Handle notification press
+const handleNotificationPress = async (notification) => {
+  try {
+    // Mark as read
+    await notificationService.markAsRead(notification.id);
+    
+    // Refresh notifications
+    await fetchNotifications();
+    
+    // Navigate to lesson if target exists
+    if (notification.metadata?.targetLessonId) {
+      setNotificationsModalVisible(false);
+      
+      try {
+        // Check capacity before navigating
+        const lessonResponse = await lessonService.getLessonById(notification.metadata.targetLessonId);
+        const lesson = lessonResponse.data || lessonResponse;
+        
+        if (lesson.currentCap >= lesson.totalCap) {
+          Alert.alert("Lesson Full", "This lesson is at full capacity. Please check back later.");
+          return;
+        }
+        
+        // Open the lesson in the modal instead of navigating to non-existent page
+        setSelectedLesson(lesson);
+        setModalVisible(true);
+        checkEnrollmentStatus(lesson.id);
+        
+      } catch (lessonError) {
+        console.error("❌ Error fetching lesson:", lessonError);
+        Alert.alert("Error", "This lesson is no longer available.");
+      }
+    }
+  } catch (error) {
+    console.error("❌ Error handling notification:", error);
+    Alert.alert("Error", "Failed to open notification");
+  }
+};
+
+  // Mark all as read
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      // Refresh to get updated read status
+      await fetchNotifications();
+    } catch (error) {
+      console.error("❌ Error marking all as read:", error);
+      Alert.alert("Error", "Failed to mark all as read");
     }
   };
 
@@ -450,13 +541,34 @@ export default function LessonsScreen() {
   return (
     <TouchableWithoutFeedback onPress={closeAllDropdowns}>
       <View style={styles.safeArea}>
-        {/* Header */}
+        {/* Header with Notification Bell */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Available Lessons</Text>
-          <Text style={styles.headerSubtitle}>
-            {filteredLessons.length} lesson
-            {filteredLessons.length !== 1 ? "s" : ""} found
-          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+            <View>
+              <Text style={styles.headerTitle}>Available Lessons</Text>
+              <Text style={styles.headerSubtitle}>
+                {filteredLessons.length} lesson{filteredLessons.length !== 1 ? "s" : ""} found
+              </Text>
+            </View>
+            
+            {/* Notification Bell */}
+            <TouchableOpacity 
+              style={styles.notificationBell}
+              onPress={() => {
+                setNotificationsModalVisible(true);
+                fetchNotifications();
+              }}
+            >
+              <Ionicons name="notifications-outline" size={24} color="#8B5CF6" />
+              {notificationStats.unread > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>
+                    {notificationStats.unread > 9 ? '9+' : notificationStats.unread}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Search Bar */}
@@ -744,6 +856,91 @@ export default function LessonsScreen() {
             filteredLessons.map(renderLesson)
           )}
         </ScrollView>
+
+        {/* Notifications Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={notificationsModalVisible}
+          onRequestClose={() => setNotificationsModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  Notifications {notificationStats.unread > 0 && `(${notificationStats.unread})`}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {notificationStats.unread > 0 && (
+                    <TouchableOpacity 
+                      onPress={handleMarkAllAsRead}
+                      style={{ marginRight: 15 }}
+                    >
+                      <Text style={{ color: '#8B5CF6', fontSize: 14 }}>Mark all read</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity onPress={() => setNotificationsModalVisible(false)}>
+                    <Ionicons name="close" size={24} color="#666" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <ScrollView 
+                style={styles.modalBody}
+                refreshControl={
+                  <RefreshControl 
+                    refreshing={loadingNotifications} 
+                    onRefresh={fetchNotifications} 
+                  />
+                }
+              >
+                {loadingNotifications ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator color="#8B5CF6" />
+                    <Text style={styles.loadingText}>Loading notifications...</Text>
+                  </View>
+                ) : notifications.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="notifications-off-outline" size={48} color="#ccc" />
+                    <Text style={styles.emptyText}>No notifications</Text>
+                    <Text style={styles.emptySubtext}>You're all caught up!</Text>
+                  </View>
+                ) : (
+                  notifications.map((notification) => (
+                    <TouchableOpacity
+                      key={notification.id}
+                      style={[
+                        styles.notificationItem,
+                        !notification.isRead && styles.unreadNotification
+                      ]}
+                      onPress={() => handleNotificationPress(notification)}
+                    >
+                      <View style={styles.notificationContent}>
+                        <Text style={styles.notificationTitle}>
+                          {notification.title}
+                        </Text>
+                        <Text style={styles.notificationMessage}>
+                          {notification.message}
+                        </Text>
+                        <Text style={styles.notificationTime}>
+                          {new Date(notification.createdAt).toLocaleDateString()} • {new Date(notification.createdAt).toLocaleTimeString()}
+                        </Text>
+                        {notification.metadata?.targetLessonId && (
+                          <Text style={styles.notificationAction}>
+                            Tap to view lesson →
+                          </Text>
+                        )}
+                      </View>
+                      {!notification.isRead && (
+                        <View style={styles.unreadDot} />
+                      )}
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
 
         {/* Lesson Details Modal */}
         <Modal

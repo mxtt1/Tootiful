@@ -176,10 +176,22 @@ const AdminLayout = ({ children }) => {
   };
 
   // Get panel title from agency or fallback
-  const getPanelTitle = () => {
-    if (agency?.useCustomTheme && agency?.customTheme?.title) return agency.customTheme.title;
-    if (agency?.name) return agency.name;
+  const getPanelTitle = (useAgencyName = false) => {
+    // For admin header, always use agency name
+    if (useAgencyName) {
+      return agency?.name || getFallbackTitle();
+    }
+    
+    // For other panels, use custom theme if enabled
+    if (agency?.useCustomTheme && agency?.customTheme?.title) {
+      return agency.customTheme.title;
+    }
+    
+    return agency?.name || getFallbackTitle();
+  };
 
+  // Helper function for fallback titles
+  const getFallbackTitle = () => {
     if (user?.role === "admin") return "Admin Panel";
     if (user?.userType === "agencyAdmin") return "Agency Admin Panel";
     if (user?.userType === "agency") return "Super Agency Admin Panel";
@@ -188,24 +200,34 @@ const AdminLayout = ({ children }) => {
 
   // Get agency name for fallback logo
   const getAgencyDisplayName = () => {
-    return (agency?.useCustomTheme && agency?.customTheme?.title) ||
-      agency?.name ||
-      "MindFlex";
+    // For admin users with no agency, show Tutiful
+    if (!agency && user?.role === 'admin') {
+      return "Tutiful";
+    }
+    
+    return (agency?.useCustomTheme && agency?.customTheme?.title) || 
+          agency?.name || 
+          "Agency";
   };
 
   // Get logo URL with priority order
   const getLogoUrl = () => {
+    // If no agency data, show Tutiful logo for admin users
+    if (!agency && user?.role === 'admin') {
+      return "/src/assets/tooty.png"; // Tutiful logo for admin panel
+    }
+    
     if (!agency) return null;
 
     // Priority order for sidebar logo display
     if (agency.useCustomTheme && agency.customTheme) {
-      return agency.customTheme.selectedImage ||
-        agency.customTheme.displayImage ||
-        agency.customTheme.logo ||
-        agency.customTheme.ogImage ||
-        agency.customTheme.twitterImage ||
-        agency.customTheme.largeIcon ||
-        agency.customTheme.favicon;
+      return agency.customTheme.selectedImage || 
+            agency.customTheme.displayImage || 
+            agency.customTheme.logo || 
+            agency.customTheme.ogImage || 
+            agency.customTheme.twitterImage ||
+            agency.customTheme.largeIcon || 
+            agency.customTheme.favicon;
     }
 
     // Fallback to agency image
@@ -246,15 +268,15 @@ const AdminLayout = ({ children }) => {
               justifyContent: 'center',
               padding: '8px 8px',
               gap: '8px',
-              minHeight: '100px'
+              minHeight: '120px'
             }}>
               {getLogoUrl() ? (
                 <img
                   src={getLogoUrl()}
                   alt={getAgencyDisplayName()}
                   style={{
-                    width: '80px',
-                    height: '80px',
+                    width: agency && user?.role !== 'admin' ? '80px' : '160px',  // 2x bigger for Tutiful 
+                    height: agency && user?.role !== 'admin' ? '80px' : '160px', 
                     borderRadius: '8px',
                     objectFit: 'contain'
                   }}
@@ -287,15 +309,15 @@ const AdminLayout = ({ children }) => {
               justifyContent: 'center',
               padding: '8px 8px',
               gap: '6px',
-              minHeight: '70px'
+              minHeight: '80px'
             }}>
               {getLogoUrl() ? (
                 <img
                   src={getLogoUrl()}
                   alt={getAgencyDisplayName()}
                   style={{
-                    width: '50px',
-                    height: '50px',
+                    width: agency && user?.role !== 'admin' ? '50px' : '100px',  // 2x bigger for Tutiful 
+                    height: agency && user?.role !== 'admin' ? '50px' : '100px',
                     borderRadius: '6px',
                     objectFit: 'contain'
                   }}
@@ -382,9 +404,9 @@ const AdminLayout = ({ children }) => {
                 <img
                   src="/src/assets/tooty.png"
                   alt="Tutiful"
-                  style={{
-                    width: '80px',
-                    height: '80px',
+                  style={{ 
+                    width: '160px',
+                    height: '160px',
                     objectFit: 'contain'
                   }}
                 />
@@ -479,7 +501,7 @@ const AdminLayout = ({ children }) => {
                 <IconMenu2 size={18} />
               </ActionIcon>
               <div>
-                <Text size="lg" fw={600}>{getPanelTitle()}</Text>
+                <Text size="lg" fw={600}>{getPanelTitle(true)}</Text>
               </div>
             </Group>
 
@@ -500,7 +522,7 @@ const AdminLayout = ({ children }) => {
                       <Text size="sm" fw={500}>
                         {user && (user.firstName || user.lastName)
                           ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
-                          : getPanelTitle()}
+                          : agency?.name || "User"}
                       </Text>
                       <Text size="xs" c="dimmed">{getUserRoleDisplay()}</Text>
                     </Box>

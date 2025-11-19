@@ -1,0 +1,22 @@
+# PSLE Math Question Extractor Requirements
+# Primary 6 PSLE Math Singapore - Question Extraction and Classification
+
+# Core dependencies
+PyMuPDF>=1.23.0
+requests>=2.31.0
+pathlib2>=2.3.7
+
+# Data handling
+dataclasses-json>=0.6.0
+
+# Logging and utilities
+loguru>=0.7.0
+
+# Optional: For advanced text processing
+nltk>=3.8.1
+spacy>=3.7.0
+
+# Development dependencies (optional)
+pytest>=7.4.0
+black>=23.0.0
+flake8>=6.0.0

@@ -1,0 +1,22 @@
+openai==1.3.7
+python-dotenv==1.0.0
+pydantic==2.12.3
+pydantic-settings==2.11.0
+requests==2.31.0
+loguru==0.7.2
+PyPDF2==3.0.1
+PyMuPDF==1.23.8
+pytesseract==0.3.10
+Pillow==10.1.0
+pdf2image==1.16.3
+opencv-python==4.8.1.78
+numpy==1.24.3
+reportlab==4.0.7
+# Deepseek OCR dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+transformers>=4.30.0
+accelerate>=0.20.0
+sentencepiece>=0.1.99
+protobuf>=3.20.0
