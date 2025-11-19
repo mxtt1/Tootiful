@@ -23,6 +23,7 @@ import VerifyEmailPending from "./pages/VerifyEmailPending";
 import PlatformAdminAgencyManagement from "./pages/admin/agencyManagement";
 import ManageLesson from "./pages/agency/ManageLesson";
 import ManageTutorPayment from "./pages/agency/ManageTutorPayment";
+import ResumeScreener from "./pages/agency/resumeScreener";
 
 function AppRoutes() {
   return (
@@ -87,6 +88,7 @@ function AppRoutes() {
                 <Route path="profile" element={<AgencyProfile />} />
                 <Route path="lessons" element={<ManageLesson />} />
                 <Route path="tutor-payments" element={<ManageTutorPayment />} />
+                <Route path="resume-screener" element={<ResumeScreener />} />
                 <Route index element={<Navigate to="dashboard" replace />} />
               </Routes>
             </AdminLayout>
