@@ -19,6 +19,7 @@ import {
   IconSettings,
   IconCalendar,
   IconCurrencyDollar,
+  IconClipboardText,
 } from "@tabler/icons-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
@@ -34,14 +35,14 @@ const AdminLayout = ({ children }) => {
   // Apply custom theme colors and title
   const applyCustomizations = (agencyData) => {
     if (!agencyData?.useCustomTheme || !agencyData.customTheme) return;
-    
+
     const colors = agencyData.customTheme.colors || [];
     if (colors[0]) {
       document.documentElement.style.setProperty('--mantine-primary-color', colors[0]);
       document.documentElement.style.setProperty('--agency-primary', colors[0]);
       document.documentElement.style.setProperty('--sidebar-accent', colors[0]);
     }
-      
+
     if (agencyData.customTheme.title || agencyData.name) {
       const title = agencyData.customTheme.title || agencyData.name;
       document.title = `${title} - Tutiful Portal`;
@@ -51,7 +52,7 @@ const AdminLayout = ({ children }) => {
     if (existingFavicon) {
       existingFavicon.remove();
     }
-  
+
     // Debug log to see what images are available
     console.log("Available agency images:", {
       agencyImage: agencyData.image,
@@ -66,7 +67,7 @@ const AdminLayout = ({ children }) => {
       try {
         // Get agency ID from user context
         const agencyId = user?.agencyId || user?.id;
-        
+
         if (!agencyId) {
           console.warn("No agency ID available for user");
           setAgency(null);
@@ -75,7 +76,7 @@ const AdminLayout = ({ children }) => {
 
         // Use the agency profile endpoint
         const response = await ApiClient.get(`/agencies/${agencyId}`);
-        
+
         if (response.success && response.data) {
           const agencyData = response.data;
           setAgency(agencyData);
@@ -101,7 +102,7 @@ const AdminLayout = ({ children }) => {
         if (!agencyId) return;
 
         const response = await ApiClient.get(`/agencies/${agencyId}`);
-        
+
         if (response.success && response.data) {
           const agencyData = response.data;
           setAgency(agencyData);
@@ -145,7 +146,8 @@ const AdminLayout = ({ children }) => {
         { label: "Dashboard", icon: IconDashboard, path: "/agency/dashboard" },
         { label: "Tutor Management", icon: IconUser, path: "/agency/tutors" },
         { label: "Lesson Management", icon: IconCalendar, path: "/agency/lessons" },
-        { label: "Tutor Payments", icon: IconCurrencyDollar, path: "/agency/tutor-payments" }
+        { label: "Tutor Payments", icon: IconCurrencyDollar, path: "/agency/tutor-payments" },
+        { label: "Resume Screener", icon: IconClipboardText, path: "/agency/resume-screener" }
       ];
 
       if (user?.role === "agencyAdmin") {
@@ -155,7 +157,7 @@ const AdminLayout = ({ children }) => {
       if (user?.userType === "agency") {
         agencyItems.push({ label: "Agency Management", icon: IconBuilding, path: "/agency/management" });
       }
-      
+
       return agencyItems;
     }
 
@@ -177,7 +179,7 @@ const AdminLayout = ({ children }) => {
   const getPanelTitle = () => {
     if (agency?.useCustomTheme && agency?.customTheme?.title) return agency.customTheme.title;
     if (agency?.name) return agency.name;
-    
+
     if (user?.role === "admin") return "Admin Panel";
     if (user?.userType === "agencyAdmin") return "Agency Admin Panel";
     if (user?.userType === "agency") return "Super Agency Admin Panel";
@@ -186,26 +188,26 @@ const AdminLayout = ({ children }) => {
 
   // Get agency name for fallback logo
   const getAgencyDisplayName = () => {
-    return (agency?.useCustomTheme && agency?.customTheme?.title) || 
-           agency?.name || 
-           "MindFlex";
+    return (agency?.useCustomTheme && agency?.customTheme?.title) ||
+      agency?.name ||
+      "MindFlex";
   };
 
   // Get logo URL with priority order
   const getLogoUrl = () => {
     if (!agency) return null;
-    
+
     // Priority order for sidebar logo display
     if (agency.useCustomTheme && agency.customTheme) {
-      return agency.customTheme.selectedImage || 
-             agency.customTheme.displayImage || 
-             agency.customTheme.logo || 
-             agency.customTheme.ogImage || 
-             agency.customTheme.twitterImage ||
-             agency.customTheme.largeIcon || 
-             agency.customTheme.favicon;
+      return agency.customTheme.selectedImage ||
+        agency.customTheme.displayImage ||
+        agency.customTheme.logo ||
+        agency.customTheme.ogImage ||
+        agency.customTheme.twitterImage ||
+        agency.customTheme.largeIcon ||
+        agency.customTheme.favicon;
     }
-    
+
     // Fallback to agency image
     return agency.image;
   };
@@ -228,18 +230,18 @@ const AdminLayout = ({ children }) => {
   return (
     <div className="admin-layout">
       {/* Sidebar Navigation */}
-      <div 
+      <div
         className={`admin-sidebar ${sidebarCollapsed ? "collapsed" : ""}`}
-        style={{ 
-          '--sidebar-accent': (agency?.useCustomTheme && agency?.customTheme?.colors?.[0]) || '#6155F5' 
+        style={{
+          '--sidebar-accent': (agency?.useCustomTheme && agency?.customTheme?.colors?.[0]) || '#6155F5'
         }}
       >
         {/* Agency Logo Section */}
         <div className="sidebar-logo">
           {!sidebarCollapsed && (
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               padding: '8px 8px',
@@ -276,9 +278,9 @@ const AdminLayout = ({ children }) => {
               )}
             </div>
           )}
-          
+
           {sidebarCollapsed && (
-            <div style={{ 
+            <div style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -331,7 +333,7 @@ const AdminLayout = ({ children }) => {
                 className={`nav-item ${isActive ? "active" : ""}`}
                 onClick={() => navigate(item.path)}
                 title={sidebarCollapsed ? item.label : ""}
-                style={{ 
+                style={{
                   backgroundColor: isActive ? 'var(--sidebar-accent)' : 'transparent',
                 }}
               >
@@ -355,7 +357,7 @@ const AdminLayout = ({ children }) => {
               borderTop: '1px solid rgba(255, 255, 255, 0.1)',
               marginBottom: '16px'
             }}>
-              <Text size="xs" c="dimmed" style={{ 
+              <Text size="xs" c="dimmed" style={{
                 fontSize: '10px',
                 fontWeight: 500,
                 letterSpacing: '0.5px',
@@ -363,14 +365,14 @@ const AdminLayout = ({ children }) => {
               }}>
                 POWERED BY
               </Text>
-              
+
               <div style={{
                 width: '100%',
                 height: '1px',
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 margin: '4px 0'
               }} />
-              
+
               <div style={{
                 width: '100%',
                 display: 'flex',
@@ -380,7 +382,7 @@ const AdminLayout = ({ children }) => {
                 <img
                   src="/src/assets/tooty.png"
                   alt="Tutiful"
-                  style={{ 
+                  style={{
                     width: '80px',
                     height: '80px',
                     objectFit: 'contain'
@@ -389,7 +391,7 @@ const AdminLayout = ({ children }) => {
               </div>
             </div>
           )}
-          
+
           {sidebarCollapsed && (
             <div style={{
               display: 'flex',
@@ -403,7 +405,7 @@ const AdminLayout = ({ children }) => {
               <img
                 src="/src/assets/tooty.png"
                 alt="Tutiful"
-                style={{ 
+                style={{
                   width: '50px',
                   height: '50px',
                   objectFit: 'contain'
@@ -413,8 +415,8 @@ const AdminLayout = ({ children }) => {
           )}
 
           {/* Larger Centered Logout Button */}
-          <div className="sidebar-logout" style={{ 
-            display: 'flex', 
+          <div className="sidebar-logout" style={{
+            display: 'flex',
             justifyContent: 'center',
             padding: '16px 8px'
           }}>
@@ -460,8 +462,8 @@ const AdminLayout = ({ children }) => {
       <div className={`admin-main ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         <header className="admin-header"
           style={{
-            borderBottomColor: (agency?.useCustomTheme && agency?.customTheme?.colors?.[0]) ? 
-              `color-mix(in srgb, ${agency.customTheme.colors[0]} 20%, transparent)` : 
+            borderBottomColor: (agency?.useCustomTheme && agency?.customTheme?.colors?.[0]) ?
+              `color-mix(in srgb, ${agency.customTheme.colors[0]} 20%, transparent)` :
               undefined
           }}
         >
@@ -486,10 +488,10 @@ const AdminLayout = ({ children }) => {
               <Menu.Target>
                 <UnstyledButton className="user-menu">
                   <Group gap="sm">
-                    <Avatar 
+                    <Avatar
                       color={(agency?.useCustomTheme && agency?.customTheme?.colors?.[0]) ? undefined : "violet"}
                       style={{ backgroundColor: (agency?.useCustomTheme && agency?.customTheme?.colors?.[0]) || undefined }}
-                      radius="xl" 
+                      radius="xl"
                       size="sm"
                     >
                       {getUserInitials()}
@@ -512,9 +514,9 @@ const AdminLayout = ({ children }) => {
                   <Text size="sm" c="dimmed">Role: {getUserRoleDisplay()}</Text>
                 </Menu.Item>
                 <Menu.Divider />
-                <Menu.Item 
-                  leftSection={<IconLogout size={16} />} 
-                  onClick={handleLogout} 
+                <Menu.Item
+                  leftSection={<IconLogout size={16} />}
+                  onClick={handleLogout}
                   color="red"
                   style={{ color: '#ff6b6b', fontWeight: '600' }}
                 >
